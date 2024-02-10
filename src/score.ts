@@ -6,12 +6,9 @@ import {
   Factory,
   Font,
 } from "vexflow";
-import { Measure, MeasureProps } from "./score.types";
+import { Measure } from "./score.types";
 
-export const renderScore = (
-  elementId: HTMLDivElement,
-  rawMeasures: MeasureProps[],
-) => {
+export const renderScore = (elementId: HTMLDivElement, measures: Measure[]) => {
   // Ref: Vexflow's test page contains a lot of exmaples of how to draw things https://www.vexflow.com/tests/
 
   // TODO: Clean up all this messy code that's really just for "hello world", spent already a whole hour just to understand how to get things to look okay.
@@ -20,7 +17,7 @@ export const renderScore = (
     renderer: {
       // This actually accepts HTMLDivElement, force casting type just to comply with the current typing.
       elementId: elementId as unknown as string,
-      width: width * rawMeasures.length + 10,
+      width: width * measures.length + 10,
       height: 250,
     },
   });
@@ -34,13 +31,9 @@ export const renderScore = (
     return system;
   };
 
-  for (
-    let measureIndex = 0;
-    measureIndex < rawMeasures.length;
-    measureIndex++
-  ) {
-    const measure = new Measure(rawMeasures[measureIndex]);
-    const { timeSignature, notes, bassDisplayName } = measure;
+  for (let measureIndex = 0; measureIndex < measures.length; measureIndex++) {
+    const measure = measures[measureIndex];
+    const { timeSignature, notes } = measure;
 
     const stave = factory
       .Stave({
@@ -56,22 +49,28 @@ export const renderScore = (
 
     const system = appendSystem();
 
-    const notesAsTickables = notes.map(({ keys, duration }, noteIndex) => {
-      const staveNote = factory.StaveNote({ keys, duration });
-      // TODO: Colour the current note to play
-      // .setStyle({ fillStyle: "red", strokeStyle: "red" })
+    const notesAsTickables = notes.map(
+      ({ keys, duration, bassDisplayName, isCurrentProgress }) => {
+        const staveNote = factory.StaveNote({ keys, duration });
+        // TODO: Colour the current note to play
+        // .setStyle({ fillStyle: "red", strokeStyle: "red" })
 
-      if (noteIndex === 0 && bassDisplayName) {
-        staveNote.addModifier(
-          new Annotation(bassDisplayName)
-            .setFont(Font.SANS_SERIF, "1.5em")
-            .setJustification(AnnotationHorizontalJustify.LEFT)
-            .setVerticalJustification(AnnotationVerticalJustify.TOP),
-        );
-      }
+        if (bassDisplayName) {
+          staveNote.addModifier(
+            new Annotation(bassDisplayName)
+              .setFont(Font.SANS_SERIF, "1.5em")
+              .setJustification(AnnotationHorizontalJustify.LEFT)
+              .setVerticalJustification(AnnotationVerticalJustify.TOP),
+          );
+        }
 
-      return staveNote;
-    });
+        if (isCurrentProgress) {
+          staveNote.setStyle({ fillStyle: "red", strokeStyle: "red" });
+        }
+
+        return staveNote;
+      },
+    );
 
     const voices = [
       factory.Voice({ time: timeSignature }).addTickables(notesAsTickables),

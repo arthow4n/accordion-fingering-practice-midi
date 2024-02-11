@@ -1,9 +1,10 @@
-import { Fragment, useEffect, useRef } from "react";
+import { Fragment, useCallback, useEffect, useRef } from "react";
 import { renderScore } from "./score";
 import { Key, Measure } from "./score.types";
 import { useImmer } from "use-immer";
 import { enableMapSet } from "immer";
 import { generateMeasuresForChallenge, isCorrectAnswer } from "./challenge";
+import { useMidiNoteOnHandler } from "./midi";
 
 enableMapSet();
 
@@ -19,7 +20,7 @@ export const App: React.FC = () => {
     measures: generateMeasuresForChallenge(null),
   });
 
-  const setCurrentInputsAndCheckProgress = (keys: Key[]) => {
+  const setCurrentInputsAndCheckProgress = useCallback((keys: Key[]) => {
     setAppState(draft => {
       {
         keys.forEach(key => draft.currentInputs.push(key));
@@ -46,7 +47,7 @@ export const App: React.FC = () => {
         }
       }
     });
-  }
+  }, [setAppState]);
 
   useEffect(() => {
     const element = outputDivRef.current;
@@ -63,8 +64,14 @@ export const App: React.FC = () => {
     };
   }, [appState]);
 
-  // TODO: Listen to MIDI event instead
   const testInputValues: Key[][] = [["c/4"], ["e/4"], ["g/4"], ["c/3"], ["g/3"], ["c/3", "e/3", "g/3"]];
+
+  useMidiNoteOnHandler(useCallback((event) => {
+    // TODO: Support accidentals
+    const input = `${event.note.name.toLowerCase()}/${event.note.octave}` as Key;
+    console.log("MIDI input: ", input);
+    setCurrentInputsAndCheckProgress([input])
+  }, [setCurrentInputsAndCheckProgress]));
 
   return <div>
     <div ref={outputDivRef}></div>

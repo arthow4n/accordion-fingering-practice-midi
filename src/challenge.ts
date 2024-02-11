@@ -175,10 +175,11 @@ export const isCorrectAnswer = (
   currentInputs: AnswerKeys,
   answerKeys: AnswerKeys,
 ) => {
-  console.log([...currentInputs.treble.values()]);
-  console.log([...currentInputs.bass.values()]);
-  console.log([...answerKeys.treble.values()]);
-  console.log([...answerKeys.treble.values()]);
+  // console.log("Current treble input: ", [...currentInputs.treble.values()]);
+  // console.log("Current bass input: ", [...currentInputs.bass.values()]);
+  // console.log("Answer treble: ", [...answerKeys.treble.values()]);
+  // console.log("Answer bass: ", [...answerKeys.bass.values()]);
+
   return (
     isSupersetOf(currentInputs.treble, answerKeys.treble) &&
     isSupersetOf(currentInputs.bass, answerKeys.bass)

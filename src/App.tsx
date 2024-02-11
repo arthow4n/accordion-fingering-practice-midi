@@ -1,10 +1,11 @@
-import { Fragment, useCallback, useEffect, useRef } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { renderScore } from "./score";
 import { Key, Measure } from "./score.types";
 import { useImmer } from "use-immer";
 import { enableMapSet } from "immer";
 import { AnswerKeys, createAnswerKeys, generateMeasuresForChallenge, isCorrectAnswer } from "./challenge";
 import { useMidiNoteOnHandler } from "./midi";
+import { WebMidi } from "webmidi";
 
 enableMapSet();
 
@@ -15,6 +16,8 @@ type AppState = {
 
 export const App: React.FC = () => {
   const outputDivRef = useRef<HTMLDivElement>(null);
+  const [detectedMidiInputs, setDetectedMidiInputs] = useState("");
+
   const [appState, setAppState] = useImmer<AppState>({
     currentInputs: createAnswerKeys(),
     measures: generateMeasuresForChallenge(null),
@@ -83,24 +86,38 @@ export const App: React.FC = () => {
     }));
   }, [setCurrentInputsAndCheckProgress]));
 
-  return <div>
-    <div ref={outputDivRef}></div>
-    <div>
-      Trigger input for testing treble: {testInputValues.map((keys, index) => {
-        return <Fragment key={index}><button onClick={() => setCurrentInputsAndCheckProgress(createAnswerKeys({
-          treble: keys,
-          bass: []
-        }))}>{keys.join(",")}</button><span>{" "}</span></Fragment>
-      })}
-    </div>
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDetectedMidiInputs(
+        WebMidi.inputs.map(x => `${x.manufacturer} ${x.name}`).sort().join(", "));
+    }, 1000);
 
+    return () => {
+      clearInterval(interval);
+    };
+  }, []);
+
+  return <main>
     <div>
-      Trigger input for testing bass: {testInputValues.map((keys, index) => {
-        return <Fragment key={index}><button onClick={() => setCurrentInputsAndCheckProgress(createAnswerKeys({
-          treble: [],
-          bass: keys
-        }))}>{keys.join(",")}</button><span>{" "}</span></Fragment>
-      })}
+      <div ref={outputDivRef}></div>
+      <p>Detected MIDI inputs: {detectedMidiInputs}</p>
+      <p>
+        Trigger input for testing treble: {testInputValues.map((keys, index) => {
+          return <Fragment key={index}><button onClick={() => setCurrentInputsAndCheckProgress(createAnswerKeys({
+            treble: keys,
+            bass: []
+          }))}>{keys.join(",")}</button><span>{" "}</span></Fragment>
+        })}
+      </p>
+
+      <p>
+        Trigger input for testing bass: {testInputValues.map((keys, index) => {
+          return <Fragment key={index}><button onClick={() => setCurrentInputsAndCheckProgress(createAnswerKeys({
+            treble: [],
+            bass: keys
+          }))}>{keys.join(",")}</button><span>{" "}</span></Fragment>
+        })}
+      </p>
     </div>
-  </div>;
+  </main>;
 };

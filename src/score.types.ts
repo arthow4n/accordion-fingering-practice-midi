@@ -30,7 +30,8 @@ const chordVariants = ["", "m", "7"] as const;
 type ChordVariant = (typeof chordVariants)[number];
 const chordVariantAlternatives = ["Normal", "Alt"] as const;
 type ChordVariantAlternative = (typeof chordVariantAlternatives)[number];
-type Chord = `${Uppercase<RootNote>}${Accidental | ""}${ChordVariant}`;
+export type BassChordKey = `${Uppercase<RootNote>}${Accidental | ""}`;
+type Chord = `${BassChordKey}${ChordVariant}`;
 
 const timeSignatures = ["3/4", "4/4"] as const;
 type TimeSignature = (typeof timeSignatures)[number];
@@ -38,19 +39,27 @@ type TimeSignature = (typeof timeSignatures)[number];
 export type Bass = `${Chord}_${TimeSignature}_${ChordVariantAlternative}`;
 export type ParsedBass = {
   chord: Chord;
+  bassChordKey: BassChordKey;
   timeSignature: TimeSignature;
   variant: ChordVariantAlternative;
   raw: Bass;
 };
-export const parseBass = (raw: Bass) => {
+export const parseBass = (raw: Bass): ParsedBass => {
   const [chord, timeSignature, variant] = raw.split("_");
 
+  const bassChordKey =
+    chord.endsWith("m") || chord.endsWith("7") ? chord.slice(0, -1) : chord;
+
   return {
-    chord,
-    timeSignature,
-    variant,
+    chord: chord as Chord,
+    bassChordKey: bassChordKey as BassChordKey,
+    timeSignature: timeSignature as TimeSignature,
+    variant: variant as ChordVariantAlternative,
     raw,
-  } as ParsedBass;
+  };
+};
+export const parseBassOrNull = (raw: Bass | undefined | null) => {
+  return raw ? parseBass(raw) : null;
 };
 
 type BassPattern = Key[][];

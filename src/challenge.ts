@@ -1,15 +1,18 @@
 import { last } from "lodash-es";
 import {
+  BassChordKey,
   Duration,
   Key,
   KeysWithDuration,
   Measure,
   ParsedBass,
   parseBass,
+  parseBassOrNull,
   supportedBasses,
 } from "./score.types";
 import { isSupersetOf, takeOne } from "./utils";
 
+// TODO: Support other scales than C Major
 const supportedKeys: Key[] = [
   "g/3",
   "a/3",
@@ -28,10 +31,30 @@ const supportedKeys: Key[] = [
   "g/5",
 ];
 
-const isFirstBassValid = (first: ParsedBass): boolean => {
+const bassPosition: BassChordKey[] = ["Bb", "F", "C", "G", "D", "A", "E"];
+
+// TODO: Allow configuration
+const maxTrebleIntervalJump = 3;
+const maxBassIntervalJump = 2;
+
+const isFirstBassValid = (
+  first: ParsedBass,
+  lastBassFromPreviousMeasures: ParsedBass | null,
+): boolean => {
   // Don't start the first bass with an alternative bass
-  if (first.timeSignature === "3/4") {
-    return first.variant === "Normal";
+  if (first.timeSignature === "3/4" && first.variant !== "Normal") {
+    return false;
+  }
+
+  if (lastBassFromPreviousMeasures) {
+    const interval = Math.abs(
+      bassPosition.indexOf(lastBassFromPreviousMeasures.bassChordKey) -
+        bassPosition.indexOf(first.bassChordKey),
+    );
+
+    if (interval > maxBassIntervalJump) {
+      return false;
+    }
   }
 
   return true;
@@ -61,9 +84,6 @@ const isSecondBassValid = (first: ParsedBass, second: ParsedBass): boolean => {
   return true;
 };
 
-// TODO: Allow configuration
-const maxIntervalJump = 3;
-
 const isNextKeyValid = (previousKey: Key | null | undefined, nextKey: Key) => {
   if (!previousKey) {
     return true;
@@ -73,7 +93,7 @@ const isNextKeyValid = (previousKey: Key | null | undefined, nextKey: Key) => {
     supportedKeys.indexOf(previousKey) - supportedKeys.indexOf(nextKey),
   );
 
-  if (interval >= maxIntervalJump) {
+  if (interval > maxTrebleIntervalJump) {
     return false;
   }
 
@@ -87,7 +107,7 @@ const generateBass = () => {
 const generateNotes = (
   bass: ParsedBass,
   measureIndex: number,
-  lastKeyFromLastMeasure: Key | null,
+  lastKeyFromLastMeasure: Key | null | undefined,
 ): KeysWithDuration[] => {
   // TODO: Support more durations
   const [countRaw, duration] = bass.timeSignature.split("/") as [
@@ -124,11 +144,16 @@ const generateNotes = (
 export const generateMeasuresForChallenge = (
   previousMeasures: Measure[] | null,
 ): Measure[] => {
-  // TODO: Create next challenge where the bass is not too far away from the previous one
-  previousMeasures;
+  const lastNoteFromPreviousMeasures = last(
+    previousMeasures?.flatMap((m) => m.notes),
+  );
+
+  const lastBassFromPreviousMeasures = parseBassOrNull(
+    lastNoteFromPreviousMeasures?.bass,
+  );
 
   let firstBass = generateBass();
-  while (!isFirstBassValid(firstBass)) {
+  while (!isFirstBassValid(firstBass, lastBassFromPreviousMeasures)) {
     firstBass = generateBass();
   }
 
@@ -137,7 +162,12 @@ export const generateMeasuresForChallenge = (
     secondBass = generateBass();
   }
 
-  const firstMeasureNotes = generateNotes(firstBass, 0, null);
+  const firstMeasureNotes = generateNotes(
+    firstBass,
+    0,
+    lastNoteFromPreviousMeasures?.keys[0],
+  );
+
   return Measure.fromPropsList([
     {
       notes: firstMeasureNotes,
@@ -171,6 +201,7 @@ export const createAnswerKeys = (
   };
 };
 
+// TODO: Allow checking only bass/treble
 export const isCorrectAnswer = (
   currentInputs: AnswerKeys,
   answerKeys: AnswerKeys,

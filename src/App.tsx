@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { renderScore } from "./score";
 import { Key, Measure } from "./score.types";
 import { useImmer } from "use-immer";
@@ -6,30 +6,41 @@ import { enableMapSet } from "immer";
 import { AnswerCheckMode, AnswerKeys, createAnswerKeys, generateMeasuresForChallenge, isCorrectAnswer } from "./challenge";
 import { useMidiNoteOnHandler } from "./midi";
 import { WebMidi } from "webmidi";
+import { ensureNotNullish } from "./utils";
 
 enableMapSet();
 
 type AppState = {
+  detectedMidiInputDevices: string;
   currentInputs: AnswerKeys;
   answerCheckMode: AnswerCheckMode,
   measures: Measure[];
+  inputForCurrentMeasuresStartedAtTime: Date | null;
+  timeTookToCompleteLastMeasuresInSeconds: number;
 };
 
 export const App: React.FC = () => {
   const outputDivRef = useRef<HTMLDivElement>(null);
-  const [detectedMidiInputs, setDetectedMidiInputs] = useState("");
-
   const [appState, setAppState] = useImmer<AppState>({
+    detectedMidiInputDevices: "",
     currentInputs: createAnswerKeys(),
     answerCheckMode: AnswerCheckMode.All,
     measures: generateMeasuresForChallenge(null),
+    inputForCurrentMeasuresStartedAtTime: null,
+    timeTookToCompleteLastMeasuresInSeconds: 0,
   });
 
   const setCurrentInputsAndCheckProgress = useCallback((inputAnswerKeys: AnswerKeys) => {
     setAppState(draft => {
       {
+        const oldInputSize = draft.currentInputs.treble.size + draft.currentInputs.bass.size;
         inputAnswerKeys.treble.forEach(v => draft.currentInputs.treble.add(v));
         inputAnswerKeys.bass.forEach(v => draft.currentInputs.bass.add(v));
+        const newInputSize = draft.currentInputs.treble.size + draft.currentInputs.bass.size;
+
+        if (oldInputSize === 0 && newInputSize > 0 && !draft.inputForCurrentMeasuresStartedAtTime) {
+          draft.inputForCurrentMeasuresStartedAtTime = new Date();
+        }
       }
 
       {
@@ -50,6 +61,10 @@ export const App: React.FC = () => {
           const isLastNoteCompleted = currentNoteIndex === notes.length - 1;
           if (isLastNoteCompleted) {
             draft.measures = generateMeasuresForChallenge(draft.measures);
+            const now = new Date();
+            const timeTookToCompleteLastMeasures = now.getTime() - ensureNotNullish(draft.inputForCurrentMeasuresStartedAtTime).getTime();
+            draft.timeTookToCompleteLastMeasuresInSeconds = timeTookToCompleteLastMeasures / 1000;
+            draft.inputForCurrentMeasuresStartedAtTime = null;
           } else {
             const nextNote = notes[currentNoteIndex + 1];
             currentNote.isCurrentProgress = false;
@@ -88,19 +103,22 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setDetectedMidiInputs(
-        WebMidi.inputs.map(x => `${x.manufacturer} ${x.name}`).sort().join(", "));
+      setAppState(draft => {
+        draft.detectedMidiInputDevices = WebMidi.inputs.map(x => `${x.manufacturer} ${x.name}`).sort().join(", ");
+      });
     }, 1000);
 
     return () => {
       clearInterval(interval);
     };
-  }, []);
+  }, [setAppState]);
 
   return <main>
     <div>
+      <p>Time took for the last measures: {`${appState.timeTookToCompleteLastMeasuresInSeconds.toFixed(2)}s`}</p>
       <div ref={outputDivRef}></div>
-      <p>Detected MIDI inputs: {detectedMidiInputs}</p>
+
+      <p>Detected MIDI inputs: {appState.detectedMidiInputDevices}</p>
 
       <p>
         Answer check mode: {" "}

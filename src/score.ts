@@ -51,7 +51,11 @@ export const renderScore = (elementId: HTMLDivElement, measures: Measure[]) => {
 
     const notesAsTickables = notes.map(
       ({ keys, duration, bassDisplayName, isCurrentProgress }) => {
-        const staveNote = factory.StaveNote({ keys, duration });
+        const staveNote = factory.StaveNote({
+          keys,
+          duration,
+          auto_stem: true,
+        });
         // TODO: Colour the current note to play
         // .setStyle({ fillStyle: "red", strokeStyle: "red" })
 

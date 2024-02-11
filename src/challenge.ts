@@ -1,3 +1,4 @@
+import { last } from "lodash-es";
 import {
   Duration,
   Key,
@@ -9,20 +10,23 @@ import {
 } from "./score.types";
 import { takeOne } from "./utils";
 
-const supportedKeys = [
-  //   "g/3",
-  //   "a/4",
-  //   "b/4",
+const supportedKeys: Key[] = [
+  "g/3",
+  "a/3",
+  "b/3",
   "c/4",
-  //   "d/4",
+  "d/4",
   "e/4",
-  //   "f/4",
+  "f/4",
   "g/4",
-  //   "a/5",
-  //   "b/5",
-  //   "c/5",
-  //   "d/5",
-] satisfies Key[];
+  "a/4",
+  "b/4",
+  "c/5",
+  "d/5",
+  "e/5",
+  "f/5",
+  "g/5",
+];
 
 const isFirstBassValid = (first: ParsedBass): boolean => {
   // Don't start the first bass with an alternative bass
@@ -57,6 +61,25 @@ const isSecondBassValid = (first: ParsedBass, second: ParsedBass): boolean => {
   return true;
 };
 
+// TODO: Allow configuration
+const maxIntervalJump = 3;
+
+const isNextKeyValid = (previousKey: Key | null | undefined, nextKey: Key) => {
+  if (!previousKey) {
+    return true;
+  }
+
+  const interval = Math.abs(
+    supportedKeys.indexOf(previousKey) - supportedKeys.indexOf(nextKey),
+  );
+
+  if (interval >= maxIntervalJump) {
+    return false;
+  }
+
+  return true;
+};
+
 const generateBass = () => {
   return parseBass(takeOne(supportedBasses));
 };
@@ -64,6 +87,7 @@ const generateBass = () => {
 const generateNotes = (
   bass: ParsedBass,
   measureIndex: number,
+  lastKeyFromLastMeasure: Key | null,
 ): KeysWithDuration[] => {
   // TODO: Support more durations
   const [countRaw, duration] = bass.timeSignature.split("/") as [
@@ -72,16 +96,29 @@ const generateNotes = (
   ];
   const count = parseInt(countRaw, 10);
 
-  return Array(count)
-    .fill(0)
-    .map((_, index): KeysWithDuration => {
-      return {
-        bass: bass.raw,
-        duration,
-        keys: [takeOne(supportedKeys)],
-        isCurrentProgress: index === 0 && measureIndex === 0,
-      };
-    });
+  const result: KeysWithDuration[] = [];
+  while (result.length < count) {
+    const previousKey =
+      lastKeyFromLastMeasure && !result.length
+        ? lastKeyFromLastMeasure
+        : last(result)?.keys[0];
+
+    let nextKey = takeOne(supportedKeys);
+    while (!isNextKeyValid(previousKey, nextKey)) {
+      nextKey = takeOne(supportedKeys);
+    }
+
+    const next = {
+      bass: bass.raw,
+      duration,
+      keys: [nextKey],
+      isCurrentProgress: result.length === 0 && measureIndex === 0,
+    };
+
+    result.push(next);
+  }
+
+  return result;
 };
 
 export const generateMeasuresForChallenge = (
@@ -100,12 +137,13 @@ export const generateMeasuresForChallenge = (
     secondBass = generateBass();
   }
 
+  const firstMeasureNotes = generateNotes(firstBass, 0, null);
   return Measure.fromPropsList([
     {
-      notes: generateNotes(firstBass, 0),
+      notes: firstMeasureNotes,
     },
     {
-      notes: generateNotes(secondBass, 1),
+      notes: generateNotes(secondBass, 1, last(firstMeasureNotes)!.keys[0]),
     },
   ]);
 };

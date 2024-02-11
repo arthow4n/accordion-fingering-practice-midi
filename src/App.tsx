@@ -28,13 +28,16 @@ export const App: React.FC = () => {
 
       {
         const notes = draft.measures.flatMap(m => m.notes);
+
         const currentNoteIndex = notes.findIndex(x => x.isCurrentProgress);
         if (currentNoteIndex === -1) {
           throw new Error("Couldn't find a note with isCurrentProgress = true.")
         }
         const currentNote = notes[currentNoteIndex];
-        const allKeys = currentNote.keys.concat(currentNote.bassPatternKeys);
-        if (isCorrectAnswer(draft.currentInputs, allKeys)) {
+
+        const answerKeys = currentNote.keys.concat(currentNote.bassPatternKeys);
+
+        if (isCorrectAnswer(draft.currentInputs, answerKeys)) {
           const isLastNoteCompleted = currentNoteIndex === notes.length - 1;
           if (isLastNoteCompleted) {
             draft.measures = generateMeasuresForChallenge(draft.measures);
@@ -69,7 +72,7 @@ export const App: React.FC = () => {
   useMidiNoteOnHandler(useCallback((event) => {
     // TODO: Support accidentals
     const input = `${event.note.name.toLowerCase()}/${event.note.octave}` as Key;
-    console.log("MIDI input: ", input);
+    console.log("MIDI input: ", input, ", accidental: ", event.note.accidental);
     setCurrentInputsAndCheckProgress([input])
   }, [setCurrentInputsAndCheckProgress]));
 

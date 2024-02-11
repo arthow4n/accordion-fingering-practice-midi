@@ -59,14 +59,7 @@ export const bassPatternMapping: Partial<Record<Bass, BassPattern>> = {
   "C_3/4_Alt": [["g/3"], ["c/3", "e/3", "g/3"], ["c/3", "e/3", "g/3"]],
 };
 
-export const normalToAlternateBassMapping: Partial<Record<Bass, Bass>> = {
-  "C_3/4_Normal": "C_3/4_Alt",
-};
-
 export const supportedBasses = Object.keys(bassPatternMapping) as Bass[];
-export const supportedNormalBasses = supportedBasses.filter((x) =>
-  x.endsWith("_Normal"),
-) as Bass[];
 
 export type MeasureProps = {
   notes: KeysWithDuration[];

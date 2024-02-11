@@ -8,7 +8,7 @@ import {
   parseBass,
   supportedBasses,
 } from "./score.types";
-import { takeOne } from "./utils";
+import { isSupersetOf, takeOne } from "./utils";
 
 const supportedKeys: Key[] = [
   "g/3",
@@ -148,17 +148,39 @@ export const generateMeasuresForChallenge = (
   ]);
 };
 
-export const isCorrectAnswer = (currentInputs: Key[], answerKeys: Key[]) => {
-  const uniqueAnswers = [...new Set(answerKeys)];
-  // g/3 can exist in both treble and bass,
-  // therefore we need to ensure that g/3 is pressed 2 times in that case
-  // to make sure both treble and bass are played.
-  // The current logic doesn't really check if there's at least 1 g/3 from treble and 1 g/3 from bass.
-  return uniqueAnswers.every((answerKey) => {
-    const countInCurrentInput = currentInputs.filter(
-      (x) => x === answerKey,
-    ).length;
-    const countInAnswerKeys = answerKeys.filter((x) => x === answerKey).length;
-    return countInCurrentInput >= countInAnswerKeys;
-  });
+export type AnswerKeys = {
+  treble: Set<Key>;
+  bass: Set<Key>;
+};
+
+export const createAnswerKeys = (
+  {
+    treble,
+    bass,
+  }: {
+    treble: Key[];
+    bass: Key[];
+  } = {
+    treble: [],
+    bass: [],
+  },
+): AnswerKeys => {
+  return {
+    treble: new Set(treble),
+    bass: new Set(bass),
+  };
+};
+
+export const isCorrectAnswer = (
+  currentInputs: AnswerKeys,
+  answerKeys: AnswerKeys,
+) => {
+  console.log([...currentInputs.treble.values()]);
+  console.log([...currentInputs.bass.values()]);
+  console.log([...answerKeys.treble.values()]);
+  console.log([...answerKeys.treble.values()]);
+  return (
+    isSupersetOf(currentInputs.treble, answerKeys.treble) &&
+    isSupersetOf(currentInputs.bass, answerKeys.bass)
+  );
 };

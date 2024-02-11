@@ -14,6 +14,10 @@ export const useMidiNoteOnHandler = (callback: NoteOnHandler) => {
   }, [callback]);
 };
 
+const runAllNoteOnHandlers = (event: NoteMessageEvent) => {
+  noteOnHandlers.forEach((handler) => handler(event));
+};
+
 const listenToMidiInput = async () => {
   try {
     await WebMidi.enable();
@@ -26,13 +30,16 @@ const listenToMidiInput = async () => {
     WebMidi.inputs.map((input) => input.name).join(", "),
   );
 
-  const runAllNoteOnHandlers = (event: NoteMessageEvent) => {
-    noteOnHandlers.forEach((handler) => handler(event));
-  };
-
+  WebMidi.inputs.forEach((input) =>
+    input.removeListener("noteon", runAllNoteOnHandlers),
+  );
   WebMidi.inputs.forEach((input) =>
     input.addListener("noteon", runAllNoteOnHandlers),
   );
 };
+
+WebMidi.addListener("connected", () => {
+  listenToMidiInput();
+});
 
 listenToMidiInput();

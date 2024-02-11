@@ -201,18 +201,31 @@ export const createAnswerKeys = (
   };
 };
 
-// TODO: Allow checking only bass/treble
+export enum AnswerCheckMode {
+  All = "All",
+  TrebleOnly = "TrebleOnly",
+  BassOnly = "BassOnly",
+}
+
 export const isCorrectAnswer = (
   currentInputs: AnswerKeys,
   answerKeys: AnswerKeys,
-) => {
+  answerCheckMode: AnswerCheckMode,
+): boolean => {
   // console.log("Current treble input: ", [...currentInputs.treble.values()]);
   // console.log("Current bass input: ", [...currentInputs.bass.values()]);
   // console.log("Answer treble: ", [...answerKeys.treble.values()]);
   // console.log("Answer bass: ", [...answerKeys.bass.values()]);
 
-  return (
-    isSupersetOf(currentInputs.treble, answerKeys.treble) &&
-    isSupersetOf(currentInputs.bass, answerKeys.bass)
-  );
+  const isTrebleMatch = isSupersetOf(currentInputs.treble, answerKeys.treble);
+  const isBassMatch = isSupersetOf(currentInputs.bass, answerKeys.bass);
+
+  switch (answerCheckMode) {
+    case AnswerCheckMode.All:
+      return isTrebleMatch && isBassMatch;
+    case AnswerCheckMode.BassOnly:
+      return isBassMatch;
+    case AnswerCheckMode.TrebleOnly:
+      return isTrebleMatch;
+  }
 };

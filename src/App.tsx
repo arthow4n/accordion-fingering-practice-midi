@@ -1,9 +1,9 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { renderScore } from "./score";
 import { Key, Measure } from "./score.types";
 import { useImmer } from "use-immer";
 import { enableMapSet } from "immer";
-import { AnswerKeys, createAnswerKeys, generateMeasuresForChallenge, isCorrectAnswer } from "./challenge";
+import { AnswerCheckMode, AnswerKeys, createAnswerKeys, generateMeasuresForChallenge, isCorrectAnswer } from "./challenge";
 import { useMidiNoteOnHandler } from "./midi";
 import { WebMidi } from "webmidi";
 
@@ -11,6 +11,7 @@ enableMapSet();
 
 type AppState = {
   currentInputs: AnswerKeys;
+  answerCheckMode: AnswerCheckMode,
   measures: Measure[];
 };
 
@@ -20,6 +21,7 @@ export const App: React.FC = () => {
 
   const [appState, setAppState] = useImmer<AppState>({
     currentInputs: createAnswerKeys(),
+    answerCheckMode: AnswerCheckMode.All,
     measures: generateMeasuresForChallenge(null),
   });
 
@@ -44,7 +46,7 @@ export const App: React.FC = () => {
           bass: new Set(currentNote.bassPatternKeys),
         };
 
-        if (isCorrectAnswer(draft.currentInputs, answerKeys)) {
+        if (isCorrectAnswer(draft.currentInputs, answerKeys, draft.answerCheckMode)) {
           const isLastNoteCompleted = currentNoteIndex === notes.length - 1;
           if (isLastNoteCompleted) {
             draft.measures = generateMeasuresForChallenge(draft.measures);
@@ -74,8 +76,6 @@ export const App: React.FC = () => {
     };
   }, [appState]);
 
-  const testInputValues: Key[][] = [["c/4"], ["e/4"], ["g/4"], ["c/3"], ["g/3"], ["c/3", "e/3", "g/3"]];
-
   useMidiNoteOnHandler(useCallback((event) => {
     const input = `${event.note.name.toLowerCase()}${event.note.accidental ?? ""}/${event.note.octave}` as Key;
 
@@ -101,22 +101,17 @@ export const App: React.FC = () => {
     <div>
       <div ref={outputDivRef}></div>
       <p>Detected MIDI inputs: {detectedMidiInputs}</p>
-      <p>
-        Trigger input for testing treble: {testInputValues.map((keys, index) => {
-          return <Fragment key={index}><button onClick={() => setCurrentInputsAndCheckProgress(createAnswerKeys({
-            treble: keys,
-            bass: []
-          }))}>{keys.join(",")}</button><span>{" "}</span></Fragment>
-        })}
-      </p>
 
       <p>
-        Trigger input for testing bass: {testInputValues.map((keys, index) => {
-          return <Fragment key={index}><button onClick={() => setCurrentInputsAndCheckProgress(createAnswerKeys({
-            treble: [],
-            bass: keys
-          }))}>{keys.join(",")}</button><span>{" "}</span></Fragment>
-        })}
+        Answer check mode: {" "}
+        <select defaultValue={appState.answerCheckMode} onChange={(e) => {
+          const newAnswerCheckMode = e.target.value as unknown as AnswerCheckMode;
+          setAppState(draft => {
+            draft.answerCheckMode = newAnswerCheckMode
+          });
+        }}>
+          {Object.values(AnswerCheckMode).map(x => <option key={x} value={x}>{x}</option>)}
+        </select>
       </p>
     </div>
   </main>;

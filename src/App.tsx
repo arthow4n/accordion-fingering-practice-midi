@@ -19,6 +19,16 @@ type AppState = {
   timeTookToCompleteLastMeasuresInSeconds: number;
 };
 
+const getCurrentNote = (appState: AppState) => {
+  const notes = appState.measures.flatMap(m => m.notes);
+  const currentNoteIndex = notes.findIndex(x => x.isCurrentProgress);
+  if (currentNoteIndex === -1) {
+    throw new Error("Couldn't find a note with isCurrentProgress = true.")
+  }
+  const currentNote = notes[currentNoteIndex];
+  return { currentNote, currentNoteIndex, notes };
+}
+
 export const App: React.FC = () => {
   const outputDivRef = useRef<HTMLDivElement>(null);
   const [appState, setAppState] = useImmer<AppState>({
@@ -38,20 +48,14 @@ export const App: React.FC = () => {
         inputAnswerKeys.bass.forEach(v => draft.currentInputs.bass.add(v));
         const newInputSize = draft.currentInputs.treble.size + draft.currentInputs.bass.size;
 
-        if (oldInputSize === 0 && newInputSize > 0 && !draft.inputForCurrentMeasuresStartedAtTime) {
+        const inputStartedForCurrentMeasures = oldInputSize === 0 && newInputSize > 0 && !draft.inputForCurrentMeasuresStartedAtTime;
+        if (inputStartedForCurrentMeasures) {
           draft.inputForCurrentMeasuresStartedAtTime = new Date();
         }
       }
 
       {
-        const notes = draft.measures.flatMap(m => m.notes);
-
-        const currentNoteIndex = notes.findIndex(x => x.isCurrentProgress);
-        if (currentNoteIndex === -1) {
-          throw new Error("Couldn't find a note with isCurrentProgress = true.")
-        }
-        const currentNote = notes[currentNoteIndex];
-
+        const { currentNote, currentNoteIndex, notes } = getCurrentNote(draft);
         const answerKeys: AnswerKeys = {
           treble: new Set(currentNote.keys),
           bass: new Set(currentNote.bassPatternKeys),
@@ -93,15 +97,17 @@ export const App: React.FC = () => {
 
   useKeepScreenOn();
 
+  const { currentNote } = getCurrentNote(appState);
+  // Channel information is based on Roland FR-1XB
+  const bassChannelToListenTo = currentNote.bassPatternKeys.length > 1 ? 3 : 2;
+
   useMidiNoteOnHandler(useCallback((event) => {
     const input = `${event.note.name.toLowerCase()}${event.note.accidental ?? ""}/${event.note.octave}` as Key;
-
-    // Channel information is based on Roland FR-1XB
     setCurrentInputsAndCheckProgress(createAnswerKeys({
       treble: event.message.channel === 1 ? [input] : [],
-      bass: event.message.channel === 2 || event.message.channel === 3 ? [input] : [],
+      bass: event.message.channel === bassChannelToListenTo ? [input] : [],
     }));
-  }, [setCurrentInputsAndCheckProgress]));
+  }, [setCurrentInputsAndCheckProgress, bassChannelToListenTo]));
 
   useEffect(() => {
     const interval = setInterval(() => {

@@ -212,8 +212,8 @@ export const isCorrectAnswer = (
   answerKeys: AnswerKeys,
   answerCheckMode: AnswerCheckMode,
 ): boolean => {
-  // console.log("Current treble input: ", [...currentInputs.treble.values()]);
-  // console.log("Current bass input: ", [...currentInputs.bass.values()]);
+  console.log("Current treble input: ", [...currentInputs.treble.values()]);
+  console.log("Current bass input: ", [...currentInputs.bass.values()]);
   // console.log("Answer treble: ", [...answerKeys.treble.values()]);
   // console.log("Answer bass: ", [...answerKeys.bass.values()]);
 

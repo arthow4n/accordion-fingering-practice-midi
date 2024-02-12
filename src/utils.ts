@@ -19,6 +19,8 @@ export const isSupersetOf = <T>(a: Set<T>, b: Set<T>) => {
 
 export const useKeepScreenOn = () => {
   useEffect(() => {
+    navigator.wakeLock.request("screen");
+
     const handler = async () => {
       if (document.visibilityState === "visible") {
         await navigator.wakeLock.request("screen");

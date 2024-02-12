@@ -1,4 +1,5 @@
 import { sample } from "lodash-es";
+import { useEffect } from "react";
 
 export const throwError = (): never => {
   throw new Error();
@@ -14,4 +15,19 @@ export const takeOne = <T>(all: T[]): T => {
 
 export const isSupersetOf = <T>(a: Set<T>, b: Set<T>) => {
   return [...b.values()].every((v) => a.has(v));
+};
+
+export const useKeepScreenOn = () => {
+  useEffect(() => {
+    const handler = async () => {
+      if (document.visibilityState === "visible") {
+        await navigator.wakeLock.request("screen");
+      }
+    };
+    document.addEventListener("visibilitychange", handler);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handler);
+    };
+  }, []);
 };

@@ -6,7 +6,7 @@ import { enableMapSet } from "immer";
 import { AnswerCheckMode, AnswerKeys, createAnswerKeys, generateMeasuresForChallenge, isCorrectAnswer } from "./challenge";
 import { useMidiNoteOnHandler } from "./midi";
 import { WebMidi } from "webmidi";
-import { ensureNotNullish } from "./utils";
+import { ensureNotNullish, useKeepScreenOn } from "./utils";
 
 enableMapSet();
 
@@ -90,6 +90,8 @@ export const App: React.FC = () => {
       }
     };
   }, [appState]);
+
+  useKeepScreenOn();
 
   useMidiNoteOnHandler(useCallback((event) => {
     const input = `${event.note.name.toLowerCase()}${event.note.accidental ?? ""}/${event.note.octave}` as Key;

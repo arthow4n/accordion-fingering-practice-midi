@@ -84,6 +84,14 @@ const isSecondBassValid = (first: ParsedBass, second: ParsedBass): boolean => {
   return true;
 };
 
+const isThirdBassValid = (second: ParsedBass, third: ParsedBass): boolean => {
+  return isFirstBassValid(third, second);
+};
+
+const isFourthBassValid = (third: ParsedBass, fourth: ParsedBass): boolean => {
+  return isSecondBassValid(third, fourth);
+};
+
 const isNextKeyValid = (previousKey: Key | null | undefined, nextKey: Key) => {
   if (!previousKey) {
     return true;
@@ -162,10 +170,39 @@ export const generateMeasuresForChallenge = (
     secondBass = generateBass();
   }
 
+  let thirdBass = generateBass();
+  while (!isThirdBassValid(secondBass, thirdBass)) {
+    thirdBass = generateBass();
+  }
+
+  let fourthBass = generateBass();
+  while (!isFourthBassValid(thirdBass, fourthBass)) {
+    fourthBass = generateBass();
+  }
+
+  // Some copy-pasta to begin with because I'm really unsure how should a good logic look like here.
   const firstMeasureNotes = generateNotes(
     firstBass,
     0,
     lastNoteFromPreviousMeasures?.keys[0],
+  );
+
+  const secondMeasureNotes = generateNotes(
+    secondBass,
+    1,
+    last(firstMeasureNotes)!.keys[0],
+  );
+
+  const thirdMeasureNotes = generateNotes(
+    thirdBass,
+    2,
+    last(secondMeasureNotes)!.keys[0],
+  );
+
+  const fourthMeasureNotes = generateNotes(
+    fourthBass,
+    3,
+    last(thirdMeasureNotes)!.keys[0],
   );
 
   return Measure.fromPropsList([
@@ -173,7 +210,13 @@ export const generateMeasuresForChallenge = (
       notes: firstMeasureNotes,
     },
     {
-      notes: generateNotes(secondBass, 1, last(firstMeasureNotes)!.keys[0]),
+      notes: secondMeasureNotes,
+    },
+    {
+      notes: thirdMeasureNotes,
+    },
+    {
+      notes: fourthMeasureNotes,
     },
   ]);
 };

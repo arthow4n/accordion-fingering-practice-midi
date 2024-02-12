@@ -12,11 +12,15 @@ export const renderScore = (elementId: HTMLDivElement, measures: Measure[]) => {
   // Ref: Vexflow's test page contains a lot of exmaples of how to draw things https://www.vexflow.com/tests/
 
   // TODO: Clean up all this messy code that's really just for "hello world", spent already a whole hour just to understand how to get things to look okay.
-  const width = Math.min(320, (document.documentElement.clientWidth - 100) / 2);
+  const width = Math.min(
+    300,
+    (document.documentElement.clientWidth - 100) / measures.length,
+  );
   const factory = new Factory({
     renderer: {
       // This actually accepts HTMLDivElement, force casting type just to comply with the current typing.
       elementId: elementId as unknown as string,
+      // + 10 width is for the bar line
       width: width * measures.length + 10,
       height: 120,
     },

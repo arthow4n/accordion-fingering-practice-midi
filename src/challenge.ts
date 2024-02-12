@@ -35,7 +35,7 @@ const bassPosition: BassChordKey[] = ["Bb", "F", "C", "G", "D", "A", "E"];
 
 // TODO: Allow configuration
 const maxTrebleIntervalJump = 3;
-const maxBassIntervalJump = 2;
+const maxBassIntervalJump = 3;
 
 const isFirstBassValid = (
   first: ParsedBass,

@@ -250,25 +250,41 @@ export enum AnswerCheckMode {
   BassOnly = "BassOnly",
 }
 
-export const isCorrectAnswer = (
+export const checkICorrectAnswer = (
   currentInputs: AnswerKeys,
   answerKeys: AnswerKeys,
   answerCheckMode: AnswerCheckMode,
-): boolean => {
+): {
+  isCorrectAnswer: boolean;
+  isCorrectAnswerPerfectMatch: boolean;
+} => {
   console.log("Current treble input: ", [...currentInputs.treble.values()]);
   console.log("Current bass input: ", [...currentInputs.bass.values()]);
   // console.log("Answer treble: ", [...answerKeys.treble.values()]);
   // console.log("Answer bass: ", [...answerKeys.bass.values()]);
 
   const isTrebleMatch = isSupersetOf(currentInputs.treble, answerKeys.treble);
+  const isTreblePerfectMatch =
+    isTrebleMatch && currentInputs.treble.size === answerKeys.treble.size;
   const isBassMatch = isSupersetOf(currentInputs.bass, answerKeys.bass);
+  const isBassPerfectMatch =
+    isBassMatch && currentInputs.bass.size === answerKeys.bass.size;
 
   switch (answerCheckMode) {
     case AnswerCheckMode.All:
-      return isTrebleMatch && isBassMatch;
+      return {
+        isCorrectAnswer: isTrebleMatch && isBassMatch,
+        isCorrectAnswerPerfectMatch: isTreblePerfectMatch && isBassPerfectMatch,
+      };
     case AnswerCheckMode.BassOnly:
-      return isBassMatch;
+      return {
+        isCorrectAnswer: isBassMatch,
+        isCorrectAnswerPerfectMatch: isBassPerfectMatch,
+      };
     case AnswerCheckMode.TrebleOnly:
-      return isTrebleMatch;
+      return {
+        isCorrectAnswer: isTrebleMatch,
+        isCorrectAnswerPerfectMatch: isTreblePerfectMatch,
+      };
   }
 };

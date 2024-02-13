@@ -3,7 +3,7 @@ import { renderScore } from "./score";
 import { Key, Measure } from "./score.types";
 import { useImmer } from "use-immer";
 import { enableMapSet } from "immer";
-import { AnswerCheckMode, AnswerKeys, createAnswerKeys, generateMeasuresForChallenge, isCorrectAnswer } from "./challenge";
+import { AnswerCheckMode, AnswerKeys, createAnswerKeys, generateMeasuresForChallenge, checkICorrectAnswer } from "./challenge";
 import { useMidiNoteOnHandler } from "./midi";
 import { WebMidi } from "webmidi";
 import { ensureNotNullish, useKeepScreenOn } from "./utils";
@@ -13,6 +13,10 @@ enableMapSet();
 type AppState = {
   detectedMidiInputDevices: string;
   currentInputs: AnswerKeys;
+  performance: {
+    completedSets: number;
+    perfectlyCompletedSets: number;
+  },
   answerCheckMode: AnswerCheckMode,
   measures: Measure[];
   inputForCurrentMeasuresStartedAtTime: Date | null;
@@ -35,6 +39,10 @@ export const App: React.FC = () => {
     detectedMidiInputDevices: "",
     currentInputs: createAnswerKeys(),
     answerCheckMode: AnswerCheckMode.All,
+    performance: {
+      completedSets: 0,
+      perfectlyCompletedSets: 0,
+    },
     measures: generateMeasuresForChallenge(null),
     inputForCurrentMeasuresStartedAtTime: null,
     timeTookToCompleteLastMeasuresInSeconds: 0,
@@ -61,8 +69,17 @@ export const App: React.FC = () => {
           bass: new Set(currentNote.bassPatternKeys),
         };
 
-        if (isCorrectAnswer(draft.currentInputs, answerKeys, draft.answerCheckMode)) {
+        const { isCorrectAnswer, isCorrectAnswerPerfectMatch } = checkICorrectAnswer(draft.currentInputs, answerKeys, draft.answerCheckMode);
+        if (isCorrectAnswer) {
+          draft.currentInputs = createAnswerKeys();
+
+          draft.performance.completedSets += 1;
+          if (isCorrectAnswerPerfectMatch) {
+            draft.performance.perfectlyCompletedSets += 1;
+          }
+
           const isLastNoteCompleted = currentNoteIndex === notes.length - 1;
+
           if (isLastNoteCompleted) {
             draft.measures = generateMeasuresForChallenge(draft.measures);
             const now = new Date();
@@ -73,7 +90,6 @@ export const App: React.FC = () => {
             const nextNote = notes[currentNoteIndex + 1];
             currentNote.isCurrentProgress = false;
             nextNote.isCurrentProgress = true;
-            draft.currentInputs = createAnswerKeys();
           }
         }
       }
@@ -121,9 +137,12 @@ export const App: React.FC = () => {
     };
   }, [setAppState]);
 
+  // Known issue: Currently this doesn't really check if the count of keys pressed match, to check that we need to use array instead of set when storing the input state.
+  const correctRate = (appState.performance.perfectlyCompletedSets / appState.performance.completedSets * 100);
+
   return <main>
     <div>
-      <p>Time took for the last measures: {`${appState.timeTookToCompleteLastMeasuresInSeconds.toFixed(2)}s`}</p>
+      <p>Time took for the last measures: {`${appState.timeTookToCompleteLastMeasuresInSeconds.toFixed(2)}s`}, correct rate: {correctRate >= 0 ? `${correctRate.toFixed(2)}%` : ""} ({appState.performance.perfectlyCompletedSets}/{appState.performance.completedSets})</p>
       <div ref={outputDivRef}></div>
 
       <p>Detected MIDI inputs: {appState.detectedMidiInputDevices}</p>
@@ -133,7 +152,9 @@ export const App: React.FC = () => {
         <select defaultValue={appState.answerCheckMode} onChange={(e) => {
           const newAnswerCheckMode = e.target.value as unknown as AnswerCheckMode;
           setAppState(draft => {
-            draft.answerCheckMode = newAnswerCheckMode
+            draft.answerCheckMode = newAnswerCheckMode;
+            draft.performance.completedSets = 0;
+            draft.performance.perfectlyCompletedSets = 0;
           });
         }}>
           {Object.values(AnswerCheckMode).map(x => <option key={x} value={x}>{x}</option>)}

@@ -19,16 +19,21 @@ export const isSupersetOf = <T>(a: Set<T>, b: Set<T>) => {
 
 export const useKeepScreenOn = () => {
   useEffect(() => {
-    navigator.wakeLock.request("screen");
+    let wakelock: WakeLockSentinel | null;
 
     const handler = async () => {
+      wakelock?.release();
+
       if (document.visibilityState === "visible") {
-        await navigator.wakeLock.request("screen");
+        wakelock = await navigator.wakeLock.request("screen");
       }
     };
+
+    handler();
     document.addEventListener("visibilitychange", handler);
 
     return () => {
+      wakelock?.release();
       document.removeEventListener("visibilitychange", handler);
     };
   }, []);

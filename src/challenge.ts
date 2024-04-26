@@ -35,7 +35,7 @@ const bassPosition: BassChordKey[] = ["Bb", "F", "C", "G", "D", "A", "E"];
 
 // TODO: Allow configuration
 const maxTrebleIntervalJump = 3;
-const maxBassIntervalJump = 3;
+const maxBassIntervalJump = 4;
 
 const isFirstBassValid = (
   first: ParsedBass,
@@ -60,12 +60,20 @@ const isFirstBassValid = (
   return true;
 };
 
-const isSecondBassValid = (first: ParsedBass, second: ParsedBass): boolean => {
+const isSecondBassValid = (
+  first: ParsedBass,
+  second: ParsedBass,
+  allowChordChange = false,
+): boolean => {
   if (first.timeSignature != second.timeSignature) {
     return false;
   }
 
-  if (first.timeSignature === "3/4" && second.variant !== "Alt") {
+  if (
+    !allowChordChange &&
+    first.timeSignature === "3/4" &&
+    second.variant !== "Alt"
+  ) {
     return false;
   }
 
@@ -89,7 +97,7 @@ const isThirdBassValid = (second: ParsedBass, third: ParsedBass): boolean => {
 };
 
 const isFourthBassValid = (third: ParsedBass, fourth: ParsedBass): boolean => {
-  return isSecondBassValid(third, fourth);
+  return isSecondBassValid(third, fourth, true);
 };
 
 const isNextKeyValid = (previousKey: Key | null | undefined, nextKey: Key) => {

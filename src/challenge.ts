@@ -6,35 +6,52 @@ import {
   KeysWithDuration,
   Measure,
   ParsedBass,
+  isKeyAccidental,
   parseBass,
   parseBassOrNull,
   supportedBasses,
 } from "./score.types";
 import { isSupersetOf, takeOne } from "./utils";
 
+type GenerateNotesTrebleContext = {
+  currentTrebleTotalAccidentals: number;
+};
+
 // TODO: Support other scales than C Major
 const supportedKeys: Key[] = [
   "g/3",
+  "g#/3",
   "a/3",
+  "a#/3",
   "b/3",
   "c/4",
+  "c#/4",
   "d/4",
+  "d#/4",
   "e/4",
   "f/4",
+  "f#/4",
   "g/4",
+  "g#/4",
   "a/4",
+  "a#/4",
   "b/4",
   "c/5",
+  "c#/5",
   "d/5",
+  "d#/5",
   "e/5",
   "f/5",
+  "f#/5",
   "g/5",
+  "g#/5",
 ];
 
 const bassPosition: BassChordKey[] = ["Bb", "F", "C", "G", "D", "A", "E"];
 
 // TODO: Allow configuration
-const maxTrebleIntervalJump = 3;
+const maxTrebleTotalAccidentals = 1;
+const maxTrebleIntervalJump = 6;
 const maxBassIntervalJump = 4;
 
 const isFirstBassValid = (
@@ -100,7 +117,15 @@ const isFourthBassValid = (third: ParsedBass, fourth: ParsedBass): boolean => {
   return isSecondBassValid(third, fourth, true);
 };
 
-const isNextKeyValid = (previousKey: Key | null | undefined, nextKey: Key) => {
+const isNextKeyValid = (
+  previousKey: Key | null | undefined,
+  nextKey: Key,
+  allowAccidental: boolean,
+) => {
+  if (!allowAccidental && isKeyAccidental(nextKey)) {
+    return false;
+  }
+
   if (!previousKey) {
     return true;
   }
@@ -124,6 +149,7 @@ const generateNotes = (
   bass: ParsedBass,
   measureIndex: number,
   lastKeyFromLastMeasure: Key | null | undefined,
+  trebleContext: GenerateNotesTrebleContext,
 ): KeysWithDuration[] => {
   // TODO: Support more durations
   const [countRaw, duration] = bass.timeSignature.split("/") as [
@@ -140,8 +166,18 @@ const generateNotes = (
         : last(result)?.keys[0];
 
     let nextKey = takeOne(supportedKeys);
-    while (!isNextKeyValid(previousKey, nextKey)) {
+    while (
+      !isNextKeyValid(
+        previousKey,
+        nextKey,
+        trebleContext.currentTrebleTotalAccidentals < maxTrebleTotalAccidentals,
+      )
+    ) {
       nextKey = takeOne(supportedKeys);
+    }
+
+    if (isKeyAccidental(nextKey)) {
+      trebleContext.currentTrebleTotalAccidentals++;
     }
 
     const next = {
@@ -188,29 +224,37 @@ export const generateMeasuresForChallenge = (
     fourthBass = generateBass();
   }
 
+  const trebleContext: GenerateNotesTrebleContext = {
+    currentTrebleTotalAccidentals: 0,
+  };
+
   // Some copy-pasta to begin with because I'm really unsure how should a good logic look like here.
   const firstMeasureNotes = generateNotes(
     firstBass,
     0,
     lastNoteFromPreviousMeasures?.keys[0],
+    trebleContext,
   );
 
   const secondMeasureNotes = generateNotes(
     secondBass,
     1,
     last(firstMeasureNotes)!.keys[0],
+    trebleContext,
   );
 
   const thirdMeasureNotes = generateNotes(
     thirdBass,
     2,
     last(secondMeasureNotes)!.keys[0],
+    trebleContext,
   );
 
   const fourthMeasureNotes = generateNotes(
     fourthBass,
     3,
     last(thirdMeasureNotes)!.keys[0],
+    trebleContext,
   );
 
   return Measure.fromPropsList([

@@ -229,3 +229,5 @@ export class Measure implements MeasureProps {
     });
   }
 }
+
+export const isKeyAccidental = (key: Key) => /[bn#][/]/.test(key);

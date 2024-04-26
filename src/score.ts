@@ -1,4 +1,5 @@
 import {
+  Accidental,
   Annotation,
   AnnotationHorizontalJustify,
   AnnotationVerticalJustify,
@@ -84,6 +85,7 @@ export const renderScore = (elementId: HTMLDivElement, measures: Measure[]) => {
       factory.Voice({ time: timeSignature }).addTickables(notesAsTickables),
     ];
 
+    Accidental.applyAccidentals(voices, "C");
     system.addStave({ stave, voices });
   }
 

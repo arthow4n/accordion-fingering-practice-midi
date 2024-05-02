@@ -50,7 +50,7 @@ const supportedKeys: Key[] = [
 const bassPosition: BassChordKey[] = ["Bb", "F", "C", "G", "D", "A", "E"];
 
 // TODO: Allow configuration
-const maxTrebleTotalAccidentals = 1;
+const maxTrebleTotalAccidentals = 2;
 const maxTrebleIntervalJump = 6;
 const maxBassIntervalJump = 4;
 

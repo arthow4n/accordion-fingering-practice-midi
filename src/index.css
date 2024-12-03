@@ -1,0 +1,20 @@
+html,
+body,
+main,
+#root {
+  height: 100%;
+}
+
+main {
+  display: grid;
+  place-items: center;
+}
+
+.track .mark {
+  fill: red;
+  stroke: red;
+}
+
+.track .abcjs-chord {
+  transform: translate(0, -100px);
+}

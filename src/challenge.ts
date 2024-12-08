@@ -418,6 +418,7 @@ const stringifyNote = (note: Note) =>
   `${note.letter}${note.accidental ?? ""}${note.octave}`;
 
 const checkAnswerForHand = (
+  handSide: "left" | "right",
   questionHand: Step[],
   answerNotes: Note[],
   totalDurationPlayedInTrack: number,
@@ -427,9 +428,26 @@ const checkAnswerForHand = (
   const shoulCheck = checkInModes.includes(answerCheckMode);
 
   const step = getCurrentStepFromHand(questionHand, totalDurationPlayedInTrack);
-  const question = new Set((step?.notes ?? []).map(stringifyNote));
 
-  const answer = new Set(answerNotes.map(stringifyNote));
+  const makeStringifier = (): ((note: Note) => string) => {
+    let counter = 0;
+
+    return (note: Note): string => {
+      if (
+        handSide === "right" &&
+        answerCheckMode === AnswerCheckMode.LeftHandAndBeatOnlyRightHand
+      ) {
+        counter += 1;
+        return `${counter}`;
+      }
+
+      return stringifyNote(note);
+    };
+  };
+
+  const question = new Set((step?.notes ?? []).map(makeStringifier()));
+  const answer = new Set([...new Set(answerNotes)].map(makeStringifier()));
+
   const isCorrect = !shoulCheck || isSupersetOf(answer, question);
   const isPerfectMatch =
     !shoulCheck || (isCorrect && question.size === answer.size);
@@ -474,18 +492,28 @@ export const checkNextProgress = (
   };
 } => {
   const resultLeft = checkAnswerForHand(
+    "left",
     questionTrack.leftHand,
     answerInput.currentInputStep.leftHand,
     answerInput.totalDurationPlayedInTrack,
-    [AnswerCheckMode.All, AnswerCheckMode.LeftHandOnly],
+    [
+      AnswerCheckMode.All,
+      AnswerCheckMode.LeftHandOnly,
+      AnswerCheckMode.LeftHandAndBeatOnlyRightHand,
+    ],
     answerCheckMode,
   );
 
   const resultRight = checkAnswerForHand(
+    "right",
     questionTrack.rightHand,
     answerInput.currentInputStep.rightHand,
     answerInput.totalDurationPlayedInTrack,
-    [AnswerCheckMode.All, AnswerCheckMode.RightHandOnly],
+    [
+      AnswerCheckMode.All,
+      AnswerCheckMode.RightHandOnly,
+      AnswerCheckMode.LeftHandAndBeatOnlyRightHand,
+    ],
     answerCheckMode,
   );
 

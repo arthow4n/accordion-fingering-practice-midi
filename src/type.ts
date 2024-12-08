@@ -71,6 +71,7 @@ export enum AnswerCheckMode {
   All = "All",
   RightHandOnly = "RightHandOnly",
   LeftHandOnly = "LeftHandOnly",
+  LeftHandAndBeatOnlyRightHand = "LeftHandAndBeatOnlyRightHand",
 }
 
 export type AnswerInput = {

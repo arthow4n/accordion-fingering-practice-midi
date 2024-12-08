@@ -397,6 +397,23 @@ export const getCurrentStepFromHand = (
   return null;
 };
 
+const getNextStepDurationTimestamp = (
+  hand: Step[],
+  totalDurationPlayedInTrack: number,
+) => {
+  const steps = hand.flatMap((measure) => measure);
+  let durationInHandMapped = 0;
+
+  for (const step of steps) {
+    durationInHandMapped += step.duration;
+    if (durationInHandMapped > totalDurationPlayedInTrack) {
+      return durationInHandMapped;
+    }
+  }
+
+  return durationInHandMapped;
+};
+
 const stringifyNote = (note: Note) =>
   `${note.letter}${note.accidental ?? ""}${note.octave}`;
 
@@ -417,18 +434,31 @@ const checkAnswerForHand = (
   const isPerfectMatch =
     !shoulCheck || (isCorrect && question.size === answer.size);
 
+  const nextStepDurationTimestamp = getNextStepDurationTimestamp(
+    questionHand,
+    totalDurationPlayedInTrack,
+  );
+
   console.log({
     question,
     answer,
     isCorrect,
     isPerfectMatch,
-    durationToMove: step ? (isCorrect ? step.duration : 0) : null,
+    durationToMove: step
+      ? isCorrect
+        ? step.duration
+        : 0
+      : nextStepDurationTimestamp - totalDurationPlayedInTrack,
   });
 
   return {
     isCorrect,
     isPerfectMatch,
-    durationToMove: step ? (isCorrect ? step.duration : 0) : null,
+    durationToMove: step
+      ? isCorrect
+        ? step.duration
+        : 0
+      : nextStepDurationTimestamp - totalDurationPlayedInTrack,
   };
 };
 

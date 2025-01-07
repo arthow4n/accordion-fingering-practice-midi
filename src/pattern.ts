@@ -55,6 +55,6 @@ export const bassPatterns: BassPattern[] = [
   bass("B", 3, 4, T.PolkaAlt, "16(B3) 16(B2,D#3,F#3) 16(B2,D#3,F#3) 16(F#3) 16(B2,D#3,F#3) 16(B2,D#3,F#3)"), 
   bass("Bm", 3, 4, T.PolkaNormal, "16(B3) 16(B2,D3,F#3) 16(B2,D3,F#3)"),
   bass("Bm", 3, 4, T.PolkaAlt, "16(B3) 16(B2,D3,F#3) 16(B2,D3,F#3) 16(F#3) 16(B2,D3,F#3) 16(B2,D3,F#3)"), 
-  bass("B7", 3, 4, T.PolkaNormal, "16(B3) 16(B2,D3,F#3,A3) 16(B2,D3,F#3,A3)"),
-  bass("B7", 3, 4, T.PolkaAlt, "16(B3) 16(B2,D3,F#3,A3) 16(B2,D3,F#3,A3) 16(F#3) 16(B2,D3,F#3,A3) 16(B2,D3,F#3,A3)"), 
+  bass("B7", 3, 4, T.PolkaNormal, "16(B3) 16(B2,D#3,F#3,A3) 16(B2,D#3,F#3,A3)"),
+  bass("B7", 3, 4, T.PolkaAlt, "16(B3) 16(B2,D#3,F#3,A3) 16(B2,D#3,F#3,A3) 16(F#3) 16(B2,D#3,F#3,A3) 16(B2,D#3,F#3,A3)"), 
 ];

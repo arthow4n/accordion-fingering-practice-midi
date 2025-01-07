@@ -41,7 +41,7 @@ function App() {
     answerInput: generateEmptyAnswerInput(),
 
     questionGenerationSetting: defaultQuestionGenerationSetting,
-    answerCheckMode: AnswerCheckMode.LeftHandAndBeatOnlyRightHand,
+    answerCheckMode: AnswerCheckMode.LeftHandOnly,
 
     detectedMidiInputDevices: "",
     metrics: {

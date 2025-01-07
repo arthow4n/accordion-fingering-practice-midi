@@ -50,6 +50,7 @@ function App() {
     },
     inputForCurrentMeasuresStartedAtTime: null,
     timeTookToCompleteLastMeasuresInSeconds: 0,
+    rejectInputBeforeTime: new Date(),
   });
 
   const currentStepLeft = getCurrentStepFromHand(questionTrack.leftHand, answerInput.totalDurationPlayedInTrack);
@@ -65,6 +66,11 @@ function App() {
     logMidiInputIfNotNull(inputEvent.rightHand);
 
     setAppState(draft => {
+      console.log(+new Date(), +draft.rejectInputBeforeTime, new Date() < draft.rejectInputBeforeTime)
+      if (new Date() < draft.rejectInputBeforeTime) {
+        return;
+      }
+
       {
         const oldInputSize = draft.answerInput.currentInputStep.leftHand.length + draft.answerInput.currentInputStep.rightHand.length;
         if (inputEvent.leftHand) {
@@ -83,6 +89,8 @@ function App() {
       }
 
       {
+        const playedDurationStart = draft.answerInput.totalDurationPlayedInTrack;
+
         let { nextProgress } = checkNextProgress(draft.questionTrack, draft.answerInput, draft.answerCheckMode, draft.metrics);
         if (draft.answerInput.totalDurationPlayedInTrack !== nextProgress.totalDurationPlayedInTrack) {
           draft.answerInput = generateEmptyAnswerInput();
@@ -109,12 +117,16 @@ function App() {
           }
         }
 
+        // Block the input briefly after each step to prevent mindless progress
+        const durationPlayedByAnswer = draft.answerInput.totalDurationPlayedInTrack - playedDurationStart;
+        // 1/4 = 180 bpm
+        draft.rejectInputBeforeTime = new Date(Date.now() + (1000 / 64 * durationPlayedByAnswer))
+
         if (draft.answerInput.totalDurationPlayedInTrack >= getTotalDurationOfTrack(questionTrack)) {
           draft.questionTrack = generateQuestionTrack({
             previousQuestionTrack: draft.questionTrack,
             questionGenerationSetting: draft.questionGenerationSetting,
           });
-          console.log('gg')
           draft.answerInput = generateEmptyAnswerInput();
 
           const now = new Date();

@@ -98,6 +98,7 @@ export type AppState = {
   metrics: Metrics;
   inputForCurrentMeasuresStartedAtTime: Date | null;
   timeTookToCompleteLastMeasuresInSeconds: number;
+  rejectInputBeforeTime: Date;
 };
 
 export type BassBaseRoot = `${NoteLetter}${NoteAccidental}`;

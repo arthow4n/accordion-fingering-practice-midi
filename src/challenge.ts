@@ -18,6 +18,7 @@ import {
   TimeSignature,
   Track,
   TrackKey,
+  NoteLetterWithOctave,
 } from "./type";
 import { isSupersetOf, takeOne } from "./utils";
 import { bassPatterns, rightHandPatterns } from "./pattern";
@@ -312,9 +313,14 @@ const handToAbc = (
   handSteps: Step[],
   totalDurationPlayedInTrack: number,
 ) => {
+  let sharpedNotesInCurrentMeasure = new Set<NoteLetterWithOctave>();
+  let flattenedNotesInCurrentMeasure = new Set<NoteLetterWithOctave>();
+
   const noteToAbc = (note: Note): string => {
     // Cast to octave == 5 then postfix with commas to match the octave.
     let renderedNote = note.letter.toLowerCase();
+    const noteLetterWithOctave: NoteLetterWithOctave = `${note.letter}${note.octave}`;
+
     for (let x = note.octave; x < 5; x++) {
       renderedNote += ",";
     }
@@ -324,12 +330,33 @@ const handToAbc = (
       throw new Error("Only C major track is supported for now.");
     }
 
-    // TODO: Don't repeatly mark accidental which already got applied by a previous note in the measure.
     if (note.accidental === "#") {
-      renderedNote = "^" + renderedNote;
+      const shouldMarkAsSharp =
+        sharpedNotesInCurrentMeasure.has(noteLetterWithOctave);
+      if (shouldMarkAsSharp) {
+        sharpedNotesInCurrentMeasure.add(noteLetterWithOctave);
+        renderedNote = "^" + renderedNote;
+      }
     }
     if (note.accidental === "b") {
-      renderedNote = "_";
+      const shouldMarkAsFlat =
+        flattenedNotesInCurrentMeasure.has(noteLetterWithOctave);
+      if (shouldMarkAsFlat) {
+        flattenedNotesInCurrentMeasure.add(noteLetterWithOctave);
+        renderedNote = "_" + renderedNote;
+      }
+    }
+
+    if (!note.accidental) {
+      const shouldMarkAsNatural =
+        sharpedNotesInCurrentMeasure.has(noteLetterWithOctave) ||
+        flattenedNotesInCurrentMeasure.has(noteLetterWithOctave);
+
+      if (shouldMarkAsNatural) {
+        sharpedNotesInCurrentMeasure.delete(noteLetterWithOctave);
+        flattenedNotesInCurrentMeasure.delete(noteLetterWithOctave);
+        renderedNote = "=" + renderedNote;
+      }
     }
 
     return renderedNote;
@@ -345,8 +372,12 @@ const handToAbc = (
     durationRendered += step.duration;
 
     result += `${shouldMark ? "!mark!" : ""}"${step.accompaniment ?? ""}"${step.rest ? `z` : `[${step.notes.map(noteToAbc).join("")}]`}${step.duration}/64`;
+
+    // Move to the next measure
     if (durationRendered % durationPerMeasure === 0) {
       result += "|";
+      sharpedNotesInCurrentMeasure = new Set();
+      flattenedNotesInCurrentMeasure = new Set();
     }
   }
 

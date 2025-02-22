@@ -8,6 +8,8 @@ export type Note = {
   octave: number;
 };
 
+export type NoteLetterWithOctave = `${NoteLetter}${number}`;
+
 export type TrackKey = `${NoteLetter}${NoteAccidental}${"" | "min"}`;
 
 export type Step = {

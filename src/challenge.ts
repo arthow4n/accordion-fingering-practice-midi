@@ -332,7 +332,7 @@ const handToAbc = (
 
     if (note.accidental === "#") {
       const shouldMarkAsSharp =
-        sharpedNotesInCurrentMeasure.has(noteLetterWithOctave);
+        !sharpedNotesInCurrentMeasure.has(noteLetterWithOctave);
       if (shouldMarkAsSharp) {
         sharpedNotesInCurrentMeasure.add(noteLetterWithOctave);
         renderedNote = "^" + renderedNote;
@@ -340,7 +340,7 @@ const handToAbc = (
     }
     if (note.accidental === "b") {
       const shouldMarkAsFlat =
-        flattenedNotesInCurrentMeasure.has(noteLetterWithOctave);
+        !flattenedNotesInCurrentMeasure.has(noteLetterWithOctave);
       if (shouldMarkAsFlat) {
         flattenedNotesInCurrentMeasure.add(noteLetterWithOctave);
         renderedNote = "_" + renderedNote;

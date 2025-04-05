@@ -62,9 +62,6 @@ function App() {
     leftHand: NoteMessageEvent | null,
     rightHand: NoteMessageEvent | null,
   }) => {
-    logMidiInputIfNotNull(inputEvent.leftHand);
-    logMidiInputIfNotNull(inputEvent.rightHand);
-
     setAppState(draft => {
       // console.log(+new Date(), +draft.rejectInputBeforeTime, new Date() < draft.rejectInputBeforeTime)
       if (new Date() < draft.rejectInputBeforeTime) {
@@ -153,6 +150,8 @@ function App() {
   }, [setAppState]);
 
   useMidiNoteOnHandler(useCallback((event) => {
+    logMidiInputIfNotNull(event);
+
     setCurrentInputsAndCheckProgress({
       leftHand: event.message.channel === bassChannelToListenTo ? event : null,
       rightHand: event.message.channel === 1 ? event : null,

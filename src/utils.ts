@@ -40,10 +40,25 @@ export const useKeepScreenOn = () => {
   }, []);
 };
 
+let flushLogSet = new Set<string>();
+let flushLogTimeout: number | undefined = undefined;
+
 export const logMidiInputIfNotNull = (event: NoteMessageEvent | null) => {
-  if (event) {
-    console.log(
-      `Got midi input: ${event.note.name.toLowerCase()}${event.note.accidental ?? ""}/${event.note.octave}`,
-    );
+  if (!event) {
+    return;
   }
+
+  const noteString = `${event.note.name.toUpperCase()}${event.note.accidental ?? ""}${event.note.octave}`;
+
+  console.log(
+    `Got midi input on channel ${event.message.channel}: ${noteString}`,
+  );
+
+  flushLogSet.add(noteString);
+
+  clearTimeout(flushLogTimeout);
+  flushLogTimeout = setTimeout(() => {
+    console.log([...flushLogSet].join(","));
+    flushLogSet = new Set();
+  }, 50);
 };

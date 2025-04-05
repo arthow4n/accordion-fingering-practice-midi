@@ -66,7 +66,7 @@ function App() {
     logMidiInputIfNotNull(inputEvent.rightHand);
 
     setAppState(draft => {
-      console.log(+new Date(), +draft.rejectInputBeforeTime, new Date() < draft.rejectInputBeforeTime)
+      // console.log(+new Date(), +draft.rejectInputBeforeTime, new Date() < draft.rejectInputBeforeTime)
       if (new Date() < draft.rejectInputBeforeTime) {
         return;
       }

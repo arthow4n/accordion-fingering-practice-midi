@@ -488,17 +488,17 @@ const checkAnswerForHand = (
     totalDurationPlayedInTrack,
   );
 
-  console.log({
-    question,
-    answer,
-    isCorrect,
-    isPerfectMatch,
-    durationToMove: step
-      ? isCorrect
-        ? step.duration
-        : 0
-      : nextStepDurationTimestamp - totalDurationPlayedInTrack,
-  });
+  // console.log({
+  //   question,
+  //   answer,
+  //   isCorrect,
+  //   isPerfectMatch,
+  //   durationToMove: step
+  //     ? isCorrect
+  //       ? step.duration
+  //       : 0
+  //     : nextStepDurationTimestamp - totalDurationPlayedInTrack,
+  // });
 
   return {
     isCorrect,

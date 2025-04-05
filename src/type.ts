@@ -104,7 +104,7 @@ export type AppState = {
 };
 
 export type BassBaseRoot = `${NoteLetter}${NoteAccidental}`;
-export type BassBase = `${BassBaseRoot}${"" | "m" | "7"}`;
+export type BassBase = `${BassBaseRoot}${"" | "m" | "7" | "dim"}`;
 
 export enum BassPatternType {
   PolkaNormal = "PolkaNormal",

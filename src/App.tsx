@@ -6,6 +6,7 @@ import { AnswerCheckMode, AppState, QuestionLeftHandGenerationMode, QuestionGene
 import { checkNextProgress, generateEmptyAnswerInput, generateQuestionTrack, getCurrentStepFromHand, getTotalDurationOfTrack, trackToAbc } from './challenge';
 import { getNoteFromMidiEvent, useMidiNoteOnHandler } from './midi';
 import { ensureNotNullish, logMidiInputIfNotNull, useKeepScreenOn } from './utils';
+import { bassKeyRange } from './pattern.helper';
 
 const defaultQuestionGenerationSetting: QuestionGenerationSetting = {
   rightHand: {
@@ -18,8 +19,8 @@ const defaultQuestionGenerationSetting: QuestionGenerationSetting = {
     mode: QuestionLeftHandGenerationMode.PolkaAlt,
     minJump: 0,
     maxJump: 4,
-    bassRootLow: "Bb",
-    bassRootHigh: "B",
+    bassRootLow: bassKeyRange.at(0)!,
+    bassRootHigh: bassKeyRange.at(-1)!,
   }
 };
 

@@ -50,6 +50,8 @@ export const rightHandNotesRange: Note[] = [
 ].map(noteStringToNote);
 
 export const bassKeyRange: BassBaseRoot[] = [
+  "Ab",
+  "Eb",
   "Bb",
   "F",
   "C",

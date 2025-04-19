@@ -57,5 +57,10 @@ export const bassPatterns: BassPattern[] = stradellaBassRows.flatMap(([root, maj
     bass(min.name, 4, 4, T.TangoAlt, `8(${root.notesString},${min.notesString}) 8(${root.notesString},${min.notesString}) 8(${root.notesString},${min.notesString}) 4(${root.notesString},${min.notesString}) 4(${alt.root.notesString})`),
     bass(seventh.name, 4, 4, T.TangoAlt, `8(${root.notesString},${seventh.notesString}) 8(${root.notesString},${seventh.notesString}) 8(${root.notesString},${seventh.notesString}) 4(${root.notesString},${seventh.notesString}) 4(${alt.root.notesString})`),
     bass(dim.name, 4, 4, T.TangoAlt, `8(${root.notesString},${dim.notesString}) 8(${root.notesString},${dim.notesString}) 8(${root.notesString},${dim.notesString}) 4(${root.notesString},${dim.notesString}) 4(${alt.root.notesString})`),
+
+    bass(root.name, 4, 4, T.SwingAlt, `8(${root.notesString},${maj.notesString}) 8(${root.notesString},${maj.notesString}) 8(${alt.root.notesString},${maj.notesString}) 8(${alt.root.notesString},${maj.notesString})`),
+    bass(min.name, 4, 4, T.SwingAlt, `8(${root.notesString},${min.notesString}) 8(${root.notesString},${min.notesString}) 8(${alt.root.notesString},${min.notesString}) 8(${alt.root.notesString},${min.notesString})`),
+    bass(seventh.name, 4, 4, T.SwingAlt, `8(${root.notesString},${seventh.notesString}) 8(${root.notesString},${seventh.notesString}) 8(${alt.root.notesString},${seventh.notesString}) 8(${alt.root.notesString},${seventh.notesString})`),
+    bass(dim.name, 4, 4, T.SwingAlt, `8(${root.notesString},${dim.notesString}) 8(${root.notesString},${dim.notesString}) 8(${alt.root.notesString},${dim.notesString}) 8(${alt.root.notesString},${dim.notesString})`),
   ]
 });

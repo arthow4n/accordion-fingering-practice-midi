@@ -32,6 +32,7 @@ const bassGenerationModeTypeMapping: Record<
 > = {
   [QuestionLeftHandGenerationMode.PolkaAlt]: BassPatternType.PolkaAlt,
   [QuestionLeftHandGenerationMode.TangoAlt]: BassPatternType.TangoAlt,
+  [QuestionLeftHandGenerationMode.SwingAlt]: BassPatternType.SwingAlt,
 };
 
 const getDurationPerMeasure = (timeSignature: TimeSignature) => {

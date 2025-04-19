@@ -2,7 +2,7 @@ import { useImmer } from 'use-immer';
 import { renderAbc } from 'abcjs';
 import { useCallback, useEffect, useRef } from 'react';
 import { NoteMessageEvent, WebMidi } from 'webmidi';
-import { AnswerCheckMode, AppState } from './type';
+import { AnswerCheckMode, AppState, QuestionLeftHandGenerationMode, TimeSignature } from './type';
 import { checkNextProgress, generateEmptyAnswerInput, generateQuestionTrack, getTotalDurationOfTrack, trackToAbc } from './challenge';
 import { getNoteFromMidiEvent, useMidiNoteOnHandler } from './midi';
 import { ensureNotNullish, logMidiInputIfNotNull, useKeepScreenOn } from './utils';
@@ -173,15 +173,47 @@ function App() {
       <p>Detected MIDI inputs: {detectedMidiInputDevices}</p>
 
       <p>
-        Answer check mode: {" "}
-        <select defaultValue={answerCheckMode} onChange={(e) => {
-          const newAnswerCheckMode = e.target.value as unknown as AnswerCheckMode;
-          setAppSetting(setting => {
-            setting.answerCheckMode = newAnswerCheckMode;
-          })
-        }}>
-          {Object.values(AnswerCheckMode).map(x => <option key={x} value={x}>{x}</option>)}
-        </select>
+        <label>
+          {"Answer: "}
+          <select value={answerCheckMode} onChange={(e) => {
+            const newAnswerCheckMode = e.target.value as unknown as AnswerCheckMode;
+            setAppSetting(setting => {
+              setting.answerCheckMode = newAnswerCheckMode;
+            })
+          }}>
+            {Object.values(AnswerCheckMode).map(x => <option key={x} value={x}>{x}</option>)}
+          </select>
+        </label>
+        {" "}
+        <label>
+          {"Bass mode: "}
+          <select value={appSetting.questionGenerationSetting.leftHand.mode} onChange={(e) => {
+            const newMode = e.target.value as unknown as QuestionLeftHandGenerationMode;
+            setAppSetting(setting => {
+              setting.questionGenerationSetting.leftHand.mode = newMode;
+            })
+          }}>
+            {Object.values(QuestionLeftHandGenerationMode).map(x => <option key={x} value={x}>{x}</option>)}
+          </select>
+        </label>
+        {" "}
+        <label>
+          {"Time signature: "}
+          <select value={`${appSetting.questionGenerationSetting.timeSignature.top}/${appSetting.questionGenerationSetting.timeSignature.bottom}`} onChange={(e) => {
+            const newMode = e.target.value;
+            const [top, bottom] = newMode.split("/").map(v => parseInt(v, 10)) as [TimeSignature["top"], TimeSignature["bottom"]];
+            setAppSetting(setting => {
+              setting.questionGenerationSetting.timeSignature = {
+                top,
+                bottom,
+              };
+            })
+          }}>
+            {["3/4", "4/4"].map(x => <option key={x} value={x}>{x}</option>)}
+          </select>
+        </label>
+        {" "}
+        <button onClick={() => setAppSetting(null)}>Default</button>
       </p>
     </div>
   </main>;

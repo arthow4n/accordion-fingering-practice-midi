@@ -16,6 +16,10 @@ export type AppSetting = {
 };
 
 const defaultQuestionGenerationSetting: QuestionGenerationSetting = {
+  timeSignature: {
+    top: 4,
+    bottom: 4,
+  },
   rightHand: {
     mode: QuestionRightHandGenerationMode.Single,
     minJump: 0,
@@ -23,7 +27,7 @@ const defaultQuestionGenerationSetting: QuestionGenerationSetting = {
     maxAccidentalsPerTrack: 2,
   },
   leftHand: {
-    mode: QuestionLeftHandGenerationMode.TangoAlt,
+    mode: QuestionLeftHandGenerationMode.PolkaAlt,
     minJump: 0,
     maxJump: 4,
     bassRootLow: ensureNotNullish(bassKeyRange.at(0)),
@@ -49,6 +53,18 @@ const appSettingSchema = createParser<AppSetting>({
             ) ?? defaultAppSetting.answerCheckMode
           ],
         questionGenerationSetting: {
+          timeSignature: {
+            top:
+              validOrUndefined(
+                parsed.questionGenerationSetting?.timeSignature?.top,
+                (v) => v !== undefined && v > 0 && Math.floor(v) === v,
+              ) ?? 4,
+            bottom:
+              validOrUndefined(
+                parsed.questionGenerationSetting?.timeSignature?.bottom,
+                (v) => v !== undefined && v > 0 && Math.floor(v) === v,
+              ) ?? 4,
+          },
           leftHand: {
             bassRootHigh:
               validOrUndefined(
@@ -120,7 +136,12 @@ export const useAppSetting = () => {
 
   return {
     appSetting,
-    setAppSetting: (mutate: (old: AppSetting) => void) => {
+    setAppSetting: (mutate: null | ((old: AppSetting) => void)) => {
+      if (mutate === null) {
+        setState(null);
+        return;
+      }
+
       setState((old) => {
         const clone = cloneDeep(old);
         mutate(clone);

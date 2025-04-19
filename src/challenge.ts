@@ -280,11 +280,9 @@ export const generateQuestionTrack = ({
   questionGenerationSetting: QuestionGenerationSetting;
 }): Track => {
   const key: TrackKey = previousQuestionTrack?.key ?? "C";
-  // TODO: Make time signature configurable
-  const timeSignature: TimeSignature = previousQuestionTrack?.timeSignature ?? {
-    top: 4,
-    bottom: 4,
-  };
+  const timeSignature: TimeSignature =
+    previousQuestionTrack?.timeSignature ??
+    questionGenerationSetting.timeSignature;
 
   const durationPerMeasure = getDurationPerMeasure(timeSignature);
   const durationOfTrack = durationPerMeasure * trackMeasureCount;

@@ -53,6 +53,7 @@ export enum QuestionLeftHandGenerationMode {
 }
 
 export type QuestionGenerationSetting = {
+  timeSignature: TimeSignature;
   leftHand: {
     mode: QuestionLeftHandGenerationMode;
     minJump: number;

@@ -2,47 +2,22 @@ import { useImmer } from 'use-immer';
 import { renderAbc } from 'abcjs';
 import { useCallback, useEffect, useRef } from 'react';
 import { NoteMessageEvent, WebMidi } from 'webmidi';
-import { AnswerCheckMode, AppState, QuestionLeftHandGenerationMode, QuestionGenerationSetting, QuestionRightHandGenerationMode } from './type';
+import { AnswerCheckMode, AppState } from './type';
 import { checkNextProgress, generateEmptyAnswerInput, generateQuestionTrack, getTotalDurationOfTrack, trackToAbc } from './challenge';
 import { getNoteFromMidiEvent, useMidiNoteOnHandler } from './midi';
 import { ensureNotNullish, logMidiInputIfNotNull, useKeepScreenOn } from './utils';
-import { bassKeyRange } from './pattern.helper';
+import { AppSetting, useAppSetting } from './settings';
 
-const defaultQuestionGenerationSetting: QuestionGenerationSetting = {
-  rightHand: {
-    mode: QuestionRightHandGenerationMode.Single,
-    minJump: 0,
-    maxJump: 6,
-    maxAccidentalsPerTrack: 2,
-  },
-  leftHand: {
-    mode: QuestionLeftHandGenerationMode.TangoAlt,
-    minJump: 0,
-    maxJump: 4,
-    bassRootLow: ensureNotNullish(bassKeyRange.at(0)),
-    bassRootHigh: ensureNotNullish(bassKeyRange.at(-1)),
-  }
-};
-
-function App() {
-  const outputDivRef = useRef<HTMLDivElement>(null);
-
-  const [{
-    questionTrack,
-    answerInput,
-    answerCheckMode,
-    detectedMidiInputDevices,
-    timeTookToCompleteLastMeasuresInSeconds,
-    metrics,
-  }, setAppState] = useImmer<AppState>({
+const getDefaultAppState = (appSetting: AppSetting) => {
+  return {
     questionTrack: generateQuestionTrack({
       previousQuestionTrack: null,
-      questionGenerationSetting: defaultQuestionGenerationSetting
+      questionGenerationSetting: appSetting.questionGenerationSetting,
     }),
     answerInput: generateEmptyAnswerInput(),
 
-    questionGenerationSetting: defaultQuestionGenerationSetting,
-    answerCheckMode: AnswerCheckMode.LeftHandOnly,
+    questionGenerationSetting: appSetting.questionGenerationSetting,
+    answerCheckMode: appSetting.answerCheckMode,
 
     detectedMidiInputDevices: "",
     metrics: {
@@ -52,7 +27,27 @@ function App() {
     inputForCurrentMeasuresStartedAtTime: null,
     timeTookToCompleteLastMeasuresInSeconds: 0,
     rejectInputBeforeTime: new Date(),
-  });
+  };
+}
+
+function App() {
+  const outputDivRef = useRef<HTMLDivElement>(null);
+
+  const { appSetting, setAppSetting } = useAppSetting();
+
+  const [{
+    questionTrack,
+    answerInput,
+    answerCheckMode,
+    detectedMidiInputDevices,
+    timeTookToCompleteLastMeasuresInSeconds,
+    metrics,
+  }, setAppState] = useImmer<AppState>(getDefaultAppState(appSetting));
+
+  useEffect(() => {
+    setAppState(getDefaultAppState(appSetting));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(appSetting)]);
 
   const setCurrentInputsAndCheckProgress = useCallback((inputEvent: {
     leftHand: NoteMessageEvent | null,
@@ -181,11 +176,9 @@ function App() {
         Answer check mode: {" "}
         <select defaultValue={answerCheckMode} onChange={(e) => {
           const newAnswerCheckMode = e.target.value as unknown as AnswerCheckMode;
-          setAppState(draft => {
-            draft.answerCheckMode = newAnswerCheckMode;
-            draft.metrics.completedSets = 0;
-            draft.metrics.perfectlyCompletedSets = 0;
-          });
+          setAppSetting(setting => {
+            setting.answerCheckMode = newAnswerCheckMode;
+          })
         }}>
           {Object.values(AnswerCheckMode).map(x => <option key={x} value={x}>{x}</option>)}
         </select>

@@ -10,6 +10,13 @@ export const ensureNotNullish = <T>(input: T | undefined | null): T => {
   return input ?? throwError();
 };
 
+export const validOrUndefined = <T>(
+  input: T,
+  validator: (input: T) => boolean | undefined | null,
+) => {
+  return validator(input) ? input : undefined;
+};
+
 export const takeOne = <T>(all: T[]): T => {
   return ensureNotNullish(sample(all));
 };

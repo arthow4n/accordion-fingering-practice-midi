@@ -3,7 +3,7 @@ import { renderAbc } from 'abcjs';
 import { useCallback, useEffect, useRef } from 'react';
 import { NoteMessageEvent, WebMidi } from 'webmidi';
 import { AnswerCheckMode, AppState, QuestionLeftHandGenerationMode, QuestionGenerationSetting, QuestionRightHandGenerationMode } from './type';
-import { checkNextProgress, generateEmptyAnswerInput, generateQuestionTrack, getCurrentStepFromHand, getTotalDurationOfTrack, trackToAbc } from './challenge';
+import { checkNextProgress, generateEmptyAnswerInput, generateQuestionTrack, getTotalDurationOfTrack, trackToAbc } from './challenge';
 import { getNoteFromMidiEvent, useMidiNoteOnHandler } from './midi';
 import { ensureNotNullish, logMidiInputIfNotNull, useKeepScreenOn } from './utils';
 import { bassKeyRange } from './pattern.helper';
@@ -16,11 +16,11 @@ const defaultQuestionGenerationSetting: QuestionGenerationSetting = {
     maxAccidentalsPerTrack: 2,
   },
   leftHand: {
-    mode: QuestionLeftHandGenerationMode.PolkaAlt,
+    mode: QuestionLeftHandGenerationMode.TangoAlt,
     minJump: 0,
     maxJump: 4,
-    bassRootLow: bassKeyRange.at(0)!,
-    bassRootHigh: bassKeyRange.at(-1)!,
+    bassRootLow: ensureNotNullish(bassKeyRange.at(0)),
+    bassRootHigh: ensureNotNullish(bassKeyRange.at(-1)),
   }
 };
 
@@ -53,11 +53,6 @@ function App() {
     timeTookToCompleteLastMeasuresInSeconds: 0,
     rejectInputBeforeTime: new Date(),
   });
-
-  const currentStepLeft = getCurrentStepFromHand(questionTrack.leftHand, answerInput.totalDurationPlayedInTrack);
-
-  // Channel information is based on Roland FR-1XB
-  const bassChannelToListenTo = currentStepLeft?.notes.length === 1 ? 2 : 3;
 
   const setCurrentInputsAndCheckProgress = useCallback((inputEvent: {
     leftHand: NoteMessageEvent | null,
@@ -151,13 +146,15 @@ function App() {
   }, [setAppState]);
 
   useMidiNoteOnHandler(useCallback((event) => {
+
     logMidiInputIfNotNull(event);
 
+    // Channel information is based on Roland FR-1XB
     setCurrentInputsAndCheckProgress({
-      leftHand: event.message.channel === bassChannelToListenTo ? event : null,
+      leftHand: (event.message.channel === 2 || event.message.channel === 3) ? event : null,
       rightHand: event.message.channel === 1 ? event : null,
     });
-  }, [bassChannelToListenTo, setCurrentInputsAndCheckProgress]));
+  }, [setCurrentInputsAndCheckProgress]));
 
   useEffect(() => {
     if (!outputDivRef.current) {

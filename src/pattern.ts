@@ -25,6 +25,7 @@ export const rightHandPatterns: RightHandPattern[] = [
   right(3, 4, "16 24 8"),
   right(3, 4, "16 8z 8 16"),
   right(3, 4, "16 8z 8 8 8"),
+  right(4, 4, "8 8 8 8 8 8 8 8"),
 ];
 
 export const bassPatterns: BassPattern[] = stradellaBassRows.flatMap(([root, maj, min, seventh, dim], index, array) => {
@@ -46,5 +47,15 @@ export const bassPatterns: BassPattern[] = stradellaBassRows.flatMap(([root, maj
     bass(min.name, 3, 4, T.PolkaAlt, `16(${root.notesString}) 16(${min.notesString}) 16(${min.notesString}) 16(${alt.root.notesString}) 16(${min.notesString}) 16(${min.notesString})`),
     bass(seventh.name, 3, 4, T.PolkaAlt, `16(${root.notesString}) 16(${seventh.notesString}) 16(${seventh.notesString}) 16(${alt.root.notesString}) 16(${seventh.notesString}) 16(${seventh.notesString})`),
     bass(dim.name, 3, 4, T.PolkaAlt, `16(${root.notesString}) 16(${dim.notesString}) 16(${dim.notesString}) 16(${alt.root.notesString}) 16(${dim.notesString}) 16(${dim.notesString})`),
+
+    bass(root.name, 4, 4, T.PolkaAlt, `8(${root.notesString}) 8(${maj.notesString}) 8(${alt.root.notesString}) 8(${maj.notesString})`),
+    bass(min.name, 4, 4, T.PolkaAlt, `8(${root.notesString}) 8(${min.notesString}) 8(${alt.root.notesString}) 8(${min.notesString})`),
+    bass(seventh.name, 4, 4, T.PolkaAlt, `8(${root.notesString}) 8(${seventh.notesString}) 8(${alt.root.notesString}) 8(${seventh.notesString})`),
+    bass(dim.name, 4, 4, T.PolkaAlt, `8(${root.notesString}) 8(${dim.notesString}) 8(${alt.root.notesString}) 8(${dim.notesString})`),
+
+    bass(root.name, 4, 4, T.TangoAlt, `8(${root.notesString},${maj.notesString}) 8(${root.notesString},${maj.notesString}) 8(${root.notesString},${maj.notesString}) 4(${root.notesString},${maj.notesString}) 4(${alt.root.notesString})`),
+    bass(min.name, 4, 4, T.TangoAlt, `8(${root.notesString},${min.notesString}) 8(${root.notesString},${min.notesString}) 8(${root.notesString},${min.notesString}) 4(${root.notesString},${min.notesString}) 4(${alt.root.notesString})`),
+    bass(seventh.name, 4, 4, T.TangoAlt, `8(${root.notesString},${seventh.notesString}) 8(${root.notesString},${seventh.notesString}) 8(${root.notesString},${seventh.notesString}) 4(${root.notesString},${seventh.notesString}) 4(${alt.root.notesString})`),
+    bass(dim.name, 4, 4, T.TangoAlt, `8(${root.notesString},${dim.notesString}) 8(${root.notesString},${dim.notesString}) 8(${root.notesString},${dim.notesString}) 4(${root.notesString},${dim.notesString}) 4(${alt.root.notesString})`),
   ]
 });

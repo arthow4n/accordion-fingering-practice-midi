@@ -49,7 +49,7 @@ export enum QuestionRightHandGenerationMode {
 
 export enum QuestionLeftHandGenerationMode {
   PolkaAlt = "PolkaAlt",
-  SwampAlt = "SwampAlt",
+  TangoAlt = "TangoAlt",
 }
 
 export type QuestionGenerationSetting = {
@@ -109,6 +109,7 @@ export type BassBase = `${BassBaseRoot}${"" | "m" | "7" | "dim"}`;
 export enum BassPatternType {
   PolkaNormal = "PolkaNormal",
   PolkaAlt = "PolkaAlt",
+  TangoAlt = "TangoAlt",
 }
 
 export type BassPattern = {

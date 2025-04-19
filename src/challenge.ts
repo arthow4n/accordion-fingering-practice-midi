@@ -19,11 +19,20 @@ import {
   Track,
   TrackKey,
   NoteLetterWithOctave,
+  BassPatternType,
 } from "./type";
 import { isSupersetOf, takeOne } from "./utils";
 import { bassPatterns, rightHandPatterns } from "./pattern";
 
 const trackMeasureCount = 4;
+
+const bassGenerationModeTypeMapping: Record<
+  QuestionLeftHandGenerationMode,
+  BassPatternType
+> = {
+  [QuestionLeftHandGenerationMode.PolkaAlt]: BassPatternType.PolkaAlt,
+  [QuestionLeftHandGenerationMode.TangoAlt]: BassPatternType.TangoAlt,
+};
 
 const getDurationPerMeasure = (timeSignature: TimeSignature) => {
   const durationRatio = 64 / timeSignature.bottom;
@@ -198,7 +207,14 @@ const generateQuestionLeftHand = (
 
   const getNextBassPattern = () =>
     takeOne(
-      bassPatterns.filter((p) => isEqual(p.tag.timeSignature, timeSignature)),
+      bassPatterns.filter(
+        (p) =>
+          isEqual(p.tag.timeSignature, timeSignature) &&
+          p.tag.type ===
+            bassGenerationModeTypeMapping[
+              questionGenerationSetting.leftHand.mode
+            ],
+      ),
     );
 
   while (!isTrackCompleted(result, durationOfTrack)) {
@@ -228,13 +244,6 @@ const generateQuestionLeftHand = (
       }
     }
     lastBassBase = nextBassBase;
-
-    if (
-      questionGenerationSetting.leftHand.mode !==
-      QuestionLeftHandGenerationMode.PolkaAlt
-    ) {
-      throw new Error("Unimplemented.");
-    }
 
     for (const nextPatternStep of nextBassPattern.steps) {
       if (isTrackCompleted(result, durationOfTrack)) {
@@ -271,8 +280,9 @@ export const generateQuestionTrack = ({
   questionGenerationSetting: QuestionGenerationSetting;
 }): Track => {
   const key: TrackKey = previousQuestionTrack?.key ?? "C";
+  // TODO: Make time signature configurable
   const timeSignature: TimeSignature = previousQuestionTrack?.timeSignature ?? {
-    top: 3,
+    top: 4,
     bottom: 4,
   };
 

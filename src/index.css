@@ -10,6 +10,10 @@ main {
   place-items: center;
 }
 
+.track {
+  max-width: 100%;
+}
+
 .track .mark {
   fill: red;
   stroke: red;

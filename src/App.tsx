@@ -158,6 +158,7 @@ function App() {
 
     renderAbc(outputDivRef.current, trackToAbc(questionTrack, answerInput.totalDurationPlayedInTrack), {
       add_classes: true,
+      responsive: "resize"
     });
   }, [questionTrack, answerInput.totalDurationPlayedInTrack])
 
@@ -166,56 +167,54 @@ function App() {
   const correctRate = (metrics.perfectlyCompletedSets / metrics.completedSets * 100);
 
   return <main>
-    <div>
-      <p>Time took for the last measures: {`${timeTookToCompleteLastMeasuresInSeconds.toFixed(2)}s`}, correct rate: {correctRate >= 0 ? `${correctRate.toFixed(2)}%` : ""} ({metrics.perfectlyCompletedSets}/{metrics.completedSets})</p>
-      <div className="track" ref={outputDivRef}></div>
+    <p>Time took for the last measures: {`${timeTookToCompleteLastMeasuresInSeconds.toFixed(2)}s`}, correct rate: {correctRate >= 0 ? `${correctRate.toFixed(2)}%` : ""} ({metrics.perfectlyCompletedSets}/{metrics.completedSets})</p>
+    <div className="track" ref={outputDivRef}></div>
 
-      <p>Detected MIDI inputs: {detectedMidiInputDevices}</p>
+    <p>Detected MIDI inputs: {detectedMidiInputDevices}</p>
 
-      <p>
-        <label>
-          {"Answer: "}
-          <select value={answerCheckMode} onChange={(e) => {
-            const newAnswerCheckMode = e.target.value as unknown as AnswerCheckMode;
-            setAppSetting(setting => {
-              setting.answerCheckMode = newAnswerCheckMode;
-            })
-          }}>
-            {Object.values(AnswerCheckMode).map(x => <option key={x} value={x}>{x}</option>)}
-          </select>
-        </label>
-        {" "}
-        <label>
-          {"Bass mode: "}
-          <select value={appSetting.questionGenerationSetting.leftHand.mode} onChange={(e) => {
-            const newMode = e.target.value as unknown as QuestionLeftHandGenerationMode;
-            setAppSetting(setting => {
-              setting.questionGenerationSetting.leftHand.mode = newMode;
-            })
-          }}>
-            {Object.values(QuestionLeftHandGenerationMode).map(x => <option key={x} value={x}>{x}</option>)}
-          </select>
-        </label>
-        {" "}
-        <label>
-          {"Time signature: "}
-          <select value={`${appSetting.questionGenerationSetting.timeSignature.top}/${appSetting.questionGenerationSetting.timeSignature.bottom}`} onChange={(e) => {
-            const newMode = e.target.value;
-            const [top, bottom] = newMode.split("/").map(v => parseInt(v, 10)) as [TimeSignature["top"], TimeSignature["bottom"]];
-            setAppSetting(setting => {
-              setting.questionGenerationSetting.timeSignature = {
-                top,
-                bottom,
-              };
-            })
-          }}>
-            {["3/4", "4/4"].map(x => <option key={x} value={x}>{x}</option>)}
-          </select>
-        </label>
-        {" "}
-        <button onClick={() => setAppSetting(null)}>Default</button>
-      </p>
-    </div>
+    <p>
+      <label>
+        {"Answer: "}
+        <select value={answerCheckMode} onChange={(e) => {
+          const newAnswerCheckMode = e.target.value as unknown as AnswerCheckMode;
+          setAppSetting(setting => {
+            setting.answerCheckMode = newAnswerCheckMode;
+          })
+        }}>
+          {Object.values(AnswerCheckMode).map(x => <option key={x} value={x}>{x}</option>)}
+        </select>
+      </label>
+      {" "}
+      <label>
+        {"Bass mode: "}
+        <select value={appSetting.questionGenerationSetting.leftHand.mode} onChange={(e) => {
+          const newMode = e.target.value as unknown as QuestionLeftHandGenerationMode;
+          setAppSetting(setting => {
+            setting.questionGenerationSetting.leftHand.mode = newMode;
+          })
+        }}>
+          {Object.values(QuestionLeftHandGenerationMode).map(x => <option key={x} value={x}>{x}</option>)}
+        </select>
+      </label>
+      {" "}
+      <label>
+        {"Time signature: "}
+        <select value={`${appSetting.questionGenerationSetting.timeSignature.top}/${appSetting.questionGenerationSetting.timeSignature.bottom}`} onChange={(e) => {
+          const newMode = e.target.value;
+          const [top, bottom] = newMode.split("/").map(v => parseInt(v, 10)) as [TimeSignature["top"], TimeSignature["bottom"]];
+          setAppSetting(setting => {
+            setting.questionGenerationSetting.timeSignature = {
+              top,
+              bottom,
+            };
+          })
+        }}>
+          {["3/4", "4/4"].map(x => <option key={x} value={x}>{x}</option>)}
+        </select>
+      </label>
+      {" "}
+      <button onClick={() => setAppSetting(null)}>Default</button>
+    </p>
   </main>;
 }
 

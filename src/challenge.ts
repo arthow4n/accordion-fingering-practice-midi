@@ -326,12 +326,16 @@ const handToAbc = (
   let flattenedNotesInCurrentMeasure = new Set<NoteLetterWithOctave>();
 
   const noteToAbc = (note: Note): string => {
-    // Cast to octave == 5 then postfix with commas to match the octave.
+    // Cast to octave === 5 then postfix with commas or quotes to match the octave.
     let renderedNote = note.letter.toLowerCase();
     const noteLetterWithOctave: NoteLetterWithOctave = `${note.letter}${note.octave}`;
 
     for (let x = note.octave; x < 5; x++) {
       renderedNote += ",";
+    }
+
+    for (let x = note.octave; x > 5; x--) {
+      renderedNote += "'";
     }
 
     // TODO: Take track key into account and prefix the rendered accidentals when traslating to ABC
@@ -487,6 +491,9 @@ const checkAnswerForHand = (
 
   const question = new Set((step?.notes ?? []).map(makeStringifier()));
   const answer = new Set([...new Set(answerNotes)].map(makeStringifier()));
+
+  console.log(handSide, "question", JSON.stringify([...question]));
+  console.log(handSide, "answer", JSON.stringify([...answer]));
 
   const isCorrect = !shoulCheck || isSupersetOf(answer, question);
   const isPerfectMatch =

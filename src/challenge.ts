@@ -221,6 +221,7 @@ const generateQuestionLeftHand = (
 
   while (!isTrackCompleted(result, durationOfTrack)) {
     let nextBassPattern = getNextBassPattern();
+    // TODO: Need to rewrite to find bass base in a better way
     let nextBassBase = nextBassPattern.steps.find(
       (step) => step.accompaniment,
     )?.accompaniment;
@@ -231,6 +232,7 @@ const generateQuestionLeftHand = (
 
     while (
       !isNextBassPatternValid(
+        // @ts-expect-error - TODO: Need to rewrite to find bass base in a better way
         lastBassBase,
         nextBassBase,
         questionGenerationSetting,

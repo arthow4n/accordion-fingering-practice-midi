@@ -55,6 +55,11 @@ export const bassPatterns: BassPattern[] = stradellaBassRows.flatMap(([root, maj
     bass(seventh.name, 4, 4, T.PolkaAlt, `16(${root.notesString}) 16(${seventh.notesString}) 16(${alt.root.notesString}) 16(${seventh.notesString})`),
     bass(dim.name, 4, 4, T.PolkaAlt, `16(${root.notesString}) 16(${dim.notesString}) 16(${alt.root.notesString}) 16(${dim.notesString})`),
 
+    bass(root.name, 4, 4, T.PolkaSwampAlt, `16(${root.notesString}) 8(${maj.notesString}) 8(${maj.notesString}) 16(${alt.root.notesString}) 16(${maj.notesString})`),
+    bass(min.name, 4, 4, T.PolkaSwampAlt, `16(${root.notesString}) 8(${min.notesString}) 8(${min.notesString}) 16(${alt.root.notesString}) 16(${min.notesString})`),
+    bass(seventh.name, 4, 4, T.PolkaSwampAlt, `16(${root.notesString}) 8(${seventh.notesString}) 8(${seventh.notesString}) 16(${alt.root.notesString}) 16(${seventh.notesString})`),
+    bass(dim.name, 4, 4, T.PolkaSwampAlt, `16(${root.notesString}) 8(${dim.notesString}) 8(${dim.notesString}) 16(${alt.root.notesString}) 16(${dim.notesString})`),
+
     bass(root.name, 4, 4, T.TangoAlt, `16(${root.notesString},${maj.notesString}) 16(${root.notesString},${maj.notesString}) 16(${root.notesString},${maj.notesString}) 8(${root.notesString},${maj.notesString}) 8(${alt.root.notesString})`),
     bass(min.name, 4, 4, T.TangoAlt, `16(${root.notesString},${min.notesString}) 16(${root.notesString},${min.notesString}) 16(${root.notesString},${min.notesString}) 8(${root.notesString},${min.notesString}) 8(${alt.root.notesString})`),
     bass(seventh.name, 4, 4, T.TangoAlt, `16(${root.notesString},${seventh.notesString}) 16(${root.notesString},${seventh.notesString}) 16(${root.notesString},${seventh.notesString}) 8(${root.notesString},${seventh.notesString}) 8(${alt.root.notesString})`),

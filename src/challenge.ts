@@ -31,6 +31,7 @@ const bassGenerationModeTypeMapping: Record<
   BassPatternType
 > = {
   [QuestionLeftHandGenerationMode.PolkaAlt]: BassPatternType.PolkaAlt,
+  [QuestionLeftHandGenerationMode.PolkaSwampAlt]: BassPatternType.PolkaSwampAlt,
   [QuestionLeftHandGenerationMode.TangoAlt]: BassPatternType.TangoAlt,
   [QuestionLeftHandGenerationMode.SwingAlt]: BassPatternType.SwingAlt,
 };

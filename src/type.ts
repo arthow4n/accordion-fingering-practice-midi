@@ -49,6 +49,7 @@ export enum QuestionRightHandGenerationMode {
 
 export enum QuestionLeftHandGenerationMode {
   PolkaAlt = "PolkaAlt",
+  PolkaSwampAlt = "PolkaSwampAlt",
   TangoAlt = "TangoAlt",
   SwingAlt = "SwingAlt",
 }
@@ -111,6 +112,7 @@ export type BassBase = `${BassBaseRoot}${"" | "m" | "7" | "dim"}`;
 export enum BassPatternType {
   PolkaNormal = "PolkaNormal",
   PolkaAlt = "PolkaAlt",
+  PolkaSwampAlt = "PolkaSwampAlt", // What is this called in English actually...?
   TangoAlt = "TangoAlt",
   SwingAlt = "SwingAlt",
 }

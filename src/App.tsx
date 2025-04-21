@@ -214,6 +214,17 @@ function App() {
       </label>
       {" "}
       <button onClick={() => setAppSetting(null)}>Default</button>
+      {" "}
+      <button onClick={() => {
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+          return;
+        }
+
+        document.documentElement.requestFullscreen({
+          navigationUI: "hide",
+        });
+      }}>Full screen</button>
     </p>
   </main>;
 }

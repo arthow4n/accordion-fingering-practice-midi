@@ -25,7 +25,7 @@ export type Step = {
   /**
    * Accompaniment string to be rendered above the right hand measures.
    */
-  accompaniment: BassBase | null;
+  accompaniment: string | null;
 };
 
 export type Measure = Step[];

@@ -87,11 +87,13 @@ export const createBassPattern = (
 ): BassPattern => {
   const stepStrings = patternString.split(" ");
 
-  const steps = stepStrings.map((stepString, index): Step => {
-    const [, duration, notesString] = stepString.match(/^([0-9]+)[(](.+)[)]$/)!;
+  const steps = stepStrings.map((stepString): Step => {
+    const [, duration, accompaniment, notesString] = stepString.match(
+      /^([0-9]+?)[(](?:<(.+?)>)?(.+?)[)]$/,
+    )!;
 
     return {
-      accompaniment: index === 0 ? bassBase : null,
+      accompaniment: accompaniment ?? null,
       duration: parseInt(duration, 10),
       rest: notesString === "z",
       notes:

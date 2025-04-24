@@ -4,23 +4,28 @@ import {
   BassPattern,
   BassPatternType,
   Note,
+  NoteString,
   RightHandPattern,
   Step,
   TimeSignature,
 } from "./type";
 
-export const noteStringToNote = (noteString: string): Note => {
+export const noteToString = (note: Note): NoteString => {
+  return `${note.letter}${note.accidental ?? ""}${note.octave}`;
+};
+
+export const noteStringToNote = (noteString: NoteString): Note => {
   const [, letter, accidental, octaveString] = noteString.match(
     /^(A|B|C|D|E|F|G)(|#|b)([0-9])$/,
   )!;
   return {
     letter: letter as Note["letter"],
     accidental: accidental as Note["accidental"],
-    octave: parseInt(octaveString, 10),
+    octave: parseInt(octaveString, 10) as Note["octave"],
   };
 };
 
-export const rightHandNotesRange: Note[] = [
+export const rightHandNotesRangeAsString: NoteString[] = [
   "G3",
   "G#3",
   "A3",
@@ -58,7 +63,10 @@ export const rightHandNotesRange: Note[] = [
   "F6",
   "F#6",
   "G6",
-].map(noteStringToNote);
+];
+
+export const rightHandNotesRange: Note[] =
+  rightHandNotesRangeAsString.map(noteStringToNote);
 
 export const bassKeyRange: BassBaseRoot[] = [
   "Ab",
@@ -97,7 +105,11 @@ export const createBassPattern = (
       duration: parseInt(duration, 10),
       rest: notesString === "z",
       notes:
-        notesString === "z" ? [] : notesString.split(",").map(noteStringToNote),
+        notesString === "z"
+          ? []
+          : notesString
+              .split(",")
+              .map((x) => noteStringToNote(x as NoteString)),
     };
   });
 

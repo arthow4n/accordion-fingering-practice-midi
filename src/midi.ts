@@ -27,7 +27,7 @@ export const getNoteFromMidiEvent = (event: NoteMessageEvent): Note => {
   return {
     letter: event.note.name as Note["letter"],
     accidental: event.note.accidental as Note["accidental"],
-    octave: event.note.octave,
+    octave: event.note.octave as Note["octave"],
   };
 };
 

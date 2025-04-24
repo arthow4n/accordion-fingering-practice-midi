@@ -21,7 +21,11 @@ import {
   NoteLetterWithOctave,
   BassPatternType,
 } from "./type";
-import { isSupersetOf, takeOne } from "./utils";
+import {
+  createTakeOneWithRepetitionPenalty,
+  isSupersetOf,
+  takeOne,
+} from "./utils";
 import { bassPatterns, rightHandPatterns } from "./pattern";
 
 const trackMeasureCount = 4;
@@ -104,6 +108,7 @@ const generateQuestionRightHand = (
   durationOfTrack: number,
   previousQuestionTrack: Track | null,
   questionGenerationSetting: QuestionGenerationSetting,
+  takeOneNoteWithRepetitionPenalty: () => Note,
 ): Step[] => {
   const result: Step[] = [];
   const lastStepFromPreviousTrack = previousQuestionTrack?.rightHand.at(-1);
@@ -138,7 +143,7 @@ const generateQuestionRightHand = (
       continue;
     }
 
-    let nextNote = takeOne(rightHandNotesRange);
+    let nextNote = takeOneNoteWithRepetitionPenalty();
     while (
       !isNextRightHandStepValid(
         previousStep?.notes.at(0),
@@ -147,7 +152,7 @@ const generateQuestionRightHand = (
         questionGenerationSetting,
       )
     ) {
-      nextNote = takeOne(rightHandNotesRange);
+      nextNote = takeOneNoteWithRepetitionPenalty();
     }
 
     if (nextNote.accidental) {
@@ -291,6 +296,11 @@ export const generateQuestionTrack = ({
   const durationPerMeasure = getDurationPerMeasure(timeSignature);
   const durationOfTrack = durationPerMeasure * trackMeasureCount;
 
+  const takeOneNoteWithRepetitionPenalty =
+    previousQuestionTrack?.questionGenerationState.rightHand
+      .takeOneNoteWithRepetitionPenalty ??
+    createTakeOneWithRepetitionPenalty(rightHandNotesRange, 0.5);
+
   return {
     key,
     timeSignature,
@@ -305,7 +315,13 @@ export const generateQuestionTrack = ({
       durationOfTrack,
       previousQuestionTrack,
       questionGenerationSetting,
+      takeOneNoteWithRepetitionPenalty,
     ),
+    questionGenerationState: {
+      rightHand: {
+        takeOneNoteWithRepetitionPenalty,
+      },
+    },
   };
 };
 

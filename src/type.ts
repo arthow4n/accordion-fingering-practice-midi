@@ -2,13 +2,17 @@ export type NoteLetter = "A" | "B" | "C" | "D" | "E" | "F" | "G";
 
 export type NoteAccidental = "#" | "b" | "";
 
+export type Octave = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+
 export type Note = {
   letter: NoteLetter;
   accidental: NoteAccidental | null | undefined;
-  octave: number;
+  octave: Octave;
 };
 
-export type NoteLetterWithOctave = `${NoteLetter}${number}`;
+export type NoteLetterWithOctave = `${NoteLetter}${Octave}`;
+
+export type NoteString = `${NoteLetter}${NoteAccidental}${Octave}`;
 
 export type TrackKey = `${NoteLetter}${NoteAccidental}${"" | "min"}`;
 
@@ -40,6 +44,13 @@ export type Track = {
   key: TrackKey;
   leftHand: Step[];
   rightHand: Step[];
+  questionGenerationState: QuestionGenerationState;
+};
+
+export type QuestionGenerationState = {
+  rightHand: {
+    takeOneNoteWithRepetitionPenalty: () => Note;
+  };
 };
 
 export enum QuestionRightHandGenerationMode {

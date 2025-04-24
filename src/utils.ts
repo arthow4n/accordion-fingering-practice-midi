@@ -21,6 +21,34 @@ export const takeOne = <T>(all: T[]): T => {
   return ensureNotNullish(sample(all));
 };
 
+export const createTakeOneWithRepetitionPenalty = <TItem>(
+  items: TItem[],
+  decayFactor: number,
+) => {
+  const weights = new Map<TItem, number>();
+  for (const item of items) {
+    weights.set(item, 1);
+  }
+
+  return (): TItem => {
+    const totalWeight = items.reduce((sum, item) => {
+      return sum + (weights.get(item) || 0);
+    }, 0);
+
+    let rand = Math.random() * totalWeight;
+    for (const item of items) {
+      const weight = weights.get(item) || 0;
+      if (rand < weight) {
+        weights.set(item, weight * decayFactor);
+        return item;
+      }
+      rand -= weight;
+    }
+
+    throw new Error();
+  };
+};
+
 export const isSupersetOf = <T>(a: Set<T>, b: Set<T>) => {
   return [...b.values()].every((v) => a.has(v));
 };

@@ -29,7 +29,7 @@ const defaultQuestionGenerationSetting: QuestionGenerationSetting = {
   leftHand: {
     mode: QuestionLeftHandGenerationMode.PolkaAlt,
     minJump: 0,
-    maxJump: 4,
+    maxJump: 5,
     bassRootLow: ensureNotNullish(bassKeyRange.at(0)),
     bassRootHigh: ensureNotNullish(bassKeyRange.at(-1)),
   },

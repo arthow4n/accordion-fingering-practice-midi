@@ -54,4 +54,4 @@ For generator changes, add or update deterministic and property-based tests. At 
 
 ## Deployment
 
-`.github/workflows/deploy-pages.yml` must run `npm ci` followed by `npm run check` before uploading `dist`. After changing CI or deployment inputs, inspect the resulting GitHub Actions run and confirm the published Pages URL responds successfully.
+`.github/workflows/deploy-pages.yml` must run `npm ci` followed by `npm run check` before uploading `dist`. Do not routinely monitor GitHub Actions or the deployed site after ordinary application changes; that is usually unnecessary. Inspect the remote run only when the task directly concerns CI/deployment or there is concrete evidence that deployment may be broken.

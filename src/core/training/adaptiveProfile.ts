@@ -1,0 +1,6 @@
+import type { PerformanceMetrics } from "../performance/performanceMetrics";
+export type FeatureLearningState={attempts:number;successes:number;pitchAccuracy:number;timingAccuracy:number;recentPerformance:number};
+export type AdaptiveProfile={version:1;features:Record<string,FeatureLearningState>};
+export const emptyAdaptiveProfile=():AdaptiveProfile=>({version:1,features:{}});
+export const updateAdaptiveProfile=(profile:AdaptiveProfile,metrics:PerformanceMetrics):AdaptiveProfile=>{const features={...profile.features};for(const[key,value]of Object.entries(metrics.byFeature)){const old=features[key]??{attempts:0,successes:0,pitchAccuracy:1,timingAccuracy:1,recentPerformance:1};const attempts=old.attempts+value.attempts;features[key]={attempts,successes:old.successes+value.correct,pitchAccuracy:(old.pitchAccuracy*old.attempts+value.pitchAccuracy*value.attempts)/attempts,timingAccuracy:(old.timingAccuracy*old.attempts+value.timingAccuracy*value.attempts)/attempts,recentPerformance:.7*old.recentPerformance+.3*(value.pitchAccuracy+value.timingAccuracy)/2};}return{version:1,features};};
+export const weakestFeatures=(profile:AdaptiveProfile,count=3)=>Object.entries(profile.features).sort((a,b)=>a[1].recentPerformance-b[1].recentPerformance).slice(0,count).map(([key])=>key);

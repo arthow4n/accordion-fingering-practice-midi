@@ -23,6 +23,8 @@ export type EventMetadata = {
   metricStrength?: "strong" | "medium" | "weak"; challengeTags: ChallengeType[];
   chromatic?: boolean; accompaniment?: string; bassDistance?: number;
   tieFromPrevious?: boolean; tieToNext?: boolean;
+  accompanimentTemplateId?: string; stradellaButton?: string;
+  stradellaColumn?: number; stradellaRow?: "counterbass"|"fundamental"|"major"|"minor"|"seventh"|"diminished";
 };
 export type ExerciseEvent = { id: string; onset: Tick; duration: Tick; pitches: Pitch[]; hand: Hand; metadata: EventMetadata };
 export type DifficultyVector = {

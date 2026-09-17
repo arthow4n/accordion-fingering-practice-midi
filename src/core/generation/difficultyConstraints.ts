@@ -8,7 +8,7 @@ export const requestedDifficultyBounds=(request:TrainingRequest):DifficultyBound
  const subdivision=request.rhythm.smallestSubdivision==="quarter"?.2:request.rhythm.smallestSubdivision==="eighth"?.5:.9;
  const tempo=clamp((request.tempoBpm-30)/170);
  return{
-  tonal:{min:0,max:clamp(.3+request.tonal.chromaticism)},
+  tonal:{min:0,max:clamp(.4+request.tonal.chromaticism)},
   pitchMovement:{min:0,max:clamp(request.rightHand.movementDifficulty+.25)},
   patternComplexity:{min:0,max:clamp(.25+request.patterns.variation*.6+request.patterns.targetDensity*.2)},
   rhythm:{min:0,max:clamp(subdivision+request.rhythm.syncopation*.4+.1)},

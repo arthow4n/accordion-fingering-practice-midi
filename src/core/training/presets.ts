@@ -15,5 +15,6 @@ export const applyIntentPreset=(request:TrainingRequest,intent:TrainingIntent):T
   case "randomDecoding": next.patterns.repetition=0;next.patterns.variation=1;next.rhythm.smallestSubdivision="quarter";next.leftHand.enabled=false;next.tonal.chromaticism=Math.max(.35,next.tonal.chromaticism);break;
   case "balanced": break;
  }
+ if(next.leftHand.templateId)next.leftHand.movementDifficulty=1;
  return next;
 };

@@ -11,7 +11,7 @@ export const trainingRequestSchema = z.object({
   rhythm: z.object({ meters: z.array(meterSchema).min(1), smallestSubdivision: z.enum(["quarter","eighth","sixteenth"]), syncopation: z.number().min(0).max(1), restDensity: z.number().min(0).max(1), tieDensity: z.number().min(0).max(1), noteDensity: z.number().min(0).max(1) }),
   harmony: z.object({ progressionVocabulary: z.array(z.string()).min(1), chordVocabulary: z.array(z.enum(["major","minor","dominant7","diminished"])) }),
   rightHand: z.object({ range: rangeSchema, movementDifficulty: z.number().min(0).max(1) }),
-  leftHand: z.object({ enabled: z.boolean(), accompanimentStyle: z.enum(["bassChord","alternatingBass","polka","waltz","tango","swing"]), movementDifficulty: z.number().min(0).max(1) }),
+  leftHand: z.object({ enabled: z.boolean(), accompanimentStyle: z.enum(["bassChord","alternatingBass","polka","waltz","tango","swing"]), movementDifficulty: z.number().min(0).max(1), templateId: z.enum(["legacy-tonic-pedal-descending","legacy-transition-to-IV","legacy-bb-fdim-line"]).optional() }),
   coordination: z.object({ difficulty: z.number().min(0).max(1) }),
   challenge: z.object({ density: z.number().min(0).max(1), allowedTypes: z.array(z.enum(["largeLeap","chromatic","unfamiliarRhythm","syncopation","bassJump","handIndependence","unpredictable"])) }),
   tempoBpm: z.number().int().min(30).max(240), measures: z.number().int().min(2).max(32), seed: z.number().int().optional(),

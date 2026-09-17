@@ -1,29 +1,32 @@
+import { Note } from "tonal";
 import type { ExerciseEvent, HarmonyEvent, Meter, Pitch, TonalContext } from "../model";
 import type { TrainingRequest } from "../training/trainingIntent";
-import { chordPitches } from "../music/harmony";
-import { realizeScaleDegree } from "../music/key";
-import { pitchFromMidi } from "../music/pitch";
-import { ticksPerBeat, ticksPerMeasure } from "../music/meter";
+import { qualityForDegree, realizeScaleDegree } from "../music/key";
+import { pitchFromMidi, pitchFromName } from "../music/pitch";
+import { ticksPerMeasure } from "../music/meter";
+import { accompanimentTemplateFor, legacyBassLineById, meterKey, type BassRelation } from "../patterns/accompanimentTemplates";
+import { findStradellaBassButton, findStradellaButton, stradellaMovementCost, type StradellaButton, type StradellaRow } from "../instrument/stradella";
 
-type BassAtom={offset:number;duration:number;kind:"root"|"fifth"|"chord"};
-const atomsFor=(style:TrainingRequest["leftHand"]["accompanimentStyle"],meter:Meter):BassAtom[]=>{
- const beat=ticksPerBeat(meter),measure=ticksPerMeasure(meter);
- if(meter.beatUnit===8)return style==="waltz"?[{offset:0,duration:beat*2,kind:"root"},{offset:beat*2,duration:measure-beat*2,kind:"chord"}]:[{offset:0,duration:beat*3,kind:"root"},{offset:beat*3,duration:measure-beat*3,kind:"chord"}];
- if(style==="bassChord")return[{offset:0,duration:measure/2,kind:"root"},{offset:measure/2,duration:measure/2,kind:"chord"}];
- if(style==="waltz")return[{offset:0,duration:beat,kind:"root"},{offset:beat,duration:beat,kind:"chord"},{offset:beat*2,duration:measure-beat*2,kind:"chord"}];
- if(style==="tango"){const atoms:BassAtom[]=[{offset:0,duration:beat,kind:"root"},{offset:beat,duration:beat/2,kind:"chord"},{offset:beat*1.5,duration:beat/2,kind:"chord"},{offset:beat*2,duration:beat,kind:"fifth"},{offset:beat*3,duration:measure-beat*3,kind:"chord"}];return atoms.filter(x=>x.duration>0&&x.offset<measure).map(x=>({...x,duration:Math.min(x.duration,measure-x.offset)}));}
- if(style==="swing")return Array.from({length:meter.beats},(_,i):BassAtom[]=>[{offset:i*beat,duration:beat*2/3,kind:i%2?"fifth":"root"},{offset:i*beat+beat*2/3,duration:beat/3,kind:"chord"}]).flat();
- return Array.from({length:meter.beats},(_,i)=>({offset:i*beat,duration:beat,kind:i%2?"chord":style==="alternatingBass"&&i===2?"fifth":"root" as BassAtom["kind"]}));
-};
+const relationSemitones:Record<BassRelation,number>={root:0,second:2,fifth:7,tritone:6,leadingTone:-1,sixth:-3,counterThird:4};
+const uniquePitches=(pitches:Pitch[])=>[...new Map(pitches.map(pitch=>[pitch.midi,pitch])).values()];
+const bassPitch=(root:Pitch,relation:BassRelation,preferFlats:boolean)=>pitchFromMidi(root.midi+relationSemitones[relation],preferFlats);
+const chordRow=(quality:HarmonyEvent["quality"]):StradellaRow=>quality==="major"?"major":quality==="minor"?"minor":quality==="dominant7"?"seventh":"diminished";
+const buttonPitches=(button:StradellaButton|undefined,fallback:Pitch[])=>button?button.pitchNames.map(pitchFromName):fallback;
 
 export const generateBass=(context:TonalContext,meter:Meter,harmony:HarmonyEvent[],request:TrainingRequest):ExerciseEvent[]=>{
- if(!request.leftHand.enabled)return[];const measure=ticksPerMeasure(meter);let previousRoot:Pitch|undefined;
- return harmony.flatMap((h,mi)=>{
-  const root=realizeScaleDegree(context,{...h.rootDegree,octaveOffset:-1},3);const fifth=pitchFromMidi(root.midi+7,context.tonic.includes("b"));const chord=chordPitches(context,h,2).filter(p=>p.midi>=36&&p.midi<=67);
-  return atomsFor(request.leftHand.accompanimentStyle,meter).map((atom,i)=>{
-   const effectiveKind=atom.kind==="fifth"&&request.leftHand.movementDifficulty<.35?"root":atom.kind;
-   const pitches=effectiveKind==="root"?[root]:effectiveKind==="fifth"?[fifth]:chord;const bassDistance=previousRoot?Math.abs(root.midi-previousRoot.midi):0;if(effectiveKind!=="chord")previousRoot=pitches[0];
-   return{id:`lh-${mi}-${i}`,onset:mi*measure+atom.offset,duration:atom.duration,pitches,hand:"left",metadata:{harmonyId:h.id,scaleDegree:h.rootDegree,rhythmCellId:`${request.leftHand.accompanimentStyle}-${effectiveKind}`,metricStrength:atom.offset===0?"strong":atom.offset%ticksPerBeat(meter)===0?"medium":"weak",challengeTags:[],accompaniment:`${h.symbol} ${effectiveKind}`,bassDistance}} satisfies ExerciseEvent;
+ if(!request.leftHand.enabled)return[];const measure=ticksPerMeasure(meter);const template=accompanimentTemplateFor(request.leftHand.accompanimentStyle,meter);const bassLine=legacyBassLineById(request.leftHand.templateId);if(bassLine&&bassLine.meter!==meterKey(meter))throw new Error(`${bassLine.id} requires ${bassLine.meter}`);if(bassLine?.fixedKey&&bassLine.fixedKey!==`${context.tonic} ${context.mode}`)throw new Error(`${bassLine.id} requires ${bassLine.fixedKey}`);if(bassLine&&(harmony.length!==bassLine.harmony.length||harmony.some((event,index)=>{const required=bassLine.harmony[index]!;return event.rootDegree.degree!==required.degree||event.quality!==(required.quality??qualityForDegree(context.mode,required.degree));})))throw new Error(`${bassLine.id} requires its prescribed harmony plan`);let previousButton:StradellaButton|undefined;
+ return harmony.flatMap((h,measureIndex)=>{
+  const root=realizeScaleDegree(context,{...h.rootDegree,octaveOffset:-1},3);const rootClass=Note.pitchClass(root.name);const harmonyButton=findStradellaButton(rootClass,chordRow(h.quality));const chord=buttonPitches(harmonyButton,[]);
+  const atoms=bassLine?.measures[measureIndex%bassLine.measures.length]??template.atoms;const realizedTemplateId=bassLine?.id??template.id;
+  return atoms.map((templateAtom,index)=>{
+   const action={...templateAtom.action};
+   // The original 3/4 PolkaAlt is a two-measure root/fifth cycle.
+   if(realizedTemplateId==="legacy-polka-3"&&measureIndex%2===1&&action.kind!=="chord")action.bassRelation="fifth";
+   const relation=action.bassRelation??"root";const targetBass=bassPitch(root,relation,context.tonic.includes("b"));const row=(action.buttonRow??"fundamental") as Extract<StradellaRow,"counterbass"|"fundamental">;const bassButton=findStradellaBassButton(Note.pitchClass(targetBass.name),row);const bass=buttonPitches(bassButton,[targetBass]);const pitches=action.kind==="chord"?chord:action.kind==="bassChord"?uniquePitches([...bass,...chord]):bass;
+   const activeButton=action.kind==="chord"?harmonyButton:bassButton;const distance=previousButton&&activeButton?stradellaMovementCost(previousButton.root,activeButton.root,previousButton.row,activeButton.row):0;if(activeButton)previousButton=activeButton;
+   const onset=Math.round(measureIndex*measure+templateAtom.offset*measure),duration=Math.round(templateAtom.duration*measure);
+   const label=action.kind==="bassChord"?`${bassButton?.label??Note.pitchClass(targetBass.name)} bass + ${harmonyButton?.label??h.symbol} chord`:activeButton?`${activeButton.label} ${activeButton.row}`:`${h.symbol} ${action.kind}`;
+   return{id:`lh-${measureIndex}-${index}`,onset,duration,pitches,hand:"left",metadata:{harmonyId:h.id,scaleDegree:h.rootDegree,rhythmCellId:realizedTemplateId,metricStrength:templateAtom.offset===0?"strong":templateAtom.offset*meter.beats%1===0?"medium":"weak",challengeTags:[],accompaniment:`${h.symbol} ${action.kind}`,bassDistance:distance,accompanimentTemplateId:realizedTemplateId,stradellaButton:label,stradellaColumn:activeButton?.column,stradellaRow:activeButton?.row}} satisfies ExerciseEvent;
   });
  });
 };

@@ -15,6 +15,7 @@ type RuntimeMode="correction"|"sightReading";
 const nextSeed=()=>Math.floor(Math.random()*0x7fffffff);
 const intents:TrainingIntent[]=["balanced","patternFocus","keyFluency","rhythmFocus","pitchIntervalFocus","readAhead","leftHandFocus","coordination","randomDecoding"];
 const keys=["C major","G major","D major","F major","Bb major","Eb major","A minor","D minor","E minor"];
+const legacyLines=[{id:"legacy-tonic-pedal-descending",label:"Tonic pedal: C/C–C/B–C/A–C/G"},{id:"legacy-transition-to-IV",label:"Counterbass walk to IV"},{id:"legacy-bb-fdim-line",label:"Bb–Fdim/B–Fdim/G–Fdim/G–F/C–D7"}] as const;
 
 export default function App(){
  const scoreRef=useRef<HTMLDivElement>(null);const performedRef=useRef<PerformedMidiEvent[]>([]);const correctionNotesRef=useRef(new Set<number>());const timelineRef=useRef<AbsoluteTimeline>();const frameRef=useRef<number>();
@@ -44,6 +45,7 @@ export default function App(){
    <label>Tempo <input type="number" min="30" max="240" value={settings.tempoBpm} onChange={e=>updateSettings({...settings,tempoBpm:Number(e.target.value)})}/></label>{" "}
    <label>Measures <input type="number" min="2" max="32" value={settings.measures} onChange={e=>updateSettings({...settings,measures:Number(e.target.value)})}/></label>{" "}
    <label><input type="checkbox" checked={settings.leftHand.enabled} onChange={e=>updateSettings({...settings,leftHand:{...settings.leftHand,enabled:e.target.checked}})}/> Left hand</label>
+   {" "}<label>Curated bass line <select value={settings.leftHand.templateId??""} onChange={e=>{const templateId=e.target.value||undefined;const isBb=templateId==="legacy-bb-fdim-line";updateSettings({...settings,measures:templateId?(isBb?6:4):settings.measures,tonal:isBb?{...settings.tonal,keys:["Bb major"],selection:"fixed"}:settings.tonal,rhythm:templateId?{...settings.rhythm,meters:[{beats:3,beatUnit:4}]}:settings.rhythm,leftHand:{...settings.leftHand,enabled:true,accompanimentStyle:"polka",templateId:templateId as TrainingRequest["leftHand"]["templateId"]}});}}><option value="">Automatic style</option>{legacyLines.map(line=><option key={line.id} value={line.id}>{line.label}</option>)}</select></label>
   </fieldset>
   <details><summary>Generator diagnostics</summary><pre>{exerciseDiagnostics(exercise)}</pre></details>
   <p>Detected MIDI: {devices.join(", ")||midiError||"none (you can still inspect generated scores)"}</p>

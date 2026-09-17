@@ -16,12 +16,15 @@ The dependency direction is `UI/browser adapters → session → pure core`.
 
 - `src/core/music`, `patterns`, and `generation`: abstract scale degrees, harmony-first phrase generation, meter-aware rhythm cells, realization, validation, and difficulty analysis.
 - `src/core/instrument`: playable ranges and accordion movement costs.
+- `src/core/instrument/stradella.ts`: the migrated 72-button FR-1XB layout, including exact legacy MIDI voicings and physical row/column geometry.
 - `src/core/performance`: absolute timelines, tolerant MIDI matching, continuity/recovery and feature metrics.
 - `src/core/training`: versioned Zod requests and optional adaptive learning state.
 - `src/adapters`: ABC serialization, normalized WebMIDI events, and local persistence.
 - `src/app`: React orchestration only. The core has no browser or rendering dependencies.
 
 The candidate generator has a finite retry limit. ABCJS is only a renderer; it does not participate in composition.
+
+The left-hand accompaniment vocabulary preserves the pre-V3 hand-curated polka, split-chord, tango, swing, counterbass-transition, and fixed-key diminished patterns as declarative templates. Harmony selects the chord; the template selects its rhythm and physical bass/chord buttons; the Stradella profile supplies the device MIDI pitches.
 
 ## Development
 

@@ -15,7 +15,9 @@ export const realizeScaleDegree = (context: TonalContext, degree: ScaleDegree, b
 };
 export const qualityForDegree = (mode: TonalContext["mode"], degree: number, seventh = false): ChordQuality => {
   if (seventh && degree === 5) return "dominant7";
-  const major = mode === "major" ? [1, 4, 5] : [3, 6, 7];
-  const diminished = mode === "major" ? 7 : 2;
+  // Minor-key common-practice harmony uses a raised leading tone in V and vii°.
+  if (mode === "minor" && degree === 5) return "major";
+  const major = mode === "major" ? [1, 4, 5] : [3, 6];
+  const diminished = mode === "major" ? 7 : mode === "minor" && degree === 7 ? 7 : 2;
   return degree === diminished ? "diminished" : major.includes(degree) ? "major" : "minor";
 };

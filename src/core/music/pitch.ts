@@ -6,4 +6,7 @@ export const pitchFromName = (name: string): Pitch => {
   if (midi === null) throw new Error(`Invalid pitch ${name}`);
   return { name: Note.simplify(name), midi };
 };
-export const pitchFromMidi = (midi: number, preferFlats = false): Pitch => ({ midi, name: Note.fromMidiSharps(midi).replace(/#(?=\d)/, preferFlats ? "b" : "#") });
+export const pitchFromMidi = (midi: number, preferFlats = false): Pitch => {
+  const sharp=Note.fromMidiSharps(midi);
+  return { midi, name: preferFlats && sharp.includes("#") ? Note.enharmonic(sharp) : sharp };
+};

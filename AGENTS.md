@@ -15,7 +15,6 @@
 - Generate musical structure before concrete pitches. Both hands must derive from the same harmony.
 - All core generation randomness must use the injected deterministic RNG. Do not call `Math.random()` in `src/core`.
 - ABCJS and WebMIDI belong behind adapters. Core performance code consumes normalized MIDI events.
-- Treat `V3_REFACTOR.md` as the product and architecture specification for the V3 trainer.
 
 ## Validation
 

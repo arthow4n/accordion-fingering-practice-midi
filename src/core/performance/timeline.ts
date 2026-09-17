@@ -1,7 +1,7 @@
 import { TICKS_PER_QUARTER, type Exercise, type ExerciseEvent } from "../model";
 export type TimedExpectedEvent=ExerciseEvent&{expectedMs:number;durationMs:number};
 export const ticksToMs=(ticks:number,tempoBpm:number)=>ticks/TICKS_PER_QUARTER*60_000/tempoBpm;
-export const createExpectedTimeline=(exercise:Exercise,startMs=0):TimedExpectedEvent[]=>[...exercise.rightHand,...exercise.leftHand].filter(e=>e.pitches.length).map(e=>({...e,expectedMs:startMs+ticksToMs(e.onset,exercise.tempoBpm),durationMs:ticksToMs(e.duration,exercise.tempoBpm)})).sort((a,b)=>a.expectedMs-b.expectedMs);
+export const createExpectedTimeline=(exercise:Exercise,startMs=0):TimedExpectedEvent[]=>[...exercise.rightHand,...exercise.leftHand].filter(e=>e.pitches.length&&!e.metadata.tieFromPrevious).map(e=>({...e,expectedMs:startMs+ticksToMs(e.onset,exercise.tempoBpm),durationMs:ticksToMs(e.duration,exercise.tempoBpm)})).sort((a,b)=>a.expectedMs-b.expectedMs);
 export class AbsoluteTimeline {
  private startMs:number|null=null;
  constructor(readonly exercise:Exercise,readonly previewMs=0,readonly countInBeats=4){}

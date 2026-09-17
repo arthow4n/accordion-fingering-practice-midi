@@ -22,6 +22,7 @@ export type EventMetadata = {
   patternFamily?: PatternFamily; rhythmCellId?: string; intervalFromPrevious?: number;
   metricStrength?: "strong" | "medium" | "weak"; challengeTags: ChallengeType[];
   chromatic?: boolean; accompaniment?: string; bassDistance?: number;
+  tieFromPrevious?: boolean; tieToNext?: boolean;
 };
 export type ExerciseEvent = { id: string; onset: Tick; duration: Tick; pitches: Pitch[]; hand: Hand; metadata: EventMetadata };
 export type DifficultyVector = {

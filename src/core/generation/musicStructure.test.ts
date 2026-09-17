@@ -1,6 +1,8 @@
 import { describe,expect,it } from "vitest";
 import { accordionProfile } from "../instrument/accordionProfile";
 import { chordPitches } from "../music/harmony";
+import { createExpectedTimeline } from "../performance/timeline";
+import { exerciseToAbc } from "../../adapters/abc/exerciseToAbc";
 import type { AccompanimentStyle } from "../model";
 import { defaultTrainingRequest } from "../training/trainingIntent";
 import { generateBass } from "./generateBass";
@@ -14,4 +16,5 @@ describe("musical structure",()=>{
  it("carries the A motif into A-prime as a real relation",()=>{const exercise=generateExercise(defaultTrainingRequest(),99);const first=new Set(exercise.rightHand.filter(e=>e.onset<exercise.harmony[0]!.duration).map(e=>e.metadata.motifId));const second=new Set(exercise.rightHand.filter(e=>e.onset>=exercise.harmony[0]!.duration&&e.onset<exercise.harmony[0]!.duration*2).map(e=>e.metadata.motifId));expect(first).toEqual(new Set(["motif-0"]));expect(second).toEqual(new Set(["motif-A"]));expect(new Set(exercise.rightHand.slice(0,4).map(e=>e.metadata.patternId))).toEqual(new Set(exercise.rightHand.filter(e=>e.onset>=exercise.harmony[0]!.duration&&e.onset<exercise.harmony[0]!.duration*2).map(e=>e.metadata.patternId)));});
  it("realizes accompaniment styles with distinct event grids",()=>{const request=defaultTrainingRequest();const harmony=generateExercise(request,7).harmony.slice(0,1);const styles:AccompanimentStyle[]=["bassChord","alternatingBass","waltz","tango","swing"];const signatures=styles.map(style=>{request.leftHand.accompanimentStyle=style;return generateBass({tonic:"C",mode:"major"},{beats:4,beatUnit:4},harmony,request).map(e=>`${e.onset}:${e.duration}:${e.metadata.rhythmCellId}`).join("|");});expect(new Set(signatures).size).toBe(styles.length);});
  it("rejects gaps in hand timelines",()=>{const exercise=generateExercise(defaultTrainingRequest(),4);exercise.rightHand[1]!.onset+=1;expect(validateExercise(exercise,accordionProfile).valid).toBe(false);});
+ it("realizes configured ties without requiring a second MIDI attack",()=>{const request=defaultTrainingRequest();request.rhythm.smallestSubdivision="quarter";request.rhythm.tieDensity=1;request.rhythm.restDensity=0;request.rhythm.syncopation=0;const exercise=generateExercise(request,123);const continuations=exercise.rightHand.filter(e=>e.metadata.tieFromPrevious);expect(continuations.length).toBeGreaterThan(0);for(const continuation of continuations){const previous=exercise.rightHand[exercise.rightHand.indexOf(continuation)-1]!;expect(previous.metadata.tieToNext).toBe(true);expect(continuation.pitches).toEqual(previous.pitches);}expect(exerciseToAbc(exercise)).toMatch(/[A-Ga-g][,']*\d*- /);expect(createExpectedTimeline(exercise).filter(e=>e.hand==="right")).toHaveLength(exercise.rightHand.filter(e=>e.pitches.length&&!e.metadata.tieFromPrevious).length);});
 });

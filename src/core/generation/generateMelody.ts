@@ -1,4 +1,4 @@
-import type { ExerciseEvent, HarmonyEvent, Meter, PatternFamily, PatternTransformation, PhraseSection, ScaleDegree, TonalContext } from "../model";
+import type { ExerciseEvent, HarmonyEvent, Meter, PatternFamily, PatternTransformation, PhraseSection, Pitch, ScaleDegree, TonalContext } from "../model";
 import type { Rng } from "../random/rng";
 import type { TrainingRequest } from "../training/trainingIntent";
 import { realizeScaleDegree } from "../music/key";
@@ -12,7 +12,7 @@ const chordDegrees=(harmony:HarmonyEvent)=>{const root=harmony.rootDegree.degree
 const nearest=(degree:number,choices:number[])=>choices.map(choice=>[choice,Math.abs(choice-degree)] as const).sort((a,b)=>a[1]-b[1])[0]![0];
 
 export const generateMelody=(context:TonalContext,meter:Meter,harmony:HarmonyEvent[],phrase:PhraseSection[],request:TrainingRequest,rng:Rng):ExerciseEvent[]=>{
- const measureTicks=ticksPerMeasure(meter);let previousMidi:number|undefined;let baseMotif:MotifPlan|undefined;let priorMotif:MotifPlan|undefined;
+ const measureTicks=ticksPerMeasure(meter);let previousMidi:number|undefined;let baseMotif:MotifPlan|undefined;let priorMotif:MotifPlan|undefined;let tieIntoNext=false;let tiedPitch:Pitch|undefined;let tiedDegree:ScaleDegree|undefined;let tiedChromatic=false;
  const allowed=MELODIC_PATTERNS.filter(pattern=>request.patterns.allowedFamilies.includes(pattern.family)&&Math.max(...pattern.relativeDegrees.map(Math.abs))/7<=request.rightHand.movementDifficulty+.25);
  const patterns=allowed.length?allowed:MELODIC_PATTERNS.filter(pattern=>request.patterns.allowedFamilies.includes(pattern.family));
  const target=patterns.filter(pattern=>request.patterns.targetFamilies.includes(pattern.family));
@@ -42,16 +42,18 @@ export const generateMelody=(context:TonalContext,meter:Meter,harmony:HarmonyEve
    // Stable beats articulate the current harmony; the final cadence resolves to tonic.
    if(strength==="strong"||strength==="medium")abstract=nearest(abstract,chordTones);
    if(finalCadence)abstract=0;
-   const degree=normalizeDegree(abstract);
+   const tieFromPrevious=tieIntoNext;let degree=normalizeDegree(abstract);
    // The dominant in minor uses the harmonic-minor leading tone. It belongs to
    // the active harmony and is not counted as an injected chromatic challenge.
    if(context.mode==="minor"&&activeHarmony.rootDegree.degree===5&&degree.degree===7)degree.alteration=1;
    const challenge=rng.next()<request.challenge.density?rng.pick(request.challenge.allowedTypes):undefined;
-   const chromatic=!finalCadence&&(challenge==="chromatic"||rng.next()<request.tonal.chromaticism);if(chromatic)degree.alteration=rng.next()<.5?-1:1;
+   let chromatic=!finalCadence&&(challenge==="chromatic"||rng.next()<request.tonal.chromaticism);if(chromatic)degree.alteration=rng.next()<.5?-1:1;
    let pitch=realizeScaleDegree(context,degree,4);while(pitch.midi<request.rightHand.range.low){degree.octaveOffset++;pitch=realizeScaleDegree(context,degree,4);}while(pitch.midi>request.rightHand.range.high){degree.octaveOffset--;pitch=realizeScaleDegree(context,degree,4);}
-   const rest=!finalCadence&&(atom.rest||(index>0&&rng.next()<request.rhythm.restDensity));
-   const event:ExerciseEvent={id:`rh-${measure}-${index}`,onset,duration:atom.duration,pitches:rest?[]:[pitch],hand:"right",metadata:{scaleDegree:degree,harmonyId:activeHarmony.id,motifId:isRelated?"motif-A":`motif-${measure}`,patternId:motif.pattern.id,patternFamily:motif.pattern.family as PatternFamily,rhythmCellId:motif.cell.id,intervalFromPrevious:previousMidi===undefined?undefined:pitch.midi-previousMidi,metricStrength:strength,challengeTags:challenge?[challenge]:[],chromatic}};
-   if(!rest)previousMidi=pitch.midi;onset+=atom.duration;return event;
+   if(tieFromPrevious&&tiedPitch&&tiedDegree){pitch=tiedPitch;degree={...tiedDegree};chromatic=tiedChromatic;}
+   const rest=!tieFromPrevious&&!finalCadence&&(atom.rest||(index>0&&rng.next()<request.rhythm.restDensity));const nextAtom=motif.cell.atoms[index+1];
+   const tieToNext=!rest&&!finalCadence&&Boolean(nextAtom&&!nextAtom.rest)&&(atom.tie||rng.next()<request.rhythm.tieDensity);
+   const event:ExerciseEvent={id:`rh-${measure}-${index}`,onset,duration:atom.duration,pitches:rest?[]:[pitch],hand:"right",metadata:{scaleDegree:degree,harmonyId:activeHarmony.id,motifId:isRelated?"motif-A":`motif-${measure}`,patternId:motif.pattern.id,patternFamily:motif.pattern.family as PatternFamily,rhythmCellId:motif.cell.id,intervalFromPrevious:tieFromPrevious?0:previousMidi===undefined?undefined:pitch.midi-previousMidi,metricStrength:strength,challengeTags:challenge?[challenge]:[],chromatic,tieFromPrevious,tieToNext}};
+   tieIntoNext=tieToNext;if(tieToNext){tiedPitch=pitch;tiedDegree={...degree};tiedChromatic=chromatic;}if(!rest&&!tieFromPrevious)previousMidi=pitch.midi;onset+=atom.duration;return event;
   });
  });
 };

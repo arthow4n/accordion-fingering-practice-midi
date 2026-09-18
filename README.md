@@ -47,4 +47,4 @@ Use a WebMIDI-capable browser and grant MIDI permission. The default channel map
 
 ## Deployment
 
-The GitHub Pages workflow runs `npm ci` and the complete `npm run check` gate before uploading `dist` and deploying. The app remains a static Vite site: no backend, account, or database is required. Settings and optional learning data stay in local storage.
+The GitHub Pages workflow runs `npm ci` and the complete `npm run check` gate before uploading `dist` and deploying. The app remains a static Vite site: no backend, account, or database is required. Practice settings are mirrored to the URL for sharing and saved locally; optional learning data stays in local storage.

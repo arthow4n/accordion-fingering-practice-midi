@@ -20,12 +20,12 @@ const accompanimentLabels=(exercise:Exercise)=>{
  }
  return labels;
 };
-const serializeVoice=(events:ExerciseEvent[],exercise:Exercise,labels=new Map<number,string>())=>{
+const serializeVoice=(events:ExerciseEvent[],exercise:Exercise,labels=new Map<number,string>(),markedOnset?:number)=>{
  const signature=signatureMap(exercise.tonalContext), measure=ticksPerMeasure(exercise.meter);let currentMeasure=-1;let state=new Map<string,string>();const parts:string[]=[];
  const renderPitch=(p:Pitch)=>{const parsed=Note.get(p.name),key=`${parsed.letter}${parsed.oct}`,desired=accidental(p.name),active=state.get(key)??signature.get(letter(p.name))??"";let prefix="";if(desired!==active){prefix=desired||"=";state.set(key,desired);}return prefix+abcBase(p);};
- for(const event of events){const mi=Math.floor(event.onset/measure);if(mi!==currentMeasure){if(currentMeasure>=0)parts.push("|");currentMeasure=mi;state=new Map();}const duration=event.duration/240;const suffix=duration===1?"":Number.isInteger(duration)?String(duration):`/${Math.round(1/duration)}`;const tie=event.metadata.tieToNext?"-":"";const annotation=labels.get(event.onset);const prefix=annotation?`"${annotation}"`:"";if(!event.pitches.length)parts.push(`${prefix}z${suffix}`);else if(event.pitches.length===1)parts.push(`${prefix}${renderPitch(event.pitches[0]!)}${suffix}${tie}`);else parts.push(`${prefix}[${event.pitches.map(renderPitch).join("")}]${suffix}${tie}`);}parts.push("|");return parts.join(" ");
+ for(const event of events){const mi=Math.floor(event.onset/measure);if(mi!==currentMeasure){if(currentMeasure>=0)parts.push("|");currentMeasure=mi;state=new Map();}const duration=event.duration/240;const suffix=duration===1?"":Number.isInteger(duration)?String(duration):`/${Math.round(1/duration)}`;const tie=event.metadata.tieToNext?"-":"";const annotation=labels.get(event.onset);const prefix=`${markedOnset!==undefined&&markedOnset>=event.onset&&markedOnset<event.onset+event.duration?"!mark!":""}${annotation?`"${annotation}"`:""}`;if(!event.pitches.length)parts.push(`${prefix}z${suffix}`);else if(event.pitches.length===1)parts.push(`${prefix}${renderPitch(event.pitches[0]!)}${suffix}${tie}`);else parts.push(`${prefix}[${event.pitches.map(renderPitch).join("")}]${suffix}${tie}`);}parts.push("|");return parts.join(" ");
 };
-export const exerciseToAbc=(exercise:Exercise)=>{
+export const exerciseToAbc=(exercise:Exercise,markedOnset?:number)=>{
  const key=`${exercise.tonalContext.tonic}${exercise.tonalContext.mode==="minor"?"m":""}`;
- return `X:1\nM:${exercise.meter.beats}/${exercise.meter.beatUnit}\nL:1/8\nK:${key}\n${serializeVoice(exercise.rightHand,exercise,accompanimentLabels(exercise))}\n`;
+ return `X:1\nM:${exercise.meter.beats}/${exercise.meter.beatUnit}\nL:1/8\nK:${key}\n${serializeVoice(exercise.rightHand,exercise,accompanimentLabels(exercise),markedOnset)}\n`;
 };

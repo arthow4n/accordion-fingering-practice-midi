@@ -28,7 +28,7 @@ The left-hand accompaniment vocabulary preserves the pre-V3 hand-curated polka, 
 
 ## Development
 
-Requires a currently supported Node release (Node 22 is used in CI).
+Requires a currently supported Node release (CI uses the current LTS line).
 
 ```sh
 npm ci

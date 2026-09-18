@@ -18,7 +18,7 @@
 
 ## Validation
 
-Use Node 22, matching GitHub Actions. Install dependencies from the committed lockfile:
+Use the current Node.js LTS line, matching GitHub Actions. Install dependencies from the committed lockfile:
 
 ```sh
 npm ci

@@ -4,6 +4,7 @@ const meterSchema = z.object({ beats: z.number().int().min(2).max(6), beatUnit: 
 const rangeSchema = z.object({ low: z.number().int().min(0).max(127), high: z.number().int().min(0).max(127) }).refine((x) => x.low <= x.high);
 export const trainingRequestSchema = z.object({
   version: z.literal(3),
+  hands: z.enum(["both","right","left"]).default("both"),
   intent: z.enum(["balanced","patternFocus","keyFluency","rhythmFocus","pitchIntervalFocus","readAhead","leftHandFocus","coordination","randomDecoding"]),
   mix: z.array(z.object({ intent: z.enum(["balanced","patternFocus","keyFluency","rhythmFocus","pitchIntervalFocus","readAhead","leftHandFocus","coordination","randomDecoding"]), weight: z.number().positive() })).optional(),
   tonal: z.object({ keys: z.array(z.string()).min(1), selection: z.enum(["fixed","random","weighted"]), modePolicy: z.enum(["major","minor","both"]), chromaticism: z.number().min(0).max(1) }),
@@ -19,7 +20,7 @@ export const trainingRequestSchema = z.object({
 export type TrainingRequest = z.infer<typeof trainingRequestSchema>;
 export const parseTrainingRequest = (input: unknown) => trainingRequestSchema.parse(input);
 export const defaultTrainingRequest = (): TrainingRequest => ({
-  version:3, intent:"balanced", tonal:{keys:["C major","G major","F major","D major"],selection:"random",modePolicy:"both",chromaticism:.03},
+  version:3, hands:"both", intent:"balanced", tonal:{keys:["C major","G major","F major","D major"],selection:"random",modePolicy:"both",chromaticism:.03},
   patterns:{allowedFamilies:["repeated","scale","thirds","triad","arpeggio","neighbor","passing","leapRecovery","sequence","cadence","chordTone"],targetFamilies:[],targetDensity:.35,repetition:.55,variation:.35,sequenceProbability:.25},
   rhythm:{meters:[{beats:4,beatUnit:4}],smallestSubdivision:"eighth",syncopation:.1,restDensity:.05,tieDensity:.05,noteDensity:.55},
   harmony:{progressionVocabulary:["I-I-V-I","I-IV-V-I","I-vi-IV-V","I-ii-V7-I"],chordVocabulary:["major","minor","dominant7","diminished"]},

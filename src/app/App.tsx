@@ -39,6 +39,7 @@ export default function App(){
  const initialMode=defaultRuntimeMode(initial.settings.intent);
  const [mode,setMode]=useState<RuntimeMode>(initialMode);const [status,setStatus]=useState<"ready"|"countIn"|"playing">(initialMode==="correction"?"playing":"ready");const [positionMs,setPositionMs]=useState(0);const [metrics,setMetrics]=useState<PerformanceMetrics>();const [sessionStats,setSessionStats]=useState(emptySessionStats);const [continuous,setContinuous]=useState(false);const [devices,setDevices]=useState<string[]>([]);const [midiError,setMidiError]=useState("");const [generationError,setGenerationError]=useState(initial.error);
  const [rightIndex,setRightIndex]=useState(0);const [leftIndex,setLeftIndex]=useState(0);
+ const [countInBeat,setCountInBeat]=useState(1);
 
  const rightTargets=useMemo<CorrectionTarget[]>(()=>{
   if(!includesHand(settings.hands,"right"))return[];
@@ -124,17 +125,30 @@ export default function App(){
   regenerate(seed+1,true);
  },[exercise,settings.hands,regenerate,seed]);
 
- const start=useCallback(()=>{
+ const start=useCallback((skipCountIn=false)=>{
   setContinuous(true);
   if(mode==="correction"){setStatus("playing");return;}
   performedRef.current=[];
-  const timeline=new AbsoluteTimeline(exercise,0,4);
+  const countInBeats=skipCountIn?0:4;
+  const timeline=new AbsoluteTimeline(exercise,0,countInBeats);
   timelineRef.current=timeline;
   const sessionStart=timeline.start(performance.now());
-  setStatus("countIn");
+  const countInMs=ticksToMs(countInBeats*480,exercise.tempoBpm);
+  if(skipCountIn){
+   setStatus("playing");
+  }else{
+   setStatus("countIn");
+   setCountInBeat(1);
+  }
   const tick=()=>{
    const now=performance.now();
-   if(now>=sessionStart)setStatus("playing");
+   if(now<sessionStart){
+    const elapsed=countInMs-(sessionStart-now);
+    const beat=Math.min(countInBeats,Math.max(1,Math.floor((elapsed/countInMs)*countInBeats)+1));
+    setCountInBeat(beat);
+   }else{
+    setStatus("playing");
+   }
    setPositionMs(timeline.positionAt(now));
    if(timeline.isFinished(now)){finish();return;}
    frameRef.current=requestAnimationFrame(tick);
@@ -146,7 +160,11 @@ export default function App(){
   if(event.type!=="noteOn"||(event.hand&&!includesHand(settings.hands,event.hand)))return;
 
   if(mode==="sightReading"){
-   if(status==="ready"){start();return;}
+   if(status==="ready"){
+    start(true);
+    performedRef.current.push(event);
+    return;
+   }
    if(status==="playing"||status==="countIn")performedRef.current.push(event);
    return;
   }
@@ -191,7 +209,7 @@ export default function App(){
     setSessionStats(x=>({...x,completedEvents:x.completedEvents+1,attempts:x.attempts+1,correct:x.correct+1}));
     setPositionMs(ticksToMs(rightTarget.onset+rightTarget.duration,exercise.tempoBpm));
     const rightDone=nextRight>=rightTargets.length;
-    const leftDone=!hasLeft||leftIndex>=leftTargets.length||leftIndex===0;
+    const leftDone=!hasLeft||leftIndex>=leftTargets.length;
     if(rightDone&&leftDone){
      setSessionStats(x=>({...x,completedExercises:x.completedExercises+1}));
      regenerate(seed+1,true);
@@ -225,7 +243,7 @@ export default function App(){
     setSessionStats(x=>({...x,completedEvents:x.completedEvents+1,attempts:x.attempts+1,correct:x.correct+1}));
     if(!hasRight)setPositionMs(ticksToMs(leftTarget.onset+leftTarget.duration,exercise.tempoBpm));
     const leftDone=nextLeft>=leftTargets.length;
-    const rightDone=!hasRight||rightIndex>=rightTargets.length||rightIndex===0;
+    const rightDone=!hasRight||rightIndex>=rightTargets.length;
     if(leftDone&&rightDone){
      setSessionStats(x=>({...x,completedExercises:x.completedExercises+1}));
      regenerate(seed+1,true);
@@ -238,10 +256,22 @@ export default function App(){
  useEffect(()=>{midiListenerRef.current=acceptMidi;},[acceptMidi]);
  useEffect(()=>{if(continuous&&status==="ready")start();},[continuous,status,exercise,start]);
  useEffect(()=>{let cancelled=false;let disconnect:undefined|(()=>void);connectWebMidi(event=>midiListenerRef.current(event),names=>{if(!cancelled)setDevices(names);}).then(x=>{if(cancelled)x.disconnect();else{setDevices(x.deviceNames);disconnect=x.disconnect;setMidiError("");}}).catch(e=>{if(!cancelled)setMidiError(e instanceof Error?e.message:String(e));});return()=>{cancelled=true;disconnect?.();};},[]);
+
+ const r=hasRight&&rightIndex<rightTargets.length?rightTargets[rightIndex]?.onset:undefined;
+ const l=hasLeft&&leftIndex<leftTargets.length?leftTargets[leftIndex]?.onset:undefined;
+ const correctionPlayhead=r!==undefined&&l!==undefined?Math.min(r,l):(r??l);
+
  const playhead=mode==="correction"
-  ?(hasRight?rightTargets[rightIndex]?.onset:leftTargets[leftIndex]?.onset)
-  :(status==="playing"?(positionMs/60_000)*exercise.tempoBpm*480:undefined);
- const markedOnset=playhead===undefined?undefined:exercise.rightHand.find(event=>playhead>=event.onset&&playhead<event.onset+event.duration)?.onset;
+  ?correctionPlayhead
+  :(status==="playing"
+     ?(positionMs/60_000)*exercise.tempoBpm*480
+     :(exercise.rightHand[0]?.onset??0));
+
+ const markedOnset=playhead===undefined
+  ?undefined
+  :(exercise.rightHand.find(event=>playhead>=event.onset&&playhead<event.onset+event.duration)?.onset
+     ??(hasRight&&rightIndex<rightTargets.length?rightTargets[rightIndex]?.onset:exercise.rightHand[0]?.onset));
+
  useEffect(()=>{if(scoreRef.current)renderAbc(scoreRef.current,exerciseToAbc(exercise,markedOnset),{add_classes:true,responsive:"resize"});},[exercise,markedOnset]);
  useEffect(()=>{if(!("wakeLock" in navigator))return;let lock:WakeLockSentinel|undefined;const acquire=async()=>{try{await lock?.release();lock=await navigator.wakeLock.request("screen");}catch{lock=undefined;}};const visibility=()=>{if(document.visibilityState==="visible")void acquire();};void acquire();document.addEventListener("visibilitychange",visibility);return()=>{document.removeEventListener("visibilitychange",visibility);void lock?.release();};},[]);
  useEffect(()=>()=>cancelAnimationFrame(frameRef.current??0),[]);
@@ -251,21 +281,21 @@ export default function App(){
  return <main>
   <div className="track" ref={scoreRef}/><div className="progress"><span style={{width:`${progress}%`}}/></div>
   <p>{status==="countIn"
-   ?"Count in…"
+   ?`Count in… beat ${countInBeat} of 4`
    :mode==="correction"
     ?hasRight&&hasLeft
-     ?`Right hand: ${Math.min(rightIndex+1,rightTargets.length)} of ${rightTargets.length} · Left hand: ${Math.min(leftIndex+1,leftTargets.length)} of ${leftTargets.length}`
+     ?`Right hand: ${rightIndex>=rightTargets.length?"done":`${rightIndex+1} of ${rightTargets.length}`} · Left hand: ${leftIndex>=leftTargets.length?"done":`${leftIndex+1} of ${leftTargets.length}`}`
      :hasRight
       ?`Event ${Math.min(rightIndex+1,rightTargets.length)} of ${rightTargets.length}`
       :`Event ${Math.min(leftIndex+1,leftTargets.length)} of ${leftTargets.length}`
     :status==="playing"
      ?"Sight-reading—keep the pulse"
-     :"Ready (play on accordion or click Start)"
+     :"Ready (play first note on accordion to begin, or click Start for count-in)"
   }</p>
   <p>Completed {sessionStats.completedExercises} exercises · {sessionStats.completedEvents} events · correct {sessionStats.attempts?`${(sessionStats.correct/sessionStats.attempts*100).toFixed(0)}%`:"—"} · missed {sessionStats.missed} · extra {sessionStats.extra}</p>
   {metrics&&<p>Last exercise: pitch {(metrics.pitchAccuracy*100).toFixed(0)}% · timing {(metrics.timingAccuracy*100).toFixed(0)}% · continuity {(metrics.continuity*100).toFixed(0)}%</p>}
   {generationError&&<p role="alert">These settings could not generate an exercise: {generationError}</p>}
-  <p><button onClick={start} disabled={Boolean(generationError)||status==="playing"||status==="countIn"||mode==="correction"}>Start</button>{" "}<button onClick={()=>{setContinuous(false);regenerate();}}>New exercise</button>{" "}<button onClick={()=>{setContinuous(false);regenerate(seed);}}>Replay seed</button>{" "}<button onClick={()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen({navigationUI:"hide"})}>Full screen</button></p>
+  <p><button onClick={()=>start()} disabled={Boolean(generationError)||status==="playing"||status==="countIn"||mode==="correction"}>Start</button>{" "}<button onClick={()=>{setContinuous(false);regenerate();}}>New exercise</button>{" "}<button onClick={()=>{setContinuous(false);regenerate(seed);}}>Replay seed</button>{" "}<button onClick={()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen({navigationUI:"hide"})}>Full screen</button></p>
   <fieldset><legend>Practice settings</legend>
    <label>Training mode <select value={settings.intent} onChange={e=>setIntent(e.target.value as TrainingIntent)}>{intents.map(x=><option key={x}>{x}</option>)}</select></label>{" "}
    <label>Execution <select value={mode} onChange={e=>changeMode(e.target.value as RuntimeMode)}><option value="sightReading">Timed sight-reading</option><option value="correction">Correction / drill</option></select></label>{" "}

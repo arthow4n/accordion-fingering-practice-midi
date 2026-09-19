@@ -11,4 +11,19 @@ describe("event matching",()=>{
   expect(matches.map(match=>match.classification)).toEqual(["correct","correct"]);
  });
  it("classifies early and late",()=>{expect(matchEvents([event([60])],[{midiNote:60,type:"noteOn",timestampMs:850,velocity:1}])[0]?.classification).toBe("early");expect(matchEvents([event([60])],[{midiNote:60,type:"noteOn",timestampMs:1200,velocity:1}])[0]?.classification).toBe("late");});
+ it("isolates hands so left-hand notes do not match right-hand targets",()=>{
+  const right=event([60]);
+  const leftMatch=matchEvents([right],[{midiNote:60,type:"noteOn",timestampMs:1000,velocity:1,hand:"left"}]);
+  expect(leftMatch[0]?.classification).toBe("missed");
+  const rightMatch=matchEvents([right],[{midiNote:60,type:"noteOn",timestampMs:1000,velocity:1,hand:"right"}]);
+  expect(rightMatch[0]?.classification).toBe("correct");
+ });
+ it("folds octaves for left-hand accordion buttons while enforcing exact octave on right hand",()=>{
+  const leftTarget={...event([48]),hand:"left" as const};
+  const foldedMatch=matchEvents([leftTarget],[{midiNote:36,type:"noteOn",timestampMs:1000,velocity:1,hand:"left"}]);
+  expect(foldedMatch[0]?.classification).toBe("correct");
+  const rightTarget=event([60]);
+  const wrongOctaveMatch=matchEvents([rightTarget],[{midiNote:72,type:"noteOn",timestampMs:1000,velocity:1,hand:"right"}]);
+  expect(wrongOctaveMatch[0]?.classification).toBe("wrongPitch");
+ });
 });

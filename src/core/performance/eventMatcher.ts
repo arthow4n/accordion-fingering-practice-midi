@@ -7,10 +7,15 @@ export const defaultMatchOptions:MatchOptions={earlyToleranceMs:180,lateToleranc
 export const matchEvents=(expected:TimedExpectedEvent[],performed:PerformedMidiEvent[],options=defaultMatchOptions):EventMatch[]=>{
  const notes=performed.filter(p=>p.type==="noteOn").sort((a,b)=>a.timestampMs-b.timestampMs); const used=new Set<number>(); const result:EventMatch[]=[];
  for(const target of expected){
-  const candidates=notes.map((p,i)=>({p,i,d:p.timestampMs-target.expectedMs})).filter(x=>!used.has(x.i)&&x.d>=-options.earlyToleranceMs&&x.d<=options.lateToleranceMs);
-  const exact=candidates.filter(x=>target.pitches.some(p=>p.midi===x.p.midiNote));
+  const candidates=notes.map((p,i)=>({p,i,d:p.timestampMs-target.expectedMs})).filter(x=>!used.has(x.i)&&x.d>=-options.earlyToleranceMs&&x.d<=options.lateToleranceMs&&(!x.p.hand||!target.hand||x.p.hand===target.hand));
+  const pitchMatches=(expectedPitch:number,performedMidi:number)=>expectedPitch===performedMidi||(target.hand==="left"&&expectedPitch%12===((performedMidi%12)+12)%12);
+  const exact=candidates.filter(x=>target.pitches.some(p=>pitchMatches(p.midi,x.p.midiNote)));
   const selected=(target.pitches.length>1?exact.filter(x=>Math.abs(x.p.timestampMs-(exact[0]?.p.timestampMs??0))<=options.simultaneityWindowMs):exact.slice(0,1));
-  if(selected.length){selected.forEach(x=>used.add(x.i));const error=selected.reduce((s,x)=>s+x.d,0)/selected.length;const complete=new Set(selected.map(x=>x.p.midiNote)).size===new Set(target.pitches.map(x=>x.midi)).size;result.push({expected:target,performed:selected.map(x=>x.p),classification:!complete?"wrongPitch":error < -options.earlyToleranceMs/2?"early":error>options.lateToleranceMs/2?"late":"correct",timingErrorMs:error});}
+  if(selected.length){
+   selected.forEach(x=>used.add(x.i));const error=selected.reduce((s,x)=>s+x.d,0)/selected.length;
+   const complete=target.pitches.every(p=>selected.some(s=>pitchMatches(p.midi,s.p.midiNote)));
+   result.push({expected:target,performed:selected.map(x=>x.p),classification:!complete?"wrongPitch":error < -options.earlyToleranceMs/2?"early":error>options.lateToleranceMs/2?"late":"correct",timingErrorMs:error});
+  }
   else if(candidates.length){const x=candidates[0]!;used.add(x.i);result.push({expected:target,performed:[x.p],classification:"wrongPitch",timingErrorMs:x.d});}
   else result.push({expected:target,performed:[],classification:"missed"});
  }

@@ -4,7 +4,7 @@ import type { PerformedMidiEvent } from "../../core/model";
 export type MidiListener=(event:PerformedMidiEvent)=>void;
 export type MidiDevicesListener=(deviceNames:string[])=>void;
 
-const normalize=(event:NoteMessageEvent,type:"noteOn"|"noteOff"):PerformedMidiEvent=>({midiNote:event.note.number,type,timestampMs:event.timestamp,velocity:event.rawValue??0,hand:event.message.channel===1?"right":event.message.channel===2||event.message.channel===3?"left":undefined});
+const normalize=(event:NoteMessageEvent,type:"noteOn"|"noteOff"):PerformedMidiEvent=>({midiNote:event.note.number,type,timestampMs:event.timestamp??performance.now(),velocity:event.rawValue??0,hand:event.message.channel===1?"right":event.message.channel===2||event.message.channel===3?"left":undefined});
 const inputName=(input:Input)=>`${input.manufacturer??""} ${input.name}`.trim();
 
 export const connectWebMidi=async(listener:MidiListener,onDevicesChanged:MidiDevicesListener=()=>{})=>{

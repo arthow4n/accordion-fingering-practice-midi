@@ -18,6 +18,12 @@ const accompanimentLabels=(exercise:Exercise)=>{
   const chord=chordName(harmony,exercise.tonalContext);const bass=event.metadata.stradellaButton?.split(" ")[0];const label=bass&&bass!==chord.replace(/m|7|dim/g,"")?`${chord}/${bass}`:chord;
   if(label!==previous)labels.set(event.onset,label);previous=label;
  }
+ if(!labels.size){
+  for(const harmony of exercise.harmony){
+   const chord=chordName(harmony,exercise.tonalContext);
+   if(chord!==previous)labels.set(harmony.onset,chord);previous=chord;
+  }
+ }
  return labels;
 };
 const serializeVoice=(events:ExerciseEvent[],exercise:Exercise,labels=new Map<number,string>(),markedOnset?:number)=>{

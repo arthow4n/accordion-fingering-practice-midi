@@ -20,9 +20,6 @@ main {
   stroke: red;
 }
 
-.track .abcjs-chord {
-  transform: translate(0, -100px);
-}
 
 .summary { font-variant-numeric: tabular-nums; }
 .progress { width: 100%; height: .35rem; background: #ddd; border-radius: 1rem; overflow: hidden; }

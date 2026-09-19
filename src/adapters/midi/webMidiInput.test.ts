@@ -23,3 +23,22 @@ it("reconciles hot-plugged inputs and reports the current device list",async()=>
  webMidi.inputs=[];vi.advanceTimersByTime(1000);expect(devices).toHaveBeenLastCalledWith([]);expect(reconnected.listeners.get("noteon")?.size).toBe(0);
  connection.disconnect();expect(webMidi.listeners.get("connected")?.size).toBe(0);vi.useRealTimers();
 });
+
+it("maps Roland FR-1XB MIDI channels to right and left hands",async()=>{
+ const {connectWebMidi}=await import("./webMidiInput");const notes=vi.fn();
+ const connection=await connectWebMidi(notes);const input=new FakeInput("one","FR-1XB");webMidi.inputs=[input];
+ webMidi.listeners.get("connected")?.forEach(handler=>handler({}));
+ // Channel 1: Treble (right hand)
+ input.emit("noteon",{note:{number:60},timestamp:100,rawValue:90,message:{channel:1}});
+ expect(notes).toHaveBeenLastCalledWith({midiNote:60,type:"noteOn",timestampMs:100,velocity:90,hand:"right"});
+ // Channel 2: Bass (left hand)
+ input.emit("noteon",{note:{number:48},timestamp:110,rawValue:90,message:{channel:2}});
+ expect(notes).toHaveBeenLastCalledWith({midiNote:48,type:"noteOn",timestampMs:110,velocity:90,hand:"left"});
+ // Channel 3: Chord (left hand)
+ input.emit("noteon",{note:{number:52},timestamp:120,rawValue:90,message:{channel:3}});
+ expect(notes).toHaveBeenLastCalledWith({midiNote:52,type:"noteOn",timestampMs:120,velocity:90,hand:"left"});
+ // Channel 4: Unassigned / generic
+ input.emit("noteon",{note:{number:70},timestamp:130,rawValue:90,message:{channel:4}});
+ expect(notes).toHaveBeenLastCalledWith({midiNote:70,type:"noteOn",timestampMs:130,velocity:90,hand:undefined});
+ connection.disconnect();
+});

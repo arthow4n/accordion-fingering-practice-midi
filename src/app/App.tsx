@@ -33,41 +33,242 @@ function IntegerInput({label,value,min,max,onCommit}:{label:string;value:number;
 }
 
 export default function App(){
- const scoreRef=useRef<HTMLDivElement>(null);const performedRef=useRef<PerformedMidiEvent[]>([]);const correctionNotesRef=useRef(new Map<number,number>());const timelineRef=useRef<AbsoluteTimeline>();const frameRef=useRef<number>();const midiListenerRef=useRef<MidiListener>(()=>{});
+ const scoreRef=useRef<HTMLDivElement>(null);const performedRef=useRef<PerformedMidiEvent[]>([]);const rightNotesRef=useRef(new Map<number,number>());const leftNotesRef=useRef(new Map<number,number>());const timelineRef=useRef<AbsoluteTimeline>();const frameRef=useRef<number>();const midiListenerRef=useRef<MidiListener>(()=>{});
  const [initial]=useState(()=>{const settings=loadSettings(),seed=settings.seed??nextSeed();try{return {settings,seed,exercise:generateExercise(settings,seed),error:""};}catch(error){return {settings,seed,exercise:generateExercise(defaultTrainingRequest(),0),error:error instanceof Error?error.message:String(error)};}});
  const [settings,setSettings]=useState(initial.settings);const [seed,setSeed]=useState(initial.seed);const [exercise,setExercise]=useState(initial.exercise);
- const [mode,setMode]=useState<RuntimeMode>(defaultRuntimeMode(settings.intent));const [status,setStatus]=useState<"ready"|"countIn"|"playing">("ready");const [positionMs,setPositionMs]=useState(0);const [metrics,setMetrics]=useState<PerformanceMetrics>();const [sessionStats,setSessionStats]=useState(emptySessionStats);const [continuous,setContinuous]=useState(false);const [devices,setDevices]=useState<string[]>([]);const [midiError,setMidiError]=useState("");const [generationError,setGenerationError]=useState(initial.error);const [correctionIndex,setCorrectionIndex]=useState(0);
- // A single correction target may contain a Stradella chord and a right-hand attack
- // at the same onset. Keep duplicate MIDI numbers because the instrument has no
- // reliable hand metadata and both attacks still need to be counted.
- const expected=useMemo<CorrectionTarget[]>(()=>{const events=[...exercise.rightHand,...exercise.leftHand].filter(e=>includesHand(settings.hands,e.hand)&&e.pitches.length&&!e.metadata.tieFromPrevious).sort((a,b)=>a.onset-b.onset);const targets:CorrectionTarget[]=[];for(const event of events){const previous=targets.at(-1);if(previous?.onset===event.onset){previous.pitches.push(...event.pitches.map(p=>p.midi));previous.duration=Math.max(previous.duration,event.duration);previous.eventCount++;}else targets.push({onset:event.onset,duration:event.duration,pitches:event.pitches.map(p=>p.midi),eventCount:1});}return targets;},[exercise,settings.hands]);
- const updateSettings=(next:TrainingRequest,persist=true)=>{cancelAnimationFrame(frameRef.current??0);setContinuous(false);setSettings(next);if(persist)saveSettings(next);setStatus("ready");setMetrics(undefined);setPositionMs(0);setCorrectionIndex(0);performedRef.current=[];correctionNotesRef.current.clear();try{const newSeed=nextSeed(),generated=generateExercise(next,newSeed);setSeed(newSeed);setExercise(generated);setGenerationError("");}catch(error){setGenerationError(error instanceof Error?error.message:String(error));}};
- const regenerate=useCallback((newSeed=seed+1,keepPlaying=false)=>{cancelAnimationFrame(frameRef.current??0);try{const next=generateExercise(settings,newSeed);setSeed(newSeed);setExercise(next);setStatus(keepPlaying&&mode==="correction"?"playing":"ready");if(!keepPlaying)setMetrics(undefined);setPositionMs(0);setCorrectionIndex(0);performedRef.current=[];correctionNotesRef.current.clear();setGenerationError("");console.debug(exerciseDiagnostics(next));}catch(error){setContinuous(false);setStatus("ready");setGenerationError(error instanceof Error?error.message:String(error));}},[settings,mode,seed]);
- const finish=useCallback(()=>{const timeline=timelineRef.current;if(!timeline)return;cancelAnimationFrame(frameRef.current??0);const evaluated={...exercise,rightHand:includesHand(settings.hands,"right")?exercise.rightHand:[],leftHand:includesHand(settings.hands,"left")?exercise.leftHand:[]};const result=evaluatePerformance(evaluated,performedRef.current,timeline.sessionStartMs()).metrics;setMetrics(result);const attempts=result.rightHand.attempts+result.leftHand.attempts;const correct=result.rightHand.correct+result.leftHand.correct;setSessionStats(x=>({...x,completedExercises:x.completedExercises+1,completedEvents:x.completedEvents+attempts,attempts:x.attempts+attempts,correct:x.correct+correct,timingCorrect:x.timingCorrect+Math.round(result.timingAccuracy*attempts),missed:x.missed+result.missedNotes,extra:x.extra+result.extraNotes}));regenerate(seed+1,true);},[exercise,settings.hands,regenerate,seed]);
- // Consume each note-on once instead of using a wall-clock guard: an attack may
- // overlap the next attack, while duplicate chord pitches still need counting.
- const acceptMidi=useCallback((event:PerformedMidiEvent)=>{if(event.type!=="noteOn"||(event.hand&&!includesHand(settings.hands,event.hand)))return;if(mode==="correction"){if(status!=="playing")return;const target=expected[correctionIndex];if(!target){return;}const required=target.pitches.filter(p=>p===event.midiNote).length;const used=correctionNotesRef.current.get(event.midiNote)??0;if(!required||used>=required){setSessionStats(x=>({...x,attempts:x.attempts+1}));return;}correctionNotesRef.current.set(event.midiNote,used+1);const complete=target.pitches.every(p=>{const count=correctionNotesRef.current.get(p)??0;return count>=target.pitches.filter(expectedPitch=>expectedPitch===p).length;});if(complete){correctionNotesRef.current.clear();const next=correctionIndex+1;setSessionStats(x=>({...x,completedEvents:x.completedEvents+target.eventCount,attempts:x.attempts+1,correct:x.correct+1}));if(next>=expected.length){setSessionStats(x=>({...x,completedExercises:x.completedExercises+1}));regenerate(seed+1,true);}else{setCorrectionIndex(next);setPositionMs(ticksToMs(target.onset+target.duration,exercise.tempoBpm));}}return;}if(status==="playing"||status==="countIn")performedRef.current.push(event);},[settings.hands,mode,status,expected,correctionIndex,exercise.tempoBpm,regenerate,seed]);
+ const initialMode=defaultRuntimeMode(initial.settings.intent);
+ const [mode,setMode]=useState<RuntimeMode>(initialMode);const [status,setStatus]=useState<"ready"|"countIn"|"playing">(initialMode==="correction"?"playing":"ready");const [positionMs,setPositionMs]=useState(0);const [metrics,setMetrics]=useState<PerformanceMetrics>();const [sessionStats,setSessionStats]=useState(emptySessionStats);const [continuous,setContinuous]=useState(false);const [devices,setDevices]=useState<string[]>([]);const [midiError,setMidiError]=useState("");const [generationError,setGenerationError]=useState(initial.error);
+ const [rightIndex,setRightIndex]=useState(0);const [leftIndex,setLeftIndex]=useState(0);
+
+ const rightTargets=useMemo<CorrectionTarget[]>(()=>{
+  if(!includesHand(settings.hands,"right"))return[];
+  return exercise.rightHand.filter(e=>e.pitches.length&&!e.metadata.tieFromPrevious).map(e=>({onset:e.onset,duration:e.duration,pitches:e.pitches.map(p=>p.midi),eventCount:1}));
+ },[exercise.rightHand,settings.hands]);
+
+ const leftTargets=useMemo<CorrectionTarget[]>(()=>{
+  if(!includesHand(settings.hands,"left"))return[];
+  return exercise.leftHand.filter(e=>e.pitches.length&&!e.metadata.tieFromPrevious).map(e=>({onset:e.onset,duration:e.duration,pitches:e.pitches.map(p=>p.midi),eventCount:1}));
+ },[exercise.leftHand,settings.hands]);
+
+ const hasRight=includesHand(settings.hands,"right")&&rightTargets.length>0;
+ const hasLeft=includesHand(settings.hands,"left")&&leftTargets.length>0;
+
+ const changeMode=(nextMode:RuntimeMode)=>{
+  cancelAnimationFrame(frameRef.current??0);
+  setMode(nextMode);
+  setStatus(nextMode==="correction"?"playing":"ready");
+  setContinuous(false);
+  setRightIndex(0);
+  setLeftIndex(0);
+  rightNotesRef.current.clear();
+  leftNotesRef.current.clear();
+ };
+
+ const updateSettings=(next:TrainingRequest,persist=true,nextMode=mode)=>{
+  cancelAnimationFrame(frameRef.current??0);
+  setContinuous(false);
+  setSettings(next);
+  if(persist)saveSettings(next);
+  setMode(nextMode);
+  setStatus(nextMode==="correction"?"playing":"ready");
+  setMetrics(undefined);
+  setPositionMs(0);
+  setRightIndex(0);
+  setLeftIndex(0);
+  performedRef.current=[];
+  rightNotesRef.current.clear();
+  leftNotesRef.current.clear();
+  try{
+   const newSeed=nextSeed(),generated=generateExercise(next,newSeed);
+   setSeed(newSeed);
+   setExercise(generated);
+   setGenerationError("");
+  }catch(error){
+   setGenerationError(error instanceof Error?error.message:String(error));
+  }
+ };
+
+ const regenerate=useCallback((newSeed=seed+1,keepPlaying=false)=>{
+  cancelAnimationFrame(frameRef.current??0);
+  try{
+   const next=generateExercise(settings,newSeed);
+   setSeed(newSeed);
+   setExercise(next);
+   setStatus(mode==="correction"||keepPlaying?"playing":"ready");
+   if(!keepPlaying)setMetrics(undefined);
+   setPositionMs(0);
+   setRightIndex(0);
+   setLeftIndex(0);
+   performedRef.current=[];
+   rightNotesRef.current.clear();
+   leftNotesRef.current.clear();
+   setGenerationError("");
+   console.debug(exerciseDiagnostics(next));
+  }catch(error){
+   setContinuous(false);
+   setStatus("ready");
+   setGenerationError(error instanceof Error?error.message:String(error));
+  }
+ },[settings,mode,seed]);
+
+ const finish=useCallback(()=>{
+  const timeline=timelineRef.current;
+  if(!timeline)return;
+  cancelAnimationFrame(frameRef.current??0);
+  const evaluated={...exercise,rightHand:includesHand(settings.hands,"right")?exercise.rightHand:[],leftHand:includesHand(settings.hands,"left")?exercise.leftHand:[]};
+  const result=evaluatePerformance(evaluated,performedRef.current,timeline.sessionStartMs()).metrics;
+  setMetrics(result);
+  const attempts=result.rightHand.attempts+result.leftHand.attempts;
+  const correct=result.rightHand.correct+result.leftHand.correct;
+  setSessionStats(x=>({...x,completedExercises:x.completedExercises+1,completedEvents:x.completedEvents+attempts,attempts:x.attempts+attempts,correct:x.correct+correct,timingCorrect:x.timingCorrect+Math.round(result.timingAccuracy*attempts),missed:x.missed+result.missedNotes,extra:x.extra+result.extraNotes}));
+  regenerate(seed+1,true);
+ },[exercise,settings.hands,regenerate,seed]);
+
+ const start=useCallback(()=>{
+  setContinuous(true);
+  if(mode==="correction"){setStatus("playing");return;}
+  performedRef.current=[];
+  const timeline=new AbsoluteTimeline(exercise,0,4);
+  timelineRef.current=timeline;
+  const sessionStart=timeline.start(performance.now());
+  setStatus("countIn");
+  const tick=()=>{
+   const now=performance.now();
+   if(now>=sessionStart)setStatus("playing");
+   setPositionMs(timeline.positionAt(now));
+   if(timeline.isFinished(now)){finish();return;}
+   frameRef.current=requestAnimationFrame(tick);
+  };
+  frameRef.current=requestAnimationFrame(tick);
+ },[mode,exercise,finish]);
+
+ const acceptMidi=useCallback((event:PerformedMidiEvent)=>{
+  if(event.type!=="noteOn"||(event.hand&&!includesHand(settings.hands,event.hand)))return;
+
+  if(mode==="sightReading"){
+   if(status==="ready"){start();return;}
+   if(status==="playing"||status==="countIn")performedRef.current.push(event);
+   return;
+  }
+
+  if(status!=="playing")setStatus("playing");
+
+  const targetHasPitch=(target:CorrectionTarget|undefined,midiNote:number,isLeft:boolean,notesRef:React.MutableRefObject<Map<number,number>>)=>{
+   if(!target)return false;
+   let p=target.pitches.find(pitch=>pitch===midiNote);
+   if(p===undefined&&isLeft)p=target.pitches.find(pitch=>pitch%12===((midiNote%12)+12)%12);
+   if(p===undefined)return false;
+   const used=notesRef.current.get(p)??0;
+   const req=target.pitches.filter(x=>x===p).length;
+   return used<req;
+  };
+
+  const rightTarget=hasRight&&rightIndex<rightTargets.length?rightTargets[rightIndex]:undefined;
+  const leftTarget=hasLeft&&leftIndex<leftTargets.length?leftTargets[leftIndex]:undefined;
+
+  const handUsed:"right"|"left"=event.hand??(
+   targetHasPitch(rightTarget,event.midiNote,false,rightNotesRef)
+    ?"right"
+    :targetHasPitch(leftTarget,event.midiNote,true,leftNotesRef)
+     ?"left"
+     :(hasRight?"right":"left")
+  );
+
+  if(handUsed==="right"){
+   if(!rightTarget)return;
+   const required=rightTarget.pitches.filter(p=>p===event.midiNote).length;
+   const used=rightNotesRef.current.get(event.midiNote)??0;
+   if(!required||used>=required){
+    setSessionStats(x=>({...x,attempts:x.attempts+1}));
+    return;
+   }
+   rightNotesRef.current.set(event.midiNote,used+1);
+   const complete=rightTarget.pitches.every(p=>(rightNotesRef.current.get(p)??0)>=rightTarget.pitches.filter(expectedPitch=>expectedPitch===p).length);
+   if(complete){
+    rightNotesRef.current.clear();
+    const nextRight=rightIndex+1;
+    setRightIndex(nextRight);
+    setSessionStats(x=>({...x,completedEvents:x.completedEvents+1,attempts:x.attempts+1,correct:x.correct+1}));
+    setPositionMs(ticksToMs(rightTarget.onset+rightTarget.duration,exercise.tempoBpm));
+    const rightDone=nextRight>=rightTargets.length;
+    const leftDone=!hasLeft||leftIndex>=leftTargets.length||leftIndex===0;
+    if(rightDone&&leftDone){
+     setSessionStats(x=>({...x,completedExercises:x.completedExercises+1}));
+     regenerate(seed+1,true);
+    }
+   }
+   return;
+  }
+
+  if(handUsed==="left"){
+   if(!leftTarget)return;
+   let matchedPitch=leftTarget.pitches.find(p=>p===event.midiNote);
+   if(matchedPitch===undefined){
+    matchedPitch=leftTarget.pitches.find(p=>p%12===((event.midiNote%12)+12)%12&&(leftNotesRef.current.get(p)??0)<leftTarget.pitches.filter(x=>x===p).length);
+   }
+   if(matchedPitch===undefined){
+    setSessionStats(x=>({...x,attempts:x.attempts+1}));
+    return;
+   }
+   const required=leftTarget.pitches.filter(p=>p===matchedPitch).length;
+   const used=leftNotesRef.current.get(matchedPitch)??0;
+   if(used>=required){
+    setSessionStats(x=>({...x,attempts:x.attempts+1}));
+    return;
+   }
+   leftNotesRef.current.set(matchedPitch,used+1);
+   const complete=leftTarget.pitches.every(p=>(leftNotesRef.current.get(p)??0)>=leftTarget.pitches.filter(expectedPitch=>expectedPitch===p).length);
+   if(complete){
+    leftNotesRef.current.clear();
+    const nextLeft=leftIndex+1;
+    setLeftIndex(nextLeft);
+    setSessionStats(x=>({...x,completedEvents:x.completedEvents+1,attempts:x.attempts+1,correct:x.correct+1}));
+    if(!hasRight)setPositionMs(ticksToMs(leftTarget.onset+leftTarget.duration,exercise.tempoBpm));
+    const leftDone=nextLeft>=leftTargets.length;
+    const rightDone=!hasRight||rightIndex>=rightTargets.length||rightIndex===0;
+    if(leftDone&&rightDone){
+     setSessionStats(x=>({...x,completedExercises:x.completedExercises+1}));
+     regenerate(seed+1,true);
+    }
+   }
+   return;
+  }
+ },[hasRight,hasLeft,mode,status,rightIndex,leftIndex,rightTargets,leftTargets,exercise.tempoBpm,seed,settings.hands,start,regenerate]);
+
  useEffect(()=>{midiListenerRef.current=acceptMidi;},[acceptMidi]);
+ useEffect(()=>{if(continuous&&status==="ready")start();},[continuous,status,exercise,start]);
  useEffect(()=>{let cancelled=false;let disconnect:undefined|(()=>void);connectWebMidi(event=>midiListenerRef.current(event),names=>{if(!cancelled)setDevices(names);}).then(x=>{if(cancelled)x.disconnect();else{setDevices(x.deviceNames);disconnect=x.disconnect;setMidiError("");}}).catch(e=>{if(!cancelled)setMidiError(e instanceof Error?e.message:String(e));});return()=>{cancelled=true;disconnect?.();};},[]);
- const playhead=status==="playing"?(mode==="correction"?expected[correctionIndex]?.onset:positionMs/60_000*exercise.tempoBpm*480):undefined;const markedOnset=playhead===undefined?undefined:exercise.rightHand.find(event=>playhead>=event.onset&&playhead<event.onset+event.duration)?.onset;
+ const playhead=mode==="correction"
+  ?(hasRight?rightTargets[rightIndex]?.onset:leftTargets[leftIndex]?.onset)
+  :(status==="playing"?(positionMs/60_000)*exercise.tempoBpm*480:undefined);
+ const markedOnset=playhead===undefined?undefined:exercise.rightHand.find(event=>playhead>=event.onset&&playhead<event.onset+event.duration)?.onset;
  useEffect(()=>{if(scoreRef.current)renderAbc(scoreRef.current,exerciseToAbc(exercise,markedOnset),{add_classes:true,responsive:"resize"});},[exercise,markedOnset]);
  useEffect(()=>{if(!("wakeLock" in navigator))return;let lock:WakeLockSentinel|undefined;const acquire=async()=>{try{await lock?.release();lock=await navigator.wakeLock.request("screen");}catch{lock=undefined;}};const visibility=()=>{if(document.visibilityState==="visible")void acquire();};void acquire();document.addEventListener("visibilitychange",visibility);return()=>{document.removeEventListener("visibilitychange",visibility);void lock?.release();};},[]);
  useEffect(()=>()=>cancelAnimationFrame(frameRef.current??0),[]);
- const start=useCallback(()=>{setContinuous(true);if(mode==="correction"){setStatus("playing");return;}performedRef.current=[];const timeline=new AbsoluteTimeline(exercise,0,4);timelineRef.current=timeline;const sessionStart=timeline.start(performance.now());setStatus("countIn");const tick=()=>{const now=performance.now();if(now>=sessionStart)setStatus("playing");setPositionMs(timeline.positionAt(now));if(timeline.isFinished(now)){finish();return;}frameRef.current=requestAnimationFrame(tick);};frameRef.current=requestAnimationFrame(tick);},[mode,exercise,finish]);
- useEffect(()=>{if(continuous&&status==="ready")start();},[continuous,status,exercise,start]);
- const setIntent=(intent:TrainingIntent)=>{updateSettings({...settings,intent});setMode(defaultRuntimeMode(intent));};
- const reset=()=>{const defaults=defaultTrainingRequest();clearSettings();updateSettings(defaults,false);setMode(defaultRuntimeMode(defaults.intent));};
+ const setIntent=(intent:TrainingIntent)=>{const nextMode=defaultRuntimeMode(intent);updateSettings({...settings,intent},true,nextMode);};
+ const reset=()=>{const defaults=defaultTrainingRequest();clearSettings();updateSettings(defaults,false,defaultRuntimeMode(defaults.intent));};
  const totalMs=ticksToMs(exercise.totalDuration,exercise.tempoBpm);const progress=Math.min(100,positionMs/totalMs*100);
  return <main>
   <div className="track" ref={scoreRef}/><div className="progress"><span style={{width:`${progress}%`}}/></div>
-  <p>{status==="countIn"?"Count in…":status==="playing"?mode==="correction"?`Event ${correctionIndex+1} of ${expected.length}`:"Sight-reading—keep the pulse":"Ready"}</p>
+  <p>{status==="countIn"
+   ?"Count in…"
+   :mode==="correction"
+    ?hasRight&&hasLeft
+     ?`Right hand: ${Math.min(rightIndex+1,rightTargets.length)} of ${rightTargets.length} · Left hand: ${Math.min(leftIndex+1,leftTargets.length)} of ${leftTargets.length}`
+     :hasRight
+      ?`Event ${Math.min(rightIndex+1,rightTargets.length)} of ${rightTargets.length}`
+      :`Event ${Math.min(leftIndex+1,leftTargets.length)} of ${leftTargets.length}`
+    :status==="playing"
+     ?"Sight-reading—keep the pulse"
+     :"Ready (play on accordion or click Start)"
+  }</p>
   <p>Completed {sessionStats.completedExercises} exercises · {sessionStats.completedEvents} events · correct {sessionStats.attempts?`${(sessionStats.correct/sessionStats.attempts*100).toFixed(0)}%`:"—"} · missed {sessionStats.missed} · extra {sessionStats.extra}</p>
   {metrics&&<p>Last exercise: pitch {(metrics.pitchAccuracy*100).toFixed(0)}% · timing {(metrics.timingAccuracy*100).toFixed(0)}% · continuity {(metrics.continuity*100).toFixed(0)}%</p>}
   {generationError&&<p role="alert">These settings could not generate an exercise: {generationError}</p>}
-  <p><button onClick={start} disabled={Boolean(generationError)||status==="playing"||status==="countIn"}>Start</button>{" "}<button onClick={()=>{setContinuous(false);regenerate();}}>New exercise</button>{" "}<button onClick={()=>{setContinuous(false);regenerate(seed);}}>Replay seed</button>{" "}<button onClick={()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen({navigationUI:"hide"})}>Full screen</button></p>
+  <p><button onClick={start} disabled={Boolean(generationError)||status==="playing"||status==="countIn"||mode==="correction"}>Start</button>{" "}<button onClick={()=>{setContinuous(false);regenerate();}}>New exercise</button>{" "}<button onClick={()=>{setContinuous(false);regenerate(seed);}}>Replay seed</button>{" "}<button onClick={()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen({navigationUI:"hide"})}>Full screen</button></p>
   <fieldset><legend>Practice settings</legend>
    <label>Training mode <select value={settings.intent} onChange={e=>setIntent(e.target.value as TrainingIntent)}>{intents.map(x=><option key={x}>{x}</option>)}</select></label>{" "}
-   <label>Execution <select value={mode} onChange={e=>setMode(e.target.value as RuntimeMode)}><option value="sightReading">Timed sight-reading</option><option value="correction">Correction / drill</option></select></label>{" "}
+   <label>Execution <select value={mode} onChange={e=>changeMode(e.target.value as RuntimeMode)}><option value="sightReading">Timed sight-reading</option><option value="correction">Correction / drill</option></select></label>{" "}
    <label>Hands <select value={settings.hands} onChange={e=>updateSettings({...settings,hands:e.target.value as HandMode,leftHand:{...settings.leftHand,enabled:true}})}><option value="both">Both</option><option value="right">Right hand only</option><option value="left">Left hand only</option></select></label>{" "}
    <label>Key <select value={settings.tonal.keys.length===1?settings.tonal.keys[0]:"pool"} onChange={e=>updateSettings({...settings,tonal:{...settings.tonal,keys:e.target.value==="pool"?["C major","G major","D major","F major"]:[e.target.value],selection:e.target.value==="pool"?"random":"fixed"}})}><option value="pool">Easy key pool</option>{keys.map(x=><option key={x}>{x}</option>)}</select></label>{" "}
    <label>Pitch range <select value={settings.pitchRegister} onChange={e=>updateSettings({...settings,pitchRegister:e.target.value as TrainingRequest["pitchRegister"]})}><option value="rotating">Full range — rotating</option><option value="low">Low (G3–G4)</option><option value="middle">Middle (G4–G5)</option><option value="high">High (G5–G6)</option><option value="custom">Custom</option></select></label>

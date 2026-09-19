@@ -14,9 +14,11 @@ import { validateExercise } from "./validateExercise";
 import { difficultyViolations, requestedDifficultyBounds, satisfiesDifficultyBounds } from "./difficultyConstraints";
 import { legacyBassLineById } from "../patterns/accompanimentTemplates";
 import { manualConstraintViolations } from "./manualConstraints";
+import { pitchWindow } from "./pitchRegister";
 const parseKey=(name:string):TonalContext=>{const match=name.match(/^(.+?)\s+(major|minor)$/);if(!match)throw new Error(`Invalid key ${name}`);return {tonic:match[1]!,mode:match[2] as TonalContext["mode"]};};
 export const generateExercise=(raw:TrainingRequest,seed=raw.seed??Date.now(),instrument:InstrumentProfile=accordionProfile):Exercise=>{
  const parsed=parseTrainingRequest(raw);const legacy=legacyBassLineById(parsed.leftHand.templateId);const [legacyBeats,legacyBeatUnit]=legacy?.meter.split("/").map(Number)??[];const normalized:TrainingRequest=legacy?{...parsed,measures:legacy.harmony.length,tonal:legacy.fixedKey?{...parsed.tonal,keys:[legacy.fixedKey],selection:"fixed"}:parsed.tonal,rhythm:{...parsed.rhythm,meters:[{beats:legacyBeats!,beatUnit:legacyBeatUnit as 4|8}]},leftHand:{...parsed.leftHand,enabled:true}}:parsed; const rng=createRng(seed); const intent:TrainingIntent=normalized.mix?rng.weightedPick(normalized.mix.map(x=>({value:x.intent,weight:x.weight}))):normalized.intent;const request=applyIntentPreset(normalized,intent);
+ request.rightHand.range=pitchWindow(request.pitchRegister,request.rightHand.range,seed,instrument.rightHandRange);
  const difficultyBounds=requestedDifficultyBounds(request);
  let lastRejection:string[]=[];
  for(let attempt=1;attempt<=32;attempt++){

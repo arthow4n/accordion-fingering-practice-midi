@@ -7,6 +7,7 @@ const bassRoots=["Ab","Eb","Bb","F","C","G","D","A","E","B"] as const;
 
 export const manualConstraintViolations=(exercise:Exercise,request:TrainingRequest)=>{
  const violations:string[]=[];const right=exercise.rightHand.filter(event=>event.pitches.length&&!event.metadata.tieFromPrevious);
+ if(right.some(event=>event.pitches.some(pitch=>pitch.midi<request.rightHand.range.low||pitch.midi>request.rightHand.range.high)))violations.push("melody cannot fit the selected pitch range");
  for(let index=1;index<right.length;index++){const jump=Math.abs(right[index]!.pitches[0]!.midi-right[index-1]!.pitches[0]!.midi);if(jump<request.rightHand.minJump||jump>request.rightHand.maxJump)violations.push(`right-hand jump ${jump} outside ${request.rightHand.minJump}..${request.rightHand.maxJump}`);}
  const accidentals=right.filter(event=>event.metadata.chromatic).length;if(accidentals>request.rightHand.maxAccidentalsPerExercise)violations.push(`${accidentals} right-hand accidentals exceeds ${request.rightHand.maxAccidentalsPerExercise}`);
  const bass=exercise.harmony.map(event=>Note.pitchClass(realizeScaleDegree(exercise.tonalContext,event.rootDegree,4).name));

@@ -4,6 +4,10 @@ A browser-only procedural music trainer for MIDI accordions. V3 generates tonal 
 
 ## Practice model
 
+Pitch range defaults to **Full range — rotating**. New practice starts a seeded, shuffled cycle of low (G3–G4), middle (G4–G5), and high (G5–G6) exercises. Automatic continuation and New exercise advance the cycle; Replay seed repeats the same register and score. Changing settings starts a new cycle. You can also select a fixed register or custom note limits within the original G3–G6 instrument range. Settings are included in shared URLs.
+
+Every melody note must fit the selected register, while preserving pitch classes, harmony and configured jump limits. Incompatible custom limits produce a generation error after bounded attempts; the generator does not fall back to another register. Register choice affects the melody independently of the Hands evaluation setting.
+
 Balanced, pattern-focus, key-fluency, rhythm-focus, interval-focus, read-ahead, left-hand, and coordination modes generate music from a shared harmonic plan. The deliberately different **random decoding** mode trains direct staff-symbol-to-button recognition.
 
 Timed sight-reading uses an absolute clock: a wrong note is recorded but never pauses the score. Correction mode waits for the expected pitch and is useful for fingering drills. Each event retains its scale degree, harmony, motif, pattern, rhythm cell, metric position, interval, and challenge tags for feature-level analysis.

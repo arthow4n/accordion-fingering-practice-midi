@@ -29,5 +29,5 @@ main {
 .progress span { display: block; height: 100%; background: #376fa3; transition: width 80ms linear; }
 fieldset { border: 1px solid #bbb; padding: .75rem; }
 label { display: inline-block; margin: .25rem .5rem .25rem 0; }
-input[type="number"] { width: 4.5rem; }
+input[inputmode="numeric"] { width: 4.5rem; }
 pre { white-space: pre-wrap; font-size: .8rem; }

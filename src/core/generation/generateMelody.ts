@@ -9,6 +9,16 @@ import { cellsForMeter, type RhythmCell } from "../patterns/rhythmCells";
 type MotifPlan={pattern:MelodicPattern;relative:number[];start:number;cell:RhythmCell};
 const normalizeDegree=(abstract:number):ScaleDegree=>{const wrapped=((abstract%7)+7)%7;return{degree:(wrapped+1) as ScaleDegree["degree"],alteration:0,octaveOffset:Math.floor(abstract/7)};};
 const chordDegrees=(harmony:HarmonyEvent)=>{const root=harmony.rootDegree.degree-1;return [root,root+2,root+4,...(harmony.quality==="dominant7"?[root+6]:[])];};
+const harmonicDegrees=(context:TonalContext,harmony:HarmonyEvent):ScaleDegree[]=>{
+ const intervals=harmony.quality==="major"?[0,4,7]:harmony.quality==="minor"?[0,3,7]:harmony.quality==="dominant7"?[0,4,7,10]:[0,3,6];
+ const root=realizeScaleDegree(context,harmony.rootDegree,4).midi;
+ return intervals.map((interval,index)=>{
+  const degree=normalizeDegree(harmony.rootDegree.degree-1+index*2);
+  const natural=realizeScaleDegree(context,degree,4).midi;
+  const delta=((root+interval-natural+18)%12)-6;
+  return {...degree,alteration:delta as ScaleDegree["alteration"]};
+ });
+};
 const nearest=(degree:number,choices:number[])=>choices.map(choice=>[choice,Math.abs(choice-degree)] as const).sort((a,b)=>a[1]-b[1])[0]![0];
 
 export const generateMelody=(context:TonalContext,meter:Meter,harmony:HarmonyEvent[],phrase:PhraseSection[],request:TrainingRequest,rng:Rng):ExerciseEvent[]=>{
@@ -41,7 +51,7 @@ export const generateMelody=(context:TonalContext,meter:Meter,harmony:HarmonyEve
    const strength=metricStrength(onset%measureTicks,meter);let abstract=motif.start+(motif.relative[index%motif.relative.length]??0);
    // Stable beats articulate the current harmony; the final cadence resolves to tonic.
    if(strength==="strong"||strength==="medium")abstract=nearest(abstract,chordTones);
-   if(finalCadence)abstract=0;
+   if(finalCadence)abstract=activeHarmony.rootDegree.degree-1;
    const tieFromPrevious=tieIntoNext;let degree=normalizeDegree(abstract);
    // The dominant in minor uses the harmonic-minor leading tone. It belongs to
    // the active harmony and is not counted as an injected chromatic challenge.
@@ -49,6 +59,14 @@ export const generateMelody=(context:TonalContext,meter:Meter,harmony:HarmonyEve
    const challenge=rng.next()<request.challenge.density?rng.pick(request.challenge.allowedTypes):undefined;
    let chromatic=!finalCadence&&(challenge==="chromatic"||rng.next()<request.tonal.chromaticism);if(chromatic)degree.alteration=rng.next()<.5?-1:1;
    let pitch=realizeScaleDegree(context,degree,4);while(pitch.midi<request.rightHand.range.low){degree.octaveOffset++;pitch=realizeScaleDegree(context,degree,4);}while(pitch.midi>request.rightHand.range.high){degree.octaveOffset--;pitch=realizeScaleDegree(context,degree,4);}
+   if(!tieFromPrevious){
+    const harmonic=harmonicDegrees(context,activeHarmony);
+    const degrees=finalCadence?[harmonic[0]!]:!chromatic&&(strength==="strong"||strength==="medium")?harmonic:Array.from({length:7},(_,i)=>({...normalizeDegree(i),alteration:chromatic?degree.alteration:0 as ScaleDegree["alteration"]}));
+    const candidates=degrees.flatMap(candidate=>Array.from({length:7},(_,i)=>({...candidate,octaveOffset:i-3}))).map(candidate=>({degree:candidate,pitch:realizeScaleDegree(context,candidate,4)})).filter(candidate=>candidate.pitch.midi>=request.rightHand.range.low&&candidate.pitch.midi<=request.rightHand.range.high);
+    const reachable=candidates.filter(candidate=>previousMidi===undefined||(Math.abs(candidate.pitch.midi-previousMidi)>=request.rightHand.minJump&&Math.abs(candidate.pitch.midi-previousMidi)<=request.rightHand.maxJump));
+    const selected=(reachable.length?reachable:candidates).sort((a,b)=>Math.abs(a.pitch.midi-pitch.midi)-Math.abs(b.pitch.midi-pitch.midi))[0];
+    if(selected){pitch=selected.pitch;degree=selected.degree;}
+   }
    if(tieFromPrevious&&tiedPitch&&tiedDegree){pitch=tiedPitch;degree={...tiedDegree};chromatic=tiedChromatic;}
    const rest=!tieFromPrevious&&!finalCadence&&(atom.rest||(index>0&&rng.next()<request.rhythm.restDensity));const nextAtom=motif.cell.atoms[index+1];
    const tieToNext=!rest&&!finalCadence&&Boolean(nextAtom&&!nextAtom.rest)&&(atom.tie||rng.next()<request.rhythm.tieDensity);

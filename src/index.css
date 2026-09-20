@@ -31,6 +31,12 @@ main {
   stroke: #000;
 }
 
+.track .note-column-highlight {
+  stroke: none;
+  stroke-width: 0;
+  border: none;
+}
+
 .summary { font-variant-numeric: tabular-nums; }
 fieldset { border: 1px solid #bbb; padding: .75rem; }
 label { display: inline-block; margin: .25rem .5rem .25rem 0; }

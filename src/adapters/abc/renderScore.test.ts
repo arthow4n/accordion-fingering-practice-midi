@@ -48,8 +48,13 @@ describe("renderScoreHighlight", () => {
       renderScoreHighlight(container);
       expect(insertedChild).toBe(fakeRect);
       expect(createdAttrs.get("class")).toBe("note-column-highlight");
-      expect(createdAttrs.get("fill")).toBe("rgba(245, 158, 11, 0.22)");
-      expect(createdAttrs.get("rx")).toBe("6");
+      expect(createdAttrs.get("fill")).toBe("rgba(245, 158, 11, 0.12)");
+      expect(createdAttrs.get("stroke")).toBe("none");
+      expect(createdAttrs.get("stroke-width")).toBe("0");
+      expect(createdAttrs.get("rx")).toBe("3");
+      expect(createdAttrs.get("ry")).toBe("3");
+      expect(createdAttrs.get("width")).toBe("16");
+      expect(createdAttrs.get("x")).toBe("47");
     } finally {
       if (origCreate) {
         globalThis.document.createElementNS = origCreate;

@@ -69,7 +69,7 @@ export const renderScoreHighlight = (container: HTMLElement): void => {
 
   const noteWidth = maxX - minX;
   const centerX = minX + noteWidth / 2;
-  const columnWidth = Math.max(26, noteWidth + 14);
+  const columnWidth = Math.max(16, noteWidth + 4);
   const columnX = centerX - columnWidth / 2;
 
   const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
@@ -78,9 +78,11 @@ export const renderScoreHighlight = (container: HTMLElement): void => {
   rect.setAttribute("y", String(topY));
   rect.setAttribute("width", String(columnWidth));
   rect.setAttribute("height", String(columnHeight));
-  rect.setAttribute("rx", "6");
-  rect.setAttribute("ry", "6");
-  rect.setAttribute("fill", "rgba(245, 158, 11, 0.22)");
+  rect.setAttribute("rx", "3");
+  rect.setAttribute("ry", "3");
+  rect.setAttribute("fill", "rgba(245, 158, 11, 0.12)");
+  rect.setAttribute("stroke", "none");
+  rect.setAttribute("stroke-width", "0");
   rect.setAttribute("pointer-events", "none");
 
   svg.insertBefore(rect, svg.firstChild);

@@ -1,6 +1,6 @@
 import { Note } from "tonal";
 import { registerForSeed } from "../core/generation/pitchRegister";
-import { renderAbc } from "abcjs";
+import { renderScore } from "../adapters/abc/renderScore";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { exerciseToAbc } from "../adapters/abc/exerciseToAbc";
 import { connectWebMidi, type MidiListener } from "../adapters/midi/webMidiInput";
@@ -272,14 +272,13 @@ export default function App(){
   :(exercise.rightHand.find(event=>playhead>=event.onset&&playhead<event.onset+event.duration)?.onset
      ??(hasRight&&rightIndex<rightTargets.length?rightTargets[rightIndex]?.onset:exercise.rightHand[0]?.onset));
 
- useEffect(()=>{if(scoreRef.current)renderAbc(scoreRef.current,exerciseToAbc(exercise,markedOnset),{add_classes:true,responsive:"resize"});},[exercise,markedOnset]);
+ useEffect(()=>{if(scoreRef.current)renderScore(scoreRef.current,exerciseToAbc(exercise,markedOnset));},[exercise,markedOnset]);
  useEffect(()=>{if(!("wakeLock" in navigator))return;let lock:WakeLockSentinel|undefined;const acquire=async()=>{try{await lock?.release();lock=await navigator.wakeLock.request("screen");}catch{lock=undefined;}};const visibility=()=>{if(document.visibilityState==="visible")void acquire();};void acquire();document.addEventListener("visibilitychange",visibility);return()=>{document.removeEventListener("visibilitychange",visibility);void lock?.release();};},[]);
  useEffect(()=>()=>cancelAnimationFrame(frameRef.current??0),[]);
  const setIntent=(intent:TrainingIntent)=>{const nextMode=defaultRuntimeMode(intent);updateSettings({...settings,intent},true,nextMode);};
  const reset=()=>{const defaults=defaultTrainingRequest();clearSettings();updateSettings(defaults,false,defaultRuntimeMode(defaults.intent));};
- const totalMs=ticksToMs(exercise.totalDuration,exercise.tempoBpm);const progress=Math.min(100,positionMs/totalMs*100);
  return <main>
-  <div className="track" ref={scoreRef}/><div className="progress"><span style={{width:`${progress}%`}}/></div>
+  <div className="track" ref={scoreRef}/>
   <p>{status==="countIn"
    ?`Count in… beat ${countInBeat} of 4`
    :mode==="correction"

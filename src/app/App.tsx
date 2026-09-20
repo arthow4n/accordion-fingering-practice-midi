@@ -7,7 +7,16 @@ import { UpdateBanner } from "./pwa/UpdateBanner";
 import { AppFooter } from "./pwa/AppFooter";
 import { exerciseToAbc } from "../adapters/abc/exerciseToAbc";
 import { connectWebMidi, type MidiListener } from "../adapters/midi/webMidiInput";
-import { clearSettings, loadSettings, saveSettings } from "../adapters/persistence/settingsPersistence";
+import {
+  clearSettings,
+  deletePreset,
+  loadPresets,
+  loadStoredSession,
+  savePreset,
+  saveSettings,
+  type ConfigPreset,
+  type RuntimeMode,
+} from "../adapters/persistence/settingsPersistence";
 import { generateExercise } from "../core/generation/generateExercise";
 import { exerciseDiagnostics } from "../core/generation/diagnostics";
 import type { PerformedMidiEvent, TrainingIntent } from "../core/model";
@@ -16,7 +25,6 @@ import type { PerformanceMetrics } from "../core/performance/performanceMetrics"
 import { AbsoluteTimeline, ticksToMs } from "../core/performance/timeline";
 import { defaultRuntimeMode, defaultTrainingRequest, type TrainingRequest } from "../core/training/trainingIntent";
 
-type RuntimeMode="correction"|"sightReading";
 type HandMode=TrainingRequest["hands"];
 type SessionStats={completedExercises:number;completedEvents:number;attempts:number;correct:number;timingCorrect:number;missed:number;extra:number};
 type CorrectionTarget={onset:number;duration:number;pitches:number[];eventCount:number};
@@ -49,12 +57,40 @@ export default function App(){
   },
  });
  const scoreRef=useRef<HTMLDivElement>(null);const performedRef=useRef<PerformedMidiEvent[]>([]);const rightNotesRef=useRef(new Map<number,number>());const leftNotesRef=useRef(new Map<number,number>());const timelineRef=useRef<AbsoluteTimeline>();const frameRef=useRef<number>();const midiListenerRef=useRef<MidiListener>(()=>{});
- const [initial]=useState(()=>{const settings=loadSettings(),seed=settings.seed??nextSeed();try{return {settings,seed,exercise:generateExercise(settings,seed),error:""};}catch(error){return {settings,seed,exercise:generateExercise(defaultTrainingRequest(),0),error:error instanceof Error?error.message:String(error)};}});
+ const [initial]=useState(()=>{const session=loadStoredSession(),seed=session.settings.seed??nextSeed();try{return {settings:session.settings,mode:session.mode,seed,exercise:generateExercise(session.settings,seed),error:""};}catch(error){return {settings:session.settings,mode:session.mode,seed,exercise:generateExercise(defaultTrainingRequest(),0),error:error instanceof Error?error.message:String(error)};}});
  const [settings,setSettings]=useState(initial.settings);const [seed,setSeed]=useState(initial.seed);const [exercise,setExercise]=useState(initial.exercise);
- const initialMode=defaultRuntimeMode(initial.settings.intent);
- const [mode,setMode]=useState<RuntimeMode>(initialMode);const [status,setStatus]=useState<"ready"|"countIn"|"playing">(initialMode==="correction"?"playing":"ready");const [positionMs,setPositionMs]=useState(0);const [metrics,setMetrics]=useState<PerformanceMetrics>();const [sessionStats,setSessionStats]=useState(emptySessionStats);const [continuous,setContinuous]=useState(false);const [devices,setDevices]=useState<string[]>([]);const [midiError,setMidiError]=useState("");const [generationError,setGenerationError]=useState(initial.error);
+ const [mode,setMode]=useState<RuntimeMode>(initial.mode);const [status,setStatus]=useState<"ready"|"countIn"|"playing">(initial.mode==="correction"?"playing":"ready");const [positionMs,setPositionMs]=useState(0);const [metrics,setMetrics]=useState<PerformanceMetrics>();const [sessionStats,setSessionStats]=useState(emptySessionStats);const [continuous,setContinuous]=useState(false);const [devices,setDevices]=useState<string[]>([]);const [midiError,setMidiError]=useState("");const [generationError,setGenerationError]=useState(initial.error);
  const [rightIndex,setRightIndex]=useState(0);const [leftIndex,setLeftIndex]=useState(0);
  const [countInBeat,setCountInBeat]=useState(1);
+ const [presets,setPresets]=useState<ConfigPreset[]>(()=>loadPresets());
+ const [selectedPresetId,setSelectedPresetId]=useState<string>("");
+ const [presetDraft,setPresetDraft]=useState<string>("");
+
+ const handleSavePreset=()=>{
+  const name=presetDraft.trim()||`Preset ${presets.length+1}`;
+  const saved=savePreset(name,settings,mode);
+  const updated=loadPresets();
+  setPresets(updated);
+  setSelectedPresetId(saved.id);
+  setPresetDraft(saved.name);
+ };
+
+ const handleLoadPreset=()=>{
+  const target=presets.find(p=>p.id===selectedPresetId);
+  if(!target)return;
+  const targetMode=target.mode??defaultRuntimeMode(target.settings.intent);
+  updateSettings(target.settings,true,targetMode);
+  setPresetDraft(target.name);
+ };
+
+ const handleDeletePreset=()=>{
+  if(!selectedPresetId)return;
+  deletePreset(selectedPresetId);
+  const updated=loadPresets();
+  setPresets(updated);
+  setSelectedPresetId("");
+  setPresetDraft("");
+ };
 
  const rightTargets=useMemo<CorrectionTarget[]>(()=>{
   if(!includesHand(settings.hands,"right"))return[];
@@ -72,6 +108,7 @@ export default function App(){
  const changeMode=(nextMode:RuntimeMode)=>{
   cancelAnimationFrame(frameRef.current??0);
   setMode(nextMode);
+  saveSettings(settings,nextMode);
   setStatus(nextMode==="correction"?"playing":"ready");
   setContinuous(false);
   setRightIndex(0);
@@ -84,7 +121,7 @@ export default function App(){
   cancelAnimationFrame(frameRef.current??0);
   setContinuous(false);
   setSettings(next);
-  if(persist)saveSettings(next);
+  if(persist)saveSettings(next,nextMode);
   setMode(nextMode);
   setStatus(nextMode==="correction"?"playing":"ready");
   setMetrics(undefined);
@@ -328,6 +365,34 @@ export default function App(){
    <IntegerInput label="Measures" value={settings.measures} min={2} max={32} onCommit={measures=>updateSettings({...settings,measures})}/>{" "}
    <label>Curated bass line <select value={settings.leftHand.templateId??""} onChange={e=>{const templateId=e.target.value||undefined;const isBb=templateId==="legacy-bb-fdim-line";updateSettings({...settings,measures:templateId?(isBb?6:4):settings.measures,tonal:isBb?{...settings.tonal,keys:["Bb major"],selection:"fixed"}:settings.tonal,rhythm:templateId?{...settings.rhythm,meters:[{beats:3,beatUnit:4}]}:settings.rhythm,leftHand:{...settings.leftHand,enabled:true,accompanimentStyle:"polka",templateId:templateId as TrainingRequest["leftHand"]["templateId"]}});}}><option value="">Automatic style</option>{legacyLines.map(line=><option key={line.id} value={line.id}>{line.label}</option>)}</select></label>
    {" "}<button type="button" onClick={reset}>Default</button>
+   <div className="preset-controls">
+    <label>Preset{" "}
+     <select
+      aria-label="Saved presets"
+      value={selectedPresetId}
+      onChange={e=>{
+       const id=e.target.value;
+       setSelectedPresetId(id);
+       const target=presets.find(p=>p.id===id);
+       if(target)setPresetDraft(target.name);
+      }}
+     >
+      <option value="">{presets.length===0?"(No saved presets)":"Select preset…"}</option>
+      {presets.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+     </select>
+    </label>{" "}
+    <button type="button" onClick={handleLoadPreset} disabled={!selectedPresetId}>Load</button>{" "}
+    <input
+     type="text"
+     placeholder="Preset name"
+     aria-label="Preset name"
+     value={presetDraft}
+     onChange={e=>setPresetDraft(e.target.value)}
+     onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();handleSavePreset();}}}
+    />{" "}
+    <button type="button" onClick={handleSavePreset}>Save preset</button>{" "}
+    <button type="button" onClick={handleDeletePreset} disabled={!selectedPresetId}>Delete</button>
+   </div>
    <details><summary>Advanced generation</summary>
     <IntegerInput label="Right min jump" value={settings.rightHand.minJump} min={0} max={36} onCommit={minJump=>updateSettings({...settings,rightHand:{...settings.rightHand,minJump,maxJump:Math.max(minJump,settings.rightHand.maxJump)}})}/>{" "}
     <IntegerInput label="Right max jump" value={settings.rightHand.maxJump} min={0} max={36} onCommit={maxJump=>updateSettings({...settings,rightHand:{...settings.rightHand,minJump:Math.min(maxJump,settings.rightHand.minJump),maxJump}})}/>{" "}

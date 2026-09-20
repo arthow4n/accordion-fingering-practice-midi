@@ -124,3 +124,18 @@ pre { white-space: pre-wrap; font-size: .8rem; }
   font-style: italic;
   color: #334155;
 }
+
+.preset-controls {
+  margin: 0.5rem 0;
+  padding-top: 0.5rem;
+  border-top: 1px dashed #bbb;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.preset-controls input[type="text"] {
+  width: 9rem;
+}
+

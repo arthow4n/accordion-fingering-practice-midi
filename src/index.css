@@ -36,3 +36,85 @@ fieldset { border: 1px solid #bbb; padding: .75rem; }
 label { display: inline-block; margin: .25rem .5rem .25rem 0; }
 input[inputmode="numeric"] { width: 4.5rem; }
 pre { white-space: pre-wrap; font-size: .8rem; }
+
+.update-banner {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  width: 100%;
+  max-width: 800px;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  box-sizing: border-box;
+}
+
+.update-banner-text {
+  font-weight: 500;
+}
+
+.update-banner-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.update-banner-button {
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.update-banner-button.primary {
+  background-color: #d97706;
+  color: #ffffff;
+  border: 1px solid #b45309;
+}
+
+.update-banner-button.secondary {
+  background-color: transparent;
+  color: #92400e;
+  border: 1px solid #f59e0b;
+}
+
+.app-footer {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #ccc;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #475569;
+  width: 100%;
+  max-width: 800px;
+}
+
+.app-footer-version {
+  margin-bottom: 0.5rem;
+}
+
+.commit-link {
+  color: #0284c7;
+  text-decoration: underline;
+  font-family: monospace;
+}
+
+.app-footer-actions {
+  margin-top: 0.5rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.app-footer-status {
+  margin-top: 0.5rem;
+  font-style: italic;
+  color: #334155;
+}

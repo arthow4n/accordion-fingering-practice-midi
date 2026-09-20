@@ -2,6 +2,9 @@ import { Note } from "tonal";
 import { registerForSeed } from "../core/generation/pitchRegister";
 import { renderScore } from "../adapters/abc/renderScore";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRegisterSW } from "virtual:pwa-register/react";
+import { UpdateBanner } from "./pwa/UpdateBanner";
+import { AppFooter } from "./pwa/AppFooter";
 import { exerciseToAbc } from "../adapters/abc/exerciseToAbc";
 import { connectWebMidi, type MidiListener } from "../adapters/midi/webMidiInput";
 import { clearSettings, loadSettings, saveSettings } from "../adapters/persistence/settingsPersistence";
@@ -33,6 +36,18 @@ function IntegerInput({label,value,min,max,onCommit}:{label:string;value:number;
 }
 
 export default function App(){
+ const [swRegistration, setSwRegistration] = useState<ServiceWorkerRegistration | undefined>();
+ const {
+  needRefresh: [needRefresh, setNeedRefresh],
+  updateServiceWorker,
+ } = useRegisterSW({
+  onRegisteredSW(_swUrl, r) {
+   setSwRegistration(r);
+  },
+  onRegisterError(error) {
+   console.error("SW registration error", error);
+  },
+ });
  const scoreRef=useRef<HTMLDivElement>(null);const performedRef=useRef<PerformedMidiEvent[]>([]);const rightNotesRef=useRef(new Map<number,number>());const leftNotesRef=useRef(new Map<number,number>());const timelineRef=useRef<AbsoluteTimeline>();const frameRef=useRef<number>();const midiListenerRef=useRef<MidiListener>(()=>{});
  const [initial]=useState(()=>{const settings=loadSettings(),seed=settings.seed??nextSeed();try{return {settings,seed,exercise:generateExercise(settings,seed),error:""};}catch(error){return {settings,seed,exercise:generateExercise(defaultTrainingRequest(),0),error:error instanceof Error?error.message:String(error)};}});
  const [settings,setSettings]=useState(initial.settings);const [seed,setSeed]=useState(initial.seed);const [exercise,setExercise]=useState(initial.exercise);
@@ -278,6 +293,11 @@ export default function App(){
  const setIntent=(intent:TrainingIntent)=>{const nextMode=defaultRuntimeMode(intent);updateSettings({...settings,intent},true,nextMode);};
  const reset=()=>{const defaults=defaultTrainingRequest();clearSettings();updateSettings(defaults,false,defaultRuntimeMode(defaults.intent));};
  return <main>
+  <UpdateBanner
+   show={needRefresh}
+   onUpdate={() => updateServiceWorker(true)}
+   onDismiss={() => setNeedRefresh(false)}
+  />
   <div className="track" ref={scoreRef}/>
   <p>{status==="countIn"
    ?`Count in… beat ${countInBeat} of 4`
@@ -320,5 +340,9 @@ export default function App(){
   </fieldset>
   <details><summary>Generator diagnostics</summary><pre>{exerciseDiagnostics(exercise)}</pre></details>
   <p>Detected MIDI: {devices.join(", ")||midiError||"none (you can still inspect generated scores)"}</p>
+  <AppFooter
+   registration={swRegistration}
+   onUpdateDetected={() => setNeedRefresh(true)}
+  />
  </main>;
 }

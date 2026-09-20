@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="bellowsGrad1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#94a3b8"/>
+      <stop offset="50%" stop-color="#cbd5e1"/>
+      <stop offset="100%" stop-color="#64748b"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <!-- Left Bass Body -->
+  <rect x="56" y="116" width="80" height="280" rx="16" fill="#334155" stroke="#475569" stroke-width="4"/>
+  <!-- Bass buttons -->
+  <g fill="url(#accent)">
+    <circle cx="84" cy="160" r="8"/>
+    <circle cx="108" cy="175" r="8"/>
+    <circle cx="84" cy="205" r="8"/>
+    <circle cx="108" cy="220" r="8"/>
+    <circle cx="84" cy="250" r="8" fill="#fbbf24" stroke="#fff" stroke-width="2"/>
+    <circle cx="108" cy="265" r="8"/>
+    <circle cx="84" cy="295" r="8"/>
+    <circle cx="108" cy="310" r="8"/>
+    <circle cx="84" cy="340" r="8"/>
+    <circle cx="108" cy="355" r="8"/>
+  </g>
+
+  <!-- Bellows (center) -->
+  <g fill="url(#bellowsGrad1)" stroke="#1e293b" stroke-width="2">
+    <polygon points="136,128 172,108 172,404 136,384" fill="#cbd5e1"/>
+    <polygon points="172,108 208,128 208,384 172,404" fill="#94a3b8"/>
+    <polygon points="208,128 244,108 244,404 208,384" fill="#cbd5e1"/>
+    <polygon points="244,108 280,128 280,384 244,404" fill="#94a3b8"/>
+    <polygon points="280,128 316,108 316,404 280,384" fill="#cbd5e1"/>
+    <polygon points="316,108 352,128 352,384 316,404" fill="#94a3b8"/>
+  </g>
+
+  <!-- Right Treble Body & Keyboard -->
+  <rect x="352" y="116" width="104" height="280" rx="16" fill="#334155" stroke="#475569" stroke-width="4"/>
+  <!-- Keyboard white keys -->
+  <g fill="#f8fafc" stroke="#334155" stroke-width="1.5">
+    <rect x="372" y="132" width="72" height="21" rx="2"/>
+    <rect x="372" y="153" width="72" height="21" rx="2"/>
+    <rect x="372" y="174" width="72" height="21" rx="2"/>
+    <rect x="372" y="195" width="72" height="21" rx="2"/>
+    <rect x="372" y="216" width="72" height="21" rx="2"/>
+    <rect x="372" y="237" width="72" height="21" rx="2"/>
+    <rect x="372" y="258" width="72" height="21" rx="2"/>
+    <rect x="372" y="279" width="72" height="21" rx="2"/>
+    <rect x="372" y="300" width="72" height="21" rx="2"/>
+    <rect x="372" y="321" width="72" height="21" rx="2"/>
+    <rect x="372" y="342" width="72" height="21" rx="2"/>
+    <rect x="372" y="363" width="72" height="21" rx="2"/>
+  </g>
+  <!-- Keyboard black keys -->
+  <g fill="#0f172a">
+    <rect x="372" y="146" width="44" height="14" rx="1"/>
+    <rect x="372" y="167" width="44" height="14" rx="1"/>
+    <rect x="372" y="209" width="44" height="14" rx="1"/>
+    <rect x="372" y="230" width="44" height="14" rx="1"/>
+    <rect x="372" y="251" width="44" height="14" rx="1"/>
+    <rect x="372" y="293" width="44" height="14" rx="1"/>
+    <rect x="372" y="314" width="44" height="14" rx="1"/>
+    <rect x="372" y="356" width="44" height="14" rx="1"/>
+  </g>
+</svg>

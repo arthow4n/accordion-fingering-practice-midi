@@ -72,7 +72,7 @@ export default function App(){
  const sessionRef=useRef(initialSession);
  const [waiting,setWaiting]=useState(false);
  const [settings,setSettings]=useState(initial.settings);const [seed,setSeed]=useState(initial.seed);const [exercise,setExercise]=useState(initial.exercise);
- const [mode,setMode]=useState<RuntimeMode>(initial.mode);const [status,setStatus]=useState<"ready"|"playing">(initial.mode==="correction"?"playing":"ready");const [positionMs,setPositionMs]=useState(0);const [metrics,setMetrics]=useState<PerformanceMetrics>();const [sessionStats,setSessionStats]=useState(emptySessionStats);const [devices,setDevices]=useState<string[]>([]);const [midiError,setMidiError]=useState("");const [generationError,setGenerationError]=useState(initial.error);
+ const [mode,setMode]=useState<RuntimeMode>(initial.mode);const [status,setStatus]=useState<"ready"|"playing">(initial.mode==="correction"?"playing":"ready");const [positionMs,setPositionMs]=useState(0);const [metrics,setMetrics]=useState<PerformanceMetrics>();const [sessionStats,setSessionStats]=useState(emptySessionStats);const [devices,setDevices]=useState<string[]>([]);const [midiError,setMidiError]=useState("");const [generationError,setGenerationError]=useState(initial.error);const [settingsPendingScore,setSettingsPendingScore]=useState(false);
  const [rightIndex,setRightIndex]=useState(0);const [leftIndex,setLeftIndex]=useState(0);
  const [presets,setPresets]=useState<ConfigPreset[]>(()=>loadPresets());
  const [selectedPresetId,setSelectedPresetId]=useState<string>("");
@@ -115,15 +115,19 @@ export default function App(){
  const changeMode=(nextMode:RuntimeMode)=>{
   resetSession(exercise,settings,nextMode);setMode(nextMode);setMetrics(undefined);saveSettings(settings,nextMode);
  };
- const updateSettings=(raw:TrainingRequest,persist=true,nextMode=mode)=>{
+ const updateSettings=(raw:TrainingRequest,persist=true,nextMode=mode,keepValidSettingsOnGenerationFailure=false)=>{
   // Generate before changing the active settings, score, or persisted session.
+  let next:TrainingRequest|undefined;
   try{
-   const next=parseTrainingRequest(raw),candidate=generateFirstValidCandidate(randomSeeds(),candidateSeed=>generateExercise(next,candidateSeed));
+   next=parseTrainingRequest(raw);const candidate=generateFirstValidCandidate(randomSeeds(),candidateSeed=>generateExercise(next!,candidateSeed));
    resetSession(candidate.value,next,nextMode);
-   setSettings(next);setMode(nextMode);setSeed(candidate.seed);setExercise(candidate.value);setMetrics(undefined);setGenerationError("");
+   setSettings(next);setMode(nextMode);setSeed(candidate.seed);setExercise(candidate.value);setMetrics(undefined);setGenerationError("");setSettingsPendingScore(false);
    if(persist)saveSettings(next,nextMode);
    return true;
-  }catch(error){setGenerationError(error instanceof Error?error.message:String(error));return false;}
+  }catch(error){
+   if(next&&keepValidSettingsOnGenerationFailure){setSettings(next);setMode(nextMode);setMetrics(undefined);setSettingsPendingScore(true);if(persist)saveSettings(next,nextMode);}
+   setGenerationError(error instanceof Error?error.message:String(error));return false;
+  }
  };
  const updateTiming=(timing:TrainingRequest["timing"])=>{
   const next=parseTrainingRequest({...settings,timing});
@@ -137,7 +141,7 @@ export default function App(){
    setSeed(candidate.seed);setExercise(next);setStatus(mode==="correction"?"playing":"ready");
    setWaiting(false);setPositionMs(0);setRightIndex(0);setLeftIndex(0);
    if(!preserveMetrics)setMetrics(undefined);
-   setGenerationError("");
+   setGenerationError("");setSettingsPendingScore(false);
   }catch(error){
    cancelAnimationFrame(frameRef.current??0);setStatus("ready");
    setGenerationError(error instanceof Error?error.message:String(error));
@@ -211,7 +215,7 @@ export default function App(){
   }</p>
   <p>Completed {sessionStats.completedExercises} exercises · {sessionStats.completedEvents} events · correct {sessionStats.attempts?`${(sessionStats.correct/sessionStats.attempts*100).toFixed(0)}%`:"—"} · missed {sessionStats.missed} · extra {sessionStats.extra}</p>
   {metrics&&<p>Last exercise: pitch {(metrics.pitchAccuracy*100).toFixed(0)}% · timing {(metrics.timingAccuracy*100).toFixed(0)}% · continuity {(metrics.continuity*100).toFixed(0)}%{metrics.durationAccuracy!==undefined&&<> · note lengths {(metrics.durationAccuracy*100).toFixed(0)}%</>} · longest hesitation {(metrics.longestHesitationMs/1000).toFixed(1)}s</p>}
-  {generationError&&<p role="alert">Requested settings could not generate an exercise; the previous settings and score remain active: {generationError}</p>}
+  {generationError&&<p role="alert">Requested settings could not generate a new exercise. {settingsPendingScore?"Your selection was saved; the current score remains active until a new one can be generated.":"The previous settings and score remain active."} {generationError}</p>}
   <p>{mode==="sightReading"&&status==="playing"&&<><button onClick={finish}>Finish exercise</button>{" "}</>}<button onClick={()=>regenerate()}>New exercise</button>{" "}<button onClick={()=>regenerate(seed,false,false)}>Replay seed</button>{" "}<button onClick={()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen({navigationUI:"hide"})}>Full screen</button></p>
   <fieldset><legend>Practice settings</legend>
    <label>Training mode <select value={settings.intent} onChange={e=>setIntent(e.target.value as TrainingIntent)}>{intents.map(intent=><option key={intent.value} value={intent.value}>{intent.label}</option>)}</select></label>{" "}
@@ -225,7 +229,7 @@ export default function App(){
    <label>Time signature <select value={`${settings.rhythm.meters[0]!.beats}/${settings.rhythm.meters[0]!.beatUnit}`} onChange={e=>{const [beats,beatUnit]=e.target.value.split("/").map(Number),meter={beats,beatUnit:beatUnit as 4|8},styles=accompanimentStylesForMeter(meter),accompanimentStyle=styles.includes(settings.leftHand.accompanimentStyle)?settings.leftHand.accompanimentStyle:"bassChord",noteValue=beats===3&&settings.rhythm.noteValue==="half"?"quarter":settings.rhythm.noteValue;updateSettings({...settings,rhythm:{...settings.rhythm,...rhythmLegacyValues(noteValue,settings.rhythm.style),noteValue,meters:[meter]},leftHand:{...settings.leftHand,accompanimentStyle,templateId:undefined}});}}><option value="3/4">3/4</option><option value="4/4">4/4</option></select></label>{" "}
    <IntegerInput label="Tempo" value={settings.tempoBpm} min={30} max={240} onCommit={tempoBpm=>updateSettings({...settings,tempoBpm})}/>{" "}
    <label>Note value <select value={settings.rhythm.noteValue} onChange={e=>{const noteValue=e.target.value as TrainingRequest["rhythm"]["noteValue"];updateSettings({...settings,rhythm:{...settings.rhythm,...rhythmLegacyValues(noteValue,settings.rhythm.style),noteValue}});}}>{noteValues.map(option=><option key={option.value} value={option.value} disabled={option.value==="half"&&settings.rhythm.meters[0]!.beats===3}>{option.label}</option>)}</select></label>{" "}
-   <label>Rhythm style <select value={settings.rhythm.style} onChange={e=>{const style=e.target.value as TrainingRequest["rhythm"]["style"];updateSettings({...settings,rhythm:{...settings.rhythm,...rhythmLegacyValues(settings.rhythm.noteValue,style),style}});}}>{rhythmStyles.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</select></label>{" "}
+   <label>Rhythm style <select value={settings.rhythm.style} onChange={e=>{const style=e.target.value as TrainingRequest["rhythm"]["style"];updateSettings({...settings,rhythm:{...settings.rhythm,...rhythmLegacyValues(settings.rhythm.noteValue,style),style}},true,mode,true);}}>{rhythmStyles.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</select></label>{" "}
    <label>Timing strictness <select value={settings.timing.strictness} onChange={e=>updateTiming({...settings.timing,strictness:e.target.value as TrainingRequest["timing"]["strictness"]})}><option value="veryForgiving">Very forgiving</option><option value="balanced">Balanced</option><option value="strict">Strict</option><option value="custom">Custom</option></select></label>
    {settings.timing.strictness==="custom"&&<>{(["earlyMs","lateMs","chordMs"] as const).map(field=><IntegerInput key={field} label={field==="earlyMs"?"Early allowance (ms)":field==="lateMs"?"Late allowance (ms)":"Chord spread (ms)"} value={settings.timing[field]} min={field==="chordMs"?20:30} max={field==="chordMs"?500:2000} onCommit={value=>updateTiming({...settings.timing,[field]:value})}/>)}</>}
    <label><input type="checkbox" checked={settings.timing.followAfterPause} onChange={e=>updateTiming({...settings.timing,followAfterPause:e.target.checked})}/> Follow me after a pause</label>

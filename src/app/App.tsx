@@ -320,7 +320,7 @@ export default function App(){
  useEffect(()=>{if(!("wakeLock" in navigator))return;let lock:WakeLockSentinel|undefined;const acquire=async()=>{try{await lock?.release();lock=await navigator.wakeLock.request("screen");}catch{lock=undefined;}};const visibility=()=>{if(document.visibilityState==="visible")void acquire();};void acquire();document.addEventListener("visibilitychange",visibility);return()=>{document.removeEventListener("visibilitychange",visibility);void lock?.release();};},[]);
  useEffect(()=>()=>cancelAnimationFrame(frameRef.current??0),[]);
  const setIntent=(intent:TrainingIntent)=>{const nextMode=defaultRuntimeMode(intent);updateSettings({...settings,intent},true,nextMode);};
- const reset=()=>{const defaults=defaultTrainingRequest();clearSettings();updateSettings(defaults,false,defaultRuntimeMode(defaults.intent));};
+ const reset=()=>{if(!window.confirm("Reset all practice settings to their defaults? Saved presets will not be deleted."))return;const defaults=defaultTrainingRequest();clearSettings();updateSettings(defaults,false,defaultRuntimeMode(defaults.intent));};
  return <main>
   <UpdateBanner
    show={needRefresh}
@@ -355,7 +355,7 @@ export default function App(){
    <label>Note frequency <select value={noteFrequencyValue(settings.rhythm)} onChange={e=>{const option=noteFrequencyOptions.find(item=>item.value===e.target.value)!;updateSettings({...settings,rhythm:{...settings.rhythm,smallestSubdivision:option.smallestSubdivision,noteDensity:option.noteDensity}});}}>{noteFrequencyOptions.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</select></label>{" "}
    <IntegerInput label="Measures" value={settings.measures} min={2} max={32} onCommit={measures=>updateSettings({...settings,measures})}/>{" "}
    <label>Curated bass line <select value={settings.leftHand.templateId??""} onChange={e=>{const templateId=e.target.value||undefined;const isBb=templateId==="legacy-bb-fdim-line";updateSettings({...settings,measures:templateId?(isBb?6:4):settings.measures,tonal:isBb?{...settings.tonal,keys:["Bb major"],selection:"fixed"}:settings.tonal,rhythm:templateId?{...settings.rhythm,meters:[{beats:3,beatUnit:4}]}:settings.rhythm,leftHand:{...settings.leftHand,enabled:true,accompanimentStyle:"polka",templateId:templateId as TrainingRequest["leftHand"]["templateId"]}});}}><option value="">Automatic style</option>{legacyLines.map(line=><option key={line.id} value={line.id}>{line.label}</option>)}</select></label>
-   {" "}<button type="button" onClick={reset}>Default</button>
+   {" "}<button type="button" onClick={reset}>Reset settings</button>
    {settings.intent==="patternsIntervals"&&<div className="pattern-family-controls"><span>Pattern families: </span>{patternFamilies.map(family=><label key={family.value}><input type="checkbox" checked={settings.patterns.allowedFamilies.includes(family.value)} onChange={e=>{const allowedFamilies=e.target.checked?[...settings.patterns.allowedFamilies,family.value]:settings.patterns.allowedFamilies.filter(value=>value!==family.value);if(allowedFamilies.length)updateSettings({...settings,patterns:{...settings.patterns,allowedFamilies}});}}/> {family.label}</label>)}</div>}
    <div className="preset-controls">
     <label>Preset{" "}

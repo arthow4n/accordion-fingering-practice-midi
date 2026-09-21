@@ -69,6 +69,10 @@ describe("synchronous practice sessions",()=>{
   const raw={...defaultTrainingRequest(),timing:undefined,intent:"noteRecognition",hands:"left"};
   const parsed=parseTrainingRequest(raw);expect(parsed.timing).toEqual(defaultTimingSettings());expect(parsed.hands).toBe("right");
  });
+ it("migrates the old note-frequency controls to an equivalent mixed rhythm",()=>{
+  const raw=defaultTrainingRequest() as unknown as {rhythm:Record<string,unknown>};delete raw.rhythm.noteValue;delete raw.rhythm.style;raw.rhythm.smallestSubdivision="sixteenth";raw.rhythm.noteDensity=.85;
+  expect(parseTrainingRequest(raw).rhythm).toMatchObject({noteValue:"sixteenth",style:"mixed"});
+ });
 });
 
 it("does not let duplicate bass voices consume the next repeated correction target",()=>{

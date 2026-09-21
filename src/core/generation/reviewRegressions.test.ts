@@ -56,7 +56,7 @@ it("budgets recognition accidentals deterministically, including long exercises"
 }),{numRuns:30}),30000);
 
 it("delivers eighths and sixteenths in both selectable meters",()=>fc.assert(fc.property(fc.integer(),fc.constantFrom(3,4),fc.constantFrom("eighth" as const,"sixteenth" as const),(seed,beats,subdivision)=>{
- const request=defaultTrainingRequest();request.rhythm.meters=[{beats,beatUnit:4}];request.rhythm.smallestSubdivision=subdivision;request.rhythm.noteDensity=subdivision==="sixteenth"?.85:.55;
+ const request=defaultTrainingRequest();request.rhythm.meters=[{beats,beatUnit:4}];request.rhythm.noteValue=subdivision;request.rhythm.style="steady";request.rhythm.smallestSubdivision=subdivision;request.rhythm.noteDensity=subdivision==="sixteenth"?.85:.55;
  const exercise=generateExercise(request,seed),duration=subdivision==="sixteenth"?120:240;
  expect(exercise.rightHand.some(e=>e.duration===duration)).toBe(true);
  expect(exercise.rightHand.every(e=>e.duration>=duration)).toBe(true);

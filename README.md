@@ -14,7 +14,7 @@ Six focused modes generate material from a shared harmonic plan: **General sight
 
 Timed sight-reading offers forgiving timing with optional recovery after pauses, or a continuous clock for pulse practice. Correction mode waits for the expected pitches at a shared onset and is useful for fingering drills. Each event retains its scale degree, harmony, motif, pattern, rhythm cell, metric position, interval, and challenge tags for feature-level analysis.
 
-The **Note frequency** setting controls rhythmic activity independently of tempo, from half/quarter-note beginner reading through eighth/sixteenth-note practice. In timed sight-reading, completing an exercise generates the next score and waits there. The first accordion input starts its clock immediately, with no Start button or count-in.
+The **Note value** and **Rhythm style** settings control rhythmic activity independently of tempo. Steady practice uses only the selected half, quarter, eighth, or sixteenth-note value (half notes require 4/4); Mostly steady introduces occasional longer notes, while Mixed and Rhythm challenge add progressively more variety. In timed sight-reading, completing an exercise generates the next score and waits there. The first accordion input starts its clock immediately, with no Start button or count-in.
 
 The notation is intentionally an accordion lead sheet: one right-hand melodic staff with chord and slash-bass labels, never a second left-hand staff. A visible, configurable bass-pattern instruction explains how to realize those symbols, and the selected pattern determines left-hand MIDI evaluation. The hand selection changes evaluation scope, not the lead-sheet format.
 

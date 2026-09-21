@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { defaultTimingSettings, timingSettingsSchema } from "../performance/timingSettings";
 import type { TrainingIntent } from "../model";
 const meterSchema = z.object({ beats: z.number().int().min(2).max(6), beatUnit: z.union([z.literal(4), z.literal(8)]) });
 const rangeSchema = z.object({ low: z.number().int().min(0).max(127), high: z.number().int().min(0).max(127) }).refine((x) => x.low <= x.high);
@@ -6,6 +7,7 @@ const intentSchema = z.enum(["general","noteRecognition","patternsIntervals","rh
 const jumpFrequencySchema = z.enum(["none","occasional","frequent"]);
 export const trainingRequestSchema = z.object({
   version: z.literal(3),
+  timing: timingSettingsSchema.default(defaultTimingSettings),
   hands: z.enum(["both","right","left"]).default("both"),
   pitchRegister: z.enum(["rotating","low","middle","high","custom"]).default("rotating"),
   intent: intentSchema,
@@ -28,14 +30,16 @@ export const parseTrainingRequest = (input: unknown) => {
   if(typeof migrated.intent==="string")migrated.intent=legacyIntent[migrated.intent]??migrated.intent;
   if(Array.isArray(migrated.mix))migrated.mix=migrated.mix.map(item=>{if(!item||typeof item!=="object")return item;const entry={...(item as Record<string,unknown>)};if(typeof entry.intent==="string")entry.intent=legacyIntent[entry.intent]??entry.intent;return entry;});
  }
- return trainingRequestSchema.parse(migrated);
+ const parsed=trainingRequestSchema.parse(migrated);
+ if(parsed.intent==="noteRecognition"&&parsed.hands==="left")parsed.hands="right";
+ return parsed;
 };
 export const defaultTrainingRequest = (): TrainingRequest => ({
-  version:3, hands:"both", pitchRegister:"rotating", intent:"general", tonal:{keys:["C major","G major","F major","D major"],selection:"random",modePolicy:"both",chromaticism:.03},
+  version:3, timing:defaultTimingSettings(), hands:"both", pitchRegister:"rotating", intent:"general", tonal:{keys:["C major","G major","F major","D major"],selection:"random",modePolicy:"both",chromaticism:.03},
   patterns:{allowedFamilies:["repeated","scale","thirds","triad","arpeggio","neighbor","passing","leapRecovery","sequence","cadence","chordTone"],targetFamilies:[],targetDensity:.35,repetition:.55,variation:.35,sequenceProbability:.25},
   rhythm:{meters:[{beats:4,beatUnit:4}],smallestSubdivision:"eighth",syncopation:.1,restDensity:.05,tieDensity:.05,noteDensity:.55},
   harmony:{progressionVocabulary:["I-I-V-I","I-IV-V-I","I-vi-IV-V","I-ii-V7-I"],chordVocabulary:["major","minor","dominant7","diminished"]},
   rightHand:{range:{low:55,high:91},movementDifficulty:.4,jumpFrequency:"none",jumpSize:"medium",maxJump:12,maxAccidentalsPerExercise:2},leftHand:{enabled:true,accompanimentStyle:"bassChord",movementDifficulty:.35,jumpFrequency:"none",jumpSize:"moderate",maxJump:5,bassRootLow:"Ab",bassRootHigh:"B"},coordination:{difficulty:.3},
   challenge:{density:.06,allowedTypes:["largeLeap","chromatic","syncopation","bassJump","handIndependence"]},tempoBpm:72,measures:4,
 });
-export const defaultRuntimeMode = (intent: TrainingIntent) => intent === "noteRecognition" ? "correction" : "sightReading";
+export const defaultRuntimeMode = (intent: TrainingIntent): "correction" | "sightReading" => intent === "noteRecognition" ? "correction" : "sightReading";

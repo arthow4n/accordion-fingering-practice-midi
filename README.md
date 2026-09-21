@@ -12,7 +12,7 @@ Right-hand jump practice separately controls target size, frequency, and a maxim
 
 Six focused modes generate material from a shared harmonic plan: **General sight-reading**, **Note recognition**, **Patterns and intervals**, **Rhythm**, **Left-hand reading**, and **Two-hand coordination**. Pattern practice exposes its melodic families directly; keys and note frequency remain independent settings rather than hidden modes.
 
-Timed sight-reading uses an absolute clock: a wrong note is recorded but never pauses the score. Correction mode waits for the expected pitch and is useful for fingering drills. Each event retains its scale degree, harmony, motif, pattern, rhythm cell, metric position, interval, and challenge tags for feature-level analysis.
+Timed sight-reading offers forgiving timing with optional recovery after pauses, or a continuous clock for pulse practice. Correction mode waits for the expected pitches at a shared onset and is useful for fingering drills. Each event retains its scale degree, harmony, motif, pattern, rhythm cell, metric position, interval, and challenge tags for feature-level analysis.
 
 The **Note frequency** setting controls rhythmic activity independently of tempo, from half/quarter-note beginner reading through eighth/sixteenth-note practice. In timed sight-reading, completing an exercise generates the next score and waits there. The first accordion input starts its clock immediately, with no Start button or count-in.
 
@@ -58,3 +58,17 @@ Use a WebMIDI-capable browser and grant MIDI permission. The default channel map
 ## Deployment
 
 The GitHub Pages workflow runs `npm ci` and the complete `npm run check` gate before uploading `dist` and deploying. The app remains a static Vite site: no backend, account, or database is required. Practice settings are mirrored to the URL for sharing and saved locally; optional learning data stays in local storage.
+
+## Timing and forgiving practice
+
+Timed practice defaults to **Very forgiving** timing and **Follow me after a pause**. Very forgiving accepts attacks up to half a quarter-note beat early or late as on time (about 417 ms at 72 BPM). Balanced allows 0.2 beats early / 0.25 late; Strict allows 0.1 / 0.125. Custom exposes early, late, and chord-spread allowances in milliseconds. Chord spread is 20% of a beat, capped at 180 ms, in Very forgiving; Balanced uses 100 ms and Strict 60 ms. These settings are saved locally and in presets. Changing timing restarts practice on the same score.
+
+Pitch-correct attacks just outside the on-time allowance, up to 1.5 times that allowance, are reported as early/late and still receive pitch credit. Matching reserves nearby correct pitches before assigning wrong notes, so an omitted note does not consume the following correct attack. Repeated pitches are assigned by proximity; very wide custom windows can still make a player's intention ambiguous in fast passages.
+
+Follow mode waits at an overdue onset. After a pause, a recognizable attack within the next four onset groups realigns the remaining timeline without changing tempo. The hesitation is recorded separately instead of turning the rest of the phrase into errors. Uncheck **Follow me after a pause** to practice against a continuous clock. Use **Finish exercise** to assess an unfinished passage, including when follow mode is waiting for a final note. The first MIDI attack anchors to the selected hands' first sounding onset, including scores that begin with a rest.
+
+Correction practice advances both hands through shared onset groups. Both attacks at a shared onset must be completed before moving ahead. Chord pitches must arrive within the configured chord-spread window. Note recognition practices the right hand; older left-only recognition settings are migrated to right-only practice.
+
+Pitch, timing, continuity, and note-length feedback are separate. When note-off data is available, note-length feedback allows short articulation down to 35% of the written duration, but flags very short taps and notes held substantially beyond their written end. Tied notes are evaluated as one sustained note. This feedback does not reduce pitch accuracy. A silent passage no longer receives perfect continuity.
+
+Generation respects the accidental budget while constructing the melody, including long note-recognition exercises. Medium and Busy rhythms include the selected subdivisions in both 3/4 and 4/4. All required bass changes remain visible on the lead sheet, with held melody notes tied across intermediate slash-bass changes. If a requested configuration cannot generate a score, the previous settings and score remain active together.

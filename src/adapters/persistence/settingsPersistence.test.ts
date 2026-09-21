@@ -213,4 +213,11 @@ describe("settingsPersistence", () => {
       expect(loaded[0]!.name).toBe("Valid Preset");
     });
   });
+
+it("persists custom timing and recovery preferences in settings and presets",()=>{
+ const request=defaultTrainingRequest();request.timing={strictness:"custom",followAfterPause:false,earlyMs:500,lateMs:800,chordMs:175};
+ saveSettings(request,"sightReading");expect(loadStoredSession().settings.timing).toEqual(request.timing);
+ savePreset("Custom timing",request,"sightReading");expect(loadPresets().find(p=>p.name==="Custom timing")?.settings.timing).toEqual(request.timing);
+});
+
 });

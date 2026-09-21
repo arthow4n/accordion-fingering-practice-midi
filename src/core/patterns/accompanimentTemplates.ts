@@ -66,7 +66,7 @@ export const accompanimentOptionLabel=(style:AccompanimentStyle,meter:Meter):str
 
 /** Lead-sheet instruction for the exact generated pattern; the left hand is intentionally not rendered as a second staff. */
 export const accompanimentInstruction=(style:AccompanimentStyle,meter:Meter,legacyId?:string):string=>{
- if(legacyId==="legacy-tonic-pedal-descending")return "In 3/4, play bass–chord–chord; follow the descending slash basses C, B, A, G.";
+ if(legacyId==="legacy-tonic-pedal-descending")return "In 3/4, play bass–chord–chord; follow the descending bass notes in the slash labels.";
  if(legacyId==="legacy-transition-to-IV")return "In 3/4, play bass–chord–chord, with the three-bass counterbass walk shown before IV.";
  if(legacyId==="legacy-bb-fdim-line")return "In 3/4, play bass–chord–chord through the displayed Bb, diminished, F/C, and D7 changes.";
  switch(accompanimentTemplateFor(style,meter).id){
@@ -76,7 +76,7 @@ export const accompanimentInstruction=(style:AccompanimentStyle,meter:Meter,lega
   case "legacy-polka-swamp-4": return "Root bass, two short chords, fifth bass, then chord.";
   case "legacy-waltz-3": return "Root bass on beat 1, then the chord on beats 2 and 3.";
   case "legacy-polka-3": return "Bass on beat 1 and chords on beats 2 and 3; alternate root and fifth bass each measure.";
-  case "legacy-tango-4": return "Bass and chord together on beats 1, 2, and 3; short chord then fifth bass on beat 4.";
+  case "legacy-tango-4": return "Bass and chord together on beats 1, 2, and 3; short bass and chord together, then fifth bass on beat 4.";
   case "legacy-swing-4": return "Bass and chord together on every beat; use the root for beats 1–2 and the fifth for beats 3–4.";
   case "legacy-compound-bass-chord": return "Root bass for the first half of the measure, then the chord for the second half.";
   default: return "Follow the displayed chord symbols with the selected bass pattern.";

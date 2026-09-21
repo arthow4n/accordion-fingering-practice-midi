@@ -23,15 +23,17 @@ const nearest=(degree:number,choices:number[])=>choices.map(choice=>[choice,Math
 const jumpBand=(size:TrainingRequest["rightHand"]["jumpSize"],maximum:number):readonly [number,number]=>size==="small"?[1,Math.min(4,maximum)]:size==="medium"?[5,Math.min(7,maximum)]:size==="large"?[8,Math.min(11,maximum)]:size==="octave"?[12,Math.min(12,maximum)]:[13,maximum];
 
 export const generateMelody=(context:TonalContext,meter:Meter,harmony:HarmonyEvent[],phrase:PhraseSection[],request:TrainingRequest,rng:Rng):ExerciseEvent[]=>{
- const measureTicks=ticksPerMeasure(meter);let previousMidi:number|undefined;let baseMotif:MotifPlan|undefined;let priorMotif:MotifPlan|undefined;let tieIntoNext=false;let tiedPitch:Pitch|undefined;let tiedDegree:ScaleDegree|undefined;let tiedChromatic=false;let attackedNotes=0;let occasionalJumpPlaced=false;
+ const measureTicks=ticksPerMeasure(meter);let previousMidi:number|undefined;let baseMotif:MotifPlan|undefined;let priorMotif:MotifPlan|undefined;let tieIntoNext=false;let tiedPitch:Pitch|undefined;let tiedDegree:ScaleDegree|undefined;let tiedChromatic=false;let attackedNotes=0;let occasionalJumpPlaced=false;let accidentalsRemaining=request.rightHand.maxAccidentalsPerExercise;
  const allowed=MELODIC_PATTERNS.filter(pattern=>request.patterns.allowedFamilies.includes(pattern.family)&&Math.max(...pattern.relativeDegrees.map(Math.abs))/7<=request.rightHand.movementDifficulty+.25);
  const patterns=allowed.length?allowed:MELODIC_PATTERNS.filter(pattern=>request.patterns.allowedFamilies.includes(pattern.family));
  const target=patterns.filter(pattern=>request.patterns.targetFamilies.includes(pattern.family));
  const minimumDuration=request.rhythm.smallestSubdivision==="quarter"?480:request.rhythm.smallestSubdivision==="eighth"?240:120;
  const allCells=cellsForMeter(meter).filter(cell=>cell.atoms.every(atom=>atom.duration>=minimumDuration));
  const desiredAtoms=2+request.rhythm.noteDensity*14;
- const cells=allCells.filter(cell=>cell.complexity<=Math.max(.15,request.rhythm.syncopation+.35));
- const chooseCell=()=>rng.pick((cells.length?cells:allCells).map(cell=>({cell,difference:Math.abs(cell.atoms.length-desiredAtoms)})).sort((a,b)=>a.difference-b.difference).slice(0,3).map(x=>x.cell));
+ const cells=allCells.filter(cell=>(!cell.syncopated||request.rhythm.syncopation>=.35));
+ const activeCells=cells.length?cells:allCells;
+ const subdivisionCells=request.rhythm.noteDensity>=.5?activeCells.filter(cell=>cell.atoms.some(atom=>atom.duration===minimumDuration)):activeCells;
+ const chooseCell=()=>rng.pick((subdivisionCells.length?subdivisionCells:activeCells).map(cell=>({cell,difference:Math.abs(cell.atoms.length-desiredAtoms)})).sort((a,b)=>a.difference-b.difference).slice(0,3).map(x=>x.cell));
  const choosePattern=()=>rng.pick(target.length&&rng.next()<request.patterns.targetDensity?target:patterns);
 
  return phrase.flatMap((section,measure)=>{
@@ -60,7 +62,7 @@ export const generateMelody=(context:TonalContext,meter:Meter,harmony:HarmonyEve
    // the active harmony and is not counted as an injected chromatic challenge.
    if(context.mode==="minor"&&activeHarmony.rootDegree.degree===5&&degree.degree===7)degree.alteration=1;
    const challenge=rng.next()<request.challenge.density?rng.pick(request.challenge.allowedTypes):undefined;
-   let chromatic=!finalCadence&&(challenge==="chromatic"||rng.next()<request.tonal.chromaticism);if(chromatic)degree.alteration=rng.next()<.5?-1:1;
+   let chromatic=accidentalsRemaining>0&&!finalCadence&&(challenge==="chromatic"||rng.next()<request.tonal.chromaticism);if(chromatic)degree.alteration=rng.next()<.5?-1:1;
    let pitch=realizeScaleDegree(context,degree,4);while(pitch.midi<request.rightHand.range.low){degree.octaveOffset++;pitch=realizeScaleDegree(context,degree,4);}while(pitch.midi>request.rightHand.range.high){degree.octaveOffset--;pitch=realizeScaleDegree(context,degree,4);}
    const rest=!tieFromPrevious&&!finalCadence&&(atom.rest||(index>0&&rng.next()<request.rhythm.restDensity));let targetedJump=false;
    if(!tieFromPrevious&&!rest){
@@ -78,9 +80,9 @@ export const generateMelody=(context:TonalContext,meter:Meter,harmony:HarmonyEve
    if(tieFromPrevious&&tiedPitch&&tiedDegree){pitch=tiedPitch;degree={...tiedDegree};chromatic=tiedChromatic;}
    const nextAtom=motif.cell.atoms[index+1];
    const tieToNext=!rest&&!finalCadence&&Boolean(nextAtom&&!nextAtom.rest)&&(atom.tie||rng.next()<request.rhythm.tieDensity);
-   const challengeTags=[...(challenge?[challenge]:[]),...(targetedJump&&challenge!=="largeLeap"?["largeLeap" as const]:[])];
+   const challengeTags=[...(challenge&&(challenge!=="chromatic"||chromatic)?[challenge]:[]),...(targetedJump&&challenge!=="largeLeap"?["largeLeap" as const]:[])];
    const event:ExerciseEvent={id:`rh-${measure}-${index}`,onset,duration:atom.duration,pitches:rest?[]:[pitch],hand:"right",metadata:{scaleDegree:degree,harmonyId:activeHarmony.id,motifId:isRelated?"motif-A":`motif-${measure}`,patternId:motif.pattern.id,patternFamily:motif.pattern.family as PatternFamily,rhythmCellId:motif.cell.id,intervalFromPrevious:tieFromPrevious?0:previousMidi===undefined?undefined:pitch.midi-previousMidi,metricStrength:strength,challengeTags,chromatic,tieFromPrevious,tieToNext}};
-   tieIntoNext=tieToNext;if(tieToNext){tiedPitch=pitch;tiedDegree={...degree};tiedChromatic=chromatic;}if(!rest&&!tieFromPrevious){previousMidi=pitch.midi;attackedNotes++;}onset+=atom.duration;return event;
+   tieIntoNext=tieToNext;if(tieToNext){tiedPitch=pitch;tiedDegree={...degree};tiedChromatic=chromatic;}if(!rest&&!tieFromPrevious){previousMidi=pitch.midi;attackedNotes++;if(chromatic)accidentalsRemaining--;}onset+=atom.duration;return event;
   });
  });
 };

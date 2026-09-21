@@ -46,3 +46,19 @@ it("checks actual counterbass notes and skips absent accompaniment",()=>{
  request.leftHand.templateId=undefined;request.leftHand.enabled=false;
  expect(generateExercise(request,0).leftHand).toEqual([]);
 });
+
+it("budgets recognition accidentals deterministically, including long exercises",()=>fc.assert(fc.property(fc.integer(),fc.constantFrom(4,16,32), (seed,measures)=>{
+ const request=defaultTrainingRequest();request.intent="noteRecognition";request.measures=measures;
+ const exercise=generateExercise(request,seed);
+ expect(exercise.rightHand.filter(e=>e.pitches.length&&!e.metadata.tieFromPrevious&&e.metadata.chromatic).length).toBeLessThanOrEqual(2);
+ expect(generateExercise(request,seed)).toEqual(exercise);
+ expect(exercise.rightHand.at(-1)!.onset+exercise.rightHand.at(-1)!.duration).toBe(exercise.totalDuration);
+}),{numRuns:30}),30000);
+
+it("delivers eighths and sixteenths in both selectable meters",()=>fc.assert(fc.property(fc.integer(),fc.constantFrom(3,4),fc.constantFrom("eighth" as const,"sixteenth" as const),(seed,beats,subdivision)=>{
+ const request=defaultTrainingRequest();request.rhythm.meters=[{beats,beatUnit:4}];request.rhythm.smallestSubdivision=subdivision;request.rhythm.noteDensity=subdivision==="sixteenth"?.85:.55;
+ const exercise=generateExercise(request,seed),duration=subdivision==="sixteenth"?120:240;
+ expect(exercise.rightHand.some(e=>e.duration===duration)).toBe(true);
+ expect(exercise.rightHand.every(e=>e.duration>=duration)).toBe(true);
+ expect(exercise.rightHand.reduce((sum,e)=>sum+e.duration,0)).toBe(exercise.totalDuration);
+}),{numRuns:60}),30000);

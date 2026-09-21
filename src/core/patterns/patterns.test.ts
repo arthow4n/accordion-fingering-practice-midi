@@ -16,3 +16,11 @@ it("gives every selectable bass pattern a meter-specific example",()=>{
  expect(accompanimentOptionLabel("alternatingBass",{beats:4,beatUnit:4})).toContain("two short chords");
  expect(accompanimentOptionLabel("tango",{beats:4,beatUnit:4})).toContain("bass+chord ×3");
 });
+
+it("every rhythm cell fills each meter it advertises", async()=>{
+ const {RHYTHM_CELLS}=await import("./rhythmCells");
+ for(const cell of RHYTHM_CELLS)for(const meter of cell.meters){
+  const [beats,unit]=meter.split("/").map(Number);
+  expect(cell.atoms.reduce((sum,atom)=>sum+atom.duration,0),`${cell.id} in ${meter}`).toBe(beats!*480*4/unit!);
+ }
+});

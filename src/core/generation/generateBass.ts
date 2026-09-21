@@ -28,7 +28,9 @@ export const generateBass=(context:TonalContext,meter:Meter,harmony:HarmonyEvent
    const label=action.kind==="bassChord"?`${bassButton?.label??Note.pitchClass(targetBass.name)} bass + ${harmonyButton?.label??h.symbol} chord`:activeButton?`${activeButton.label} ${activeButton.row}`:`${h.symbol} ${action.kind}`;
    // The pre-V3 3/4 PolkaAlt pattern spans two measures: its chord label is
    // authored on the root-bass measure, not repeated on the fifth-bass measure.
-   const showNotation=templateAtom.notation&&!(realizedTemplateId==="legacy-polka-3"&&measureIndex%2===1);
+   const previousHarmony=harmony[measureIndex-1];
+   const unchanged=previousHarmony&&previousHarmony.rootDegree.degree===h.rootDegree.degree&&previousHarmony.rootDegree.alteration===h.rootDegree.alteration&&previousHarmony.quality===h.quality;
+   const showNotation=templateAtom.notation&&!(realizedTemplateId==="legacy-polka-3"&&measureIndex%2===1&&unchanged);
    const leadSheetAnnotation=showNotation?{chordRoot:rootClass,quality:h.quality,...(templateAtom.notation==="chordWithBass"?{bass:Note.pitchClass(targetBass.name)}:{})}:undefined;
    return{id:`lh-${measureIndex}-${index}`,onset,duration,pitches,hand:"left",metadata:{harmonyId:h.id,scaleDegree:h.rootDegree,rhythmCellId:realizedTemplateId,metricStrength:templateAtom.offset===0?"strong":templateAtom.offset*meter.beats%1===0?"medium":"weak",challengeTags:[],accompaniment:`${h.symbol} ${action.kind}`,bassDistance:distance,accompanimentTemplateId:realizedTemplateId,stradellaButton:label,leadSheetAnnotation,stradellaColumn:activeButton?.column,stradellaRow:activeButton?.row}} satisfies ExerciseEvent;
   });

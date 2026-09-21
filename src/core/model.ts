@@ -24,6 +24,7 @@ export type EventMetadata = {
   chromatic?: boolean; accompaniment?: string; bassDistance?: number;
   tieFromPrevious?: boolean; tieToNext?: boolean;
   accompanimentTemplateId?: string; stradellaButton?: string;
+  leadSheetAnnotation?: { chordRoot: string; quality: ChordQuality; bass?: string };
   stradellaColumn?: number; stradellaRow?: "counterbass"|"fundamental"|"major"|"minor"|"seventh"|"diminished";
 };
 export type ExerciseEvent = { id: string; onset: Tick; duration: Tick; pitches: Pitch[]; hand: Hand; metadata: EventMetadata };

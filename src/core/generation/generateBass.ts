@@ -26,7 +26,8 @@ export const generateBass=(context:TonalContext,meter:Meter,harmony:HarmonyEvent
    const activeButton=action.kind==="chord"?harmonyButton:bassButton;const distance=previousButton&&activeButton?stradellaMovementCost(previousButton.root,activeButton.root,previousButton.row,activeButton.row):0;if(activeButton)previousButton=activeButton;
    const onset=Math.round(measureIndex*measure+templateAtom.offset*measure),duration=Math.round(templateAtom.duration*measure);
    const label=action.kind==="bassChord"?`${bassButton?.label??Note.pitchClass(targetBass.name)} bass + ${harmonyButton?.label??h.symbol} chord`:activeButton?`${activeButton.label} ${activeButton.row}`:`${h.symbol} ${action.kind}`;
-   return{id:`lh-${measureIndex}-${index}`,onset,duration,pitches,hand:"left",metadata:{harmonyId:h.id,scaleDegree:h.rootDegree,rhythmCellId:realizedTemplateId,metricStrength:templateAtom.offset===0?"strong":templateAtom.offset*meter.beats%1===0?"medium":"weak",challengeTags:[],accompaniment:`${h.symbol} ${action.kind}`,bassDistance:distance,accompanimentTemplateId:realizedTemplateId,stradellaButton:label,stradellaColumn:activeButton?.column,stradellaRow:activeButton?.row}} satisfies ExerciseEvent;
+   const leadSheetAnnotation=templateAtom.notation?{chordRoot:rootClass,quality:h.quality,...(templateAtom.notation==="chordWithBass"?{bass:Note.pitchClass(targetBass.name)}:{})}:undefined;
+   return{id:`lh-${measureIndex}-${index}`,onset,duration,pitches,hand:"left",metadata:{harmonyId:h.id,scaleDegree:h.rootDegree,rhythmCellId:realizedTemplateId,metricStrength:templateAtom.offset===0?"strong":templateAtom.offset*meter.beats%1===0?"medium":"weak",challengeTags:[],accompaniment:`${h.symbol} ${action.kind}`,bassDistance:distance,accompanimentTemplateId:realizedTemplateId,stradellaButton:label,leadSheetAnnotation,stradellaColumn:activeButton?.column,stradellaRow:activeButton?.row}} satisfies ExerciseEvent;
   });
  });
 };

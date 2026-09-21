@@ -6,19 +6,19 @@ const accidental=(name:string)=>name.includes("#")?"^":name.includes("b")?"_":""
 const letter=(name:string)=>name[0]!.toUpperCase();
 const abcBase=(pitch:Pitch)=>{const parsed=Note.get(pitch.name);let text=parsed.letter!;if((parsed.oct??4)>=5)text=text.toLowerCase()+"'".repeat(Math.max(0,(parsed.oct??4)-5));else text+=",".repeat(Math.max(0,4-(parsed.oct??4)));return text;};
 const signatureMap=(context:TonalContext)=>new Map(scaleNotes(context).map(n=>[letter(n),accidental(n)]));
+const chordSuffix=(quality:HarmonyEvent["quality"])=>quality==="minor"?"m":quality==="dominant7"?"7":quality==="diminished"?"dim":"";
 const chordName=(harmony:HarmonyEvent,context:TonalContext)=>{
  const root=Note.pitchClass(realizeScaleDegree(context,harmony.rootDegree,4));
- return `${root}${harmony.quality==="minor"?"m":harmony.quality==="dominant7"?"7":harmony.quality==="diminished"?"dim":""}`;
+ return `${root}${chordSuffix(harmony.quality)}`;
 };
 const accompanimentLabels=(exercise:Exercise)=>{
- const labels=new Map<number,string>();let previous="";
+ const labels=new Map<number,string>();
  for(const event of exercise.leftHand){
-  const kind=event.metadata.accompaniment?.split(" ").at(-1);if(kind!=="bass"&&kind!=="bassChord")continue;
-  const harmony=exercise.harmony.find(h=>event.onset>=h.onset&&event.onset<h.onset+h.duration);if(!harmony)continue;
-  const chord=chordName(harmony,exercise.tonalContext);const bass=event.metadata.stradellaButton?.split(" ")[0];const label=bass&&bass!==chord.replace(/m|7|dim/g,"")?`${chord}/${bass}`:chord;
-  if(label!==previous)labels.set(event.onset,label);previous=label;
+  const annotation=event.metadata.leadSheetAnnotation;if(!annotation)continue;
+  labels.set(event.onset,`${annotation.chordRoot}${chordSuffix(annotation.quality)}${annotation.bass?`/${annotation.bass}`:""}`);
  }
  if(!labels.size){
+  let previous="";
   for(const harmony of exercise.harmony){
    const chord=chordName(harmony,exercise.tonalContext);
    if(chord!==previous)labels.set(harmony.onset,chord);previous=chord;

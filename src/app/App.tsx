@@ -34,7 +34,18 @@ const intents:TrainingIntent[]=["balanced","patternFocus","keyFluency","rhythmFo
 const keys=["C major","G major","D major","F major","Bb major","Eb major","A minor","D minor","E minor"];
 const bassRoots=["Ab","Eb","Bb","F","C","G","D","A","E","B"] as const;
 const legacyLines=[{id:"legacy-tonic-pedal-descending",label:"Tonic pedal: C/C–C/B–C/A–C/G"},{id:"legacy-transition-to-IV",label:"Counterbass walk to IV"},{id:"legacy-bb-fdim-line",label:"Bb–Fdim/B–Fdim/G–Fdim/G–F/C–D7"}] as const;
+const noteFrequencyOptions=[
+ {value:"verySlow",label:"Very slow — half & quarter notes",smallestSubdivision:"quarter",noteDensity:0},
+ {value:"slow",label:"Slow — mostly quarter notes",smallestSubdivision:"quarter",noteDensity:.3},
+ {value:"medium",label:"Medium — quarter & eighth notes",smallestSubdivision:"eighth",noteDensity:.55},
+ {value:"busy",label:"Busy — eighth & sixteenth notes",smallestSubdivision:"sixteenth",noteDensity:.85},
+] as const;
 const includesHand=(mode:HandMode,hand:"right"|"left")=>mode==="both"||mode===hand;
+const noteFrequencyValue=(rhythm:TrainingRequest["rhythm"])=>(
+ rhythm.smallestSubdivision==="quarter"
+  ?rhythm.noteDensity<.15?"verySlow":"slow"
+  :rhythm.smallestSubdivision==="sixteenth"||rhythm.noteDensity>.7?"busy":"medium"
+);
 
 function IntegerInput({label,value,min,max,onCommit}:{label:string;value:number;min:number;max:number;onCommit:(value:number)=>void}){
  const [draft,setDraft]=useState(String(value));
@@ -56,7 +67,7 @@ export default function App(){
    console.error("SW registration error", error);
   },
  });
- const scoreRef=useRef<HTMLDivElement>(null);const performedRef=useRef<PerformedMidiEvent[]>([]);const rightNotesRef=useRef(new Map<number,number>());const leftNotesRef=useRef(new Map<number,number>());const timelineRef=useRef<AbsoluteTimeline>();const frameRef=useRef<number>();const midiListenerRef=useRef<MidiListener>(()=>{});
+ const scoreRef=useRef<HTMLDivElement>(null);const performedRef=useRef<PerformedMidiEvent[]>([]);const rightNotesRef=useRef(new Map<number,number>());const leftNotesRef=useRef(new Map<number,number>());const timelineRef=useRef<AbsoluteTimeline>();const frameRef=useRef<number>();const midiListenerRef=useRef<MidiListener>(()=>{});const continueWithoutCountInRef=useRef(false);
  const [initial]=useState(()=>{const session=loadStoredSession(),seed=session.settings.seed??nextSeed();try{return {settings:session.settings,mode:session.mode,seed,exercise:generateExercise(session.settings,seed),error:""};}catch(error){return {settings:session.settings,mode:session.mode,seed,exercise:generateExercise(defaultTrainingRequest(),0),error:error instanceof Error?error.message:String(error)};}});
  const [settings,setSettings]=useState(initial.settings);const [seed,setSeed]=useState(initial.seed);const [exercise,setExercise]=useState(initial.exercise);
  const [mode,setMode]=useState<RuntimeMode>(initial.mode);const [status,setStatus]=useState<"ready"|"countIn"|"playing">(initial.mode==="correction"?"playing":"ready");const [positionMs,setPositionMs]=useState(0);const [metrics,setMetrics]=useState<PerformanceMetrics>();const [sessionStats,setSessionStats]=useState(emptySessionStats);const [continuous,setContinuous]=useState(false);const [devices,setDevices]=useState<string[]>([]);const [midiError,setMidiError]=useState("");const [generationError,setGenerationError]=useState(initial.error);
@@ -107,6 +118,7 @@ export default function App(){
 
  const changeMode=(nextMode:RuntimeMode)=>{
   cancelAnimationFrame(frameRef.current??0);
+  continueWithoutCountInRef.current=false;
   setMode(nextMode);
   saveSettings(settings,nextMode);
   setStatus(nextMode==="correction"?"playing":"ready");
@@ -119,6 +131,7 @@ export default function App(){
 
  const updateSettings=(next:TrainingRequest,persist=true,nextMode=mode)=>{
   cancelAnimationFrame(frameRef.current??0);
+  continueWithoutCountInRef.current=false;
   setContinuous(false);
   setSettings(next);
   if(persist)saveSettings(next,nextMode);
@@ -147,7 +160,8 @@ export default function App(){
    const next=generateExercise(settings,newSeed);
    setSeed(newSeed);
    setExercise(next);
-   setStatus(mode==="correction"||keepPlaying?"playing":"ready");
+   continueWithoutCountInRef.current=keepPlaying&&mode==="sightReading";
+   setStatus(mode==="correction"?"playing":"ready");
    if(!keepPlaying)setMetrics(undefined);
    setPositionMs(0);
    setRightIndex(0);
@@ -306,7 +320,7 @@ export default function App(){
  },[hasRight,hasLeft,mode,status,rightIndex,leftIndex,rightTargets,leftTargets,exercise.tempoBpm,seed,settings.hands,start,regenerate]);
 
  useEffect(()=>{midiListenerRef.current=acceptMidi;},[acceptMidi]);
- useEffect(()=>{if(continuous&&status==="ready")start();},[continuous,status,exercise,start]);
+ useEffect(()=>{if(continuous&&status==="ready"){const skipCountIn=continueWithoutCountInRef.current;continueWithoutCountInRef.current=false;start(skipCountIn);}},[continuous,status,exercise,start]);
  useEffect(()=>{let cancelled=false;let disconnect:undefined|(()=>void);connectWebMidi(event=>midiListenerRef.current(event),names=>{if(!cancelled)setDevices(names);}).then(x=>{if(cancelled)x.disconnect();else{setDevices(x.deviceNames);disconnect=x.disconnect;setMidiError("");}}).catch(e=>{if(!cancelled)setMidiError(e instanceof Error?e.message:String(e));});return()=>{cancelled=true;disconnect?.();};},[]);
 
  const r=hasRight&&rightIndex<rightTargets.length?rightTargets[rightIndex]?.onset:undefined;
@@ -362,6 +376,7 @@ export default function App(){
    {settings.pitchRegister==="custom"&&(["low","high"] as const).map(bound=><label key={bound}>{bound==="low"?"Lowest note":"Highest note"} <select value={settings.rightHand.range[bound]} onChange={e=>{const value=Number(e.target.value);const range={...settings.rightHand.range,[bound]:value};if(bound==="low")range.high=Math.max(value,range.high);else range.low=Math.min(value,range.low);updateSettings({...settings,rightHand:{...settings.rightHand,range}});}}>{Array.from({length:37},(_,i)=>i+55).map(midi=><option key={midi} value={midi}>{Note.fromMidi(midi)}</option>)}</select></label>)}
    <label>Time signature <select value={`${settings.rhythm.meters[0]!.beats}/${settings.rhythm.meters[0]!.beatUnit}`} onChange={e=>{const [beats,beatUnit]=e.target.value.split("/").map(Number);updateSettings({...settings,rhythm:{...settings.rhythm,meters:[{beats,beatUnit:beatUnit as 4|8}]},leftHand:{...settings.leftHand,templateId:undefined}});}}><option value="3/4">3/4</option><option value="4/4">4/4</option></select></label>{" "}
    <IntegerInput label="Tempo" value={settings.tempoBpm} min={30} max={240} onCommit={tempoBpm=>updateSettings({...settings,tempoBpm})}/>{" "}
+   <label>Note frequency <select value={noteFrequencyValue(settings.rhythm)} onChange={e=>{const option=noteFrequencyOptions.find(item=>item.value===e.target.value)!;updateSettings({...settings,rhythm:{...settings.rhythm,smallestSubdivision:option.smallestSubdivision,noteDensity:option.noteDensity}});}}>{noteFrequencyOptions.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</select></label>{" "}
    <IntegerInput label="Measures" value={settings.measures} min={2} max={32} onCommit={measures=>updateSettings({...settings,measures})}/>{" "}
    <label>Curated bass line <select value={settings.leftHand.templateId??""} onChange={e=>{const templateId=e.target.value||undefined;const isBb=templateId==="legacy-bb-fdim-line";updateSettings({...settings,measures:templateId?(isBb?6:4):settings.measures,tonal:isBb?{...settings.tonal,keys:["Bb major"],selection:"fixed"}:settings.tonal,rhythm:templateId?{...settings.rhythm,meters:[{beats:3,beatUnit:4}]}:settings.rhythm,leftHand:{...settings.leftHand,enabled:true,accompanimentStyle:"polka",templateId:templateId as TrainingRequest["leftHand"]["templateId"]}});}}><option value="">Automatic style</option>{legacyLines.map(line=><option key={line.id} value={line.id}>{line.label}</option>)}</select></label>
    {" "}<button type="button" onClick={reset}>Default</button>

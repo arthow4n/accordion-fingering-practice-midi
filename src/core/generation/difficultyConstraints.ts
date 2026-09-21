@@ -12,7 +12,10 @@ export const requestedDifficultyBounds=(request:TrainingRequest):DifficultyBound
   pitchMovement:{min:0,max:clamp(request.rightHand.movementDifficulty+.25)},
   patternComplexity:{min:0,max:clamp(.25+request.patterns.variation*.6+request.patterns.targetDensity*.2)},
   rhythm:{min:0,max:clamp(subdivision+request.rhythm.syncopation*.4+.1)},
-  density:{min:0,max:clamp(.2+request.rhythm.noteDensity)},
+  // Overall density includes accompaniment events, while noteDensity controls
+  // the right-hand rhythm. Leave room for the selected bass pattern even when
+  // the melody is intentionally sparse.
+  density:{min:0,max:clamp(.5+request.rhythm.noteDensity*.5)},
   harmony:{min:0,max:clamp(request.harmony.chordVocabulary.length/4)},
   rightHandMotor:{min:0,max:clamp(request.rightHand.movementDifficulty+.25)},
   leftHandMotor:{min:0,max:request.leftHand.enabled?clamp(request.leftHand.movementDifficulty+.25):0},

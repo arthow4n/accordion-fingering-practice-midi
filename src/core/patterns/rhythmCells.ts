@@ -14,6 +14,8 @@ export const RHYTHM_CELLS: readonly RhythmCell[] = [
   { id: "quarter-rests", meters: ["4/4"], atoms: [{duration:q,rest:true},{duration:q},{duration:q},{duration:q}], complexity:.25 },
   { id: "syncopation", meters: ["4/4"], atoms: [{duration:q/2,rest:true},{duration:q,tie:true},{duration:q},{duration:q},{duration:q/2}], complexity:.7, syncopated:true },
   { id: "three-quarters", meters: ["3/4"], atoms: [{duration:q},{duration:q},{duration:q}], complexity:.05 },
+  { id: "half-quarter", meters: ["3/4"], atoms: [{duration:2*q},{duration:q}], complexity:.05 },
+  { id: "quarter-half", meters: ["3/4"], atoms: [{duration:q},{duration:2*q}], complexity:.05 },
   { id: "six-eight-basic", meters: ["6/8"], atoms: Array.from({length:6}, () => ({duration:q/2})), complexity:.15 },
   { id: "six-eight-compound", meters: ["6/8"], atoms: [{duration:1.5*q},{duration:1.5*q}], complexity:.1 },
 ];

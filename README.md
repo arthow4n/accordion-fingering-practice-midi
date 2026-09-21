@@ -14,6 +14,8 @@ Balanced, pattern-focus, key-fluency, rhythm-focus, interval-focus, read-ahead, 
 
 Timed sight-reading uses an absolute clock: a wrong note is recorded but never pauses the score. Correction mode waits for the expected pitch and is useful for fingering drills. Each event retains its scale degree, harmony, motif, pattern, rhythm cell, metric position, interval, and challenge tags for feature-level analysis.
 
+The **Note frequency** setting controls rhythmic activity independently of tempo, from half/quarter-note beginner reading through eighth/sixteenth-note practice. Once timed sight-reading is started, completed exercises advance automatically without another count-in; **New exercise** and **Replay seed** stop that continuous run.
+
 The notation remains a right-hand lead sheet with chord labels when left-hand-only practice is selected; the hand selection changes MIDI evaluation scope, not the displayed lead-sheet voice.
 
 Exercises are deterministic. A request plus instrument profile and seed always produces the same score; copy the displayed seed to reproduce an issue or replay material.

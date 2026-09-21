@@ -26,7 +26,8 @@ export const generateMelody=(context:TonalContext,meter:Meter,harmony:HarmonyEve
  const allowed=MELODIC_PATTERNS.filter(pattern=>request.patterns.allowedFamilies.includes(pattern.family)&&Math.max(...pattern.relativeDegrees.map(Math.abs))/7<=request.rightHand.movementDifficulty+.25);
  const patterns=allowed.length?allowed:MELODIC_PATTERNS.filter(pattern=>request.patterns.allowedFamilies.includes(pattern.family));
  const target=patterns.filter(pattern=>request.patterns.targetFamilies.includes(pattern.family));
- const allCells=cellsForMeter(meter).filter(cell=>request.rhythm.smallestSubdivision!=="quarter"||cell.atoms.every(atom=>atom.duration>=480));
+ const minimumDuration=request.rhythm.smallestSubdivision==="quarter"?480:request.rhythm.smallestSubdivision==="eighth"?240:120;
+ const allCells=cellsForMeter(meter).filter(cell=>cell.atoms.every(atom=>atom.duration>=minimumDuration));
  const desiredAtoms=2+request.rhythm.noteDensity*14;
  const cells=allCells.filter(cell=>cell.complexity<=Math.max(.15,request.rhythm.syncopation+.35));
  const chooseCell=()=>rng.pick((cells.length?cells:allCells).map(cell=>({cell,difference:Math.abs(cell.atoms.length-desiredAtoms)})).sort((a,b)=>a.difference-b.difference).slice(0,3).map(x=>x.cell));

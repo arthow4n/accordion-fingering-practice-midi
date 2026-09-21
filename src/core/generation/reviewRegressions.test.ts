@@ -10,7 +10,7 @@ it("generates default Bb, rhythm drills and small-jump practice across seeds",()
  for(const scenario of ["Bb","rhythm","smallJump"]){
   const request=defaultTrainingRequest();
   if(scenario==="Bb")request.tonal.keys=["Bb major"];
-  if(scenario==="rhythm")request.intent="rhythmFocus";
+  if(scenario==="rhythm")request.intent="rhythm";
   if(scenario==="smallJump")request.rightHand.maxJump=2;
   const exercise=generateExercise(request,seed);
   expect(exercise.metadata.attempts).toBeLessThanOrEqual(32);

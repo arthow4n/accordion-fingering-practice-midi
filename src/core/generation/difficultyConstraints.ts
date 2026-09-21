@@ -7,9 +7,10 @@ const clamp=(value:number)=>Math.max(0,Math.min(1,value));
 export const requestedDifficultyBounds=(request:TrainingRequest):DifficultyBounds=>{
  const subdivision=request.rhythm.smallestSubdivision==="quarter"?.2:request.rhythm.smallestSubdivision==="eighth"?.5:.9;
  const tempo=clamp((request.tempoBpm-30)/170);
+ const jumpAllowance=request.rightHand.jumpFrequency==="none"?0:request.rightHand.jumpFrequency==="occasional"?.15:.4;
  return{
   tonal:{min:0,max:clamp(.4+request.tonal.chromaticism)},
-  pitchMovement:{min:0,max:clamp(request.rightHand.movementDifficulty+.25)},
+  pitchMovement:{min:0,max:clamp(request.rightHand.movementDifficulty+.25+jumpAllowance)},
   patternComplexity:{min:0,max:clamp(.25+request.patterns.variation*.6+request.patterns.targetDensity*.2)},
   rhythm:{min:0,max:clamp(subdivision+request.rhythm.syncopation*.4+.1)},
   // Overall density includes accompaniment events, while noteDensity controls
@@ -17,12 +18,12 @@ export const requestedDifficultyBounds=(request:TrainingRequest):DifficultyBound
   // the melody is intentionally sparse.
   density:{min:0,max:clamp(.5+request.rhythm.noteDensity*.5)},
   harmony:{min:0,max:clamp(request.harmony.chordVocabulary.length/4)},
-  rightHandMotor:{min:0,max:clamp(request.rightHand.movementDifficulty+.25)},
+  rightHandMotor:{min:0,max:clamp(request.rightHand.movementDifficulty+.25+jumpAllowance)},
   leftHandMotor:{min:0,max:request.leftHand.enabled?clamp(request.leftHand.movementDifficulty+.25):0},
   coordination:{min:0,max:request.leftHand.enabled?clamp(request.coordination.difficulty+.35):0},
   predictability:{min:clamp(request.patterns.repetition*.4),max:1},
   tempo:{min:Math.max(0,tempo-.001),max:Math.min(1,tempo+.001)},
-  challengeDensity:{min:Math.max(0,request.challenge.density-.1),max:clamp(request.challenge.density+.15)},
+  challengeDensity:{min:Math.max(0,request.challenge.density-.1),max:clamp(request.challenge.density+.15+jumpAllowance)},
  };
 };
 export const satisfiesDifficultyBounds=(difficulty:DifficultyVector,bounds:DifficultyBounds)=>Object.entries(bounds).every(([dimension,bound])=>{const value=difficulty[dimension as keyof DifficultyVector];return value>=bound.min&&value<=bound.max;});

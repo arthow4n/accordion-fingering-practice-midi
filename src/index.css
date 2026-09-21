@@ -139,3 +139,6 @@ pre { white-space: pre-wrap; font-size: .8rem; }
   width: 9rem;
 }
 
+.pattern-family-controls {
+  margin: 0.5rem 0;
+}

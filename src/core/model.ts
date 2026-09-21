@@ -39,6 +39,6 @@ export type Exercise = {
   harmony: HarmonyEvent[]; phrase: PhraseSection[]; rightHand: ExerciseEvent[]; leftHand: ExerciseEvent[];
   difficulty: DifficultyVector; metadata: { intent: TrainingIntent; progressionId: string; attempts: number };
 };
-export type TrainingIntent = "balanced" | "patternFocus" | "keyFluency" | "rhythmFocus" | "pitchIntervalFocus" | "readAhead" | "leftHandFocus" | "coordination" | "randomDecoding";
+export type TrainingIntent = "general" | "noteRecognition" | "patternsIntervals" | "rhythm" | "leftHand" | "coordination";
 export type AccompanimentStyle = "bassChord" | "alternatingBass" | "polka" | "waltz" | "tango" | "swing";
 export type PerformedMidiEvent = { midiNote: number; type: "noteOn" | "noteOff"; timestampMs: number; velocity: number; hand?: Hand };

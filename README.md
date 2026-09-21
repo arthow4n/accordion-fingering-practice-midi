@@ -8,9 +8,9 @@ Pitch range defaults to **Full range — rotating**. New practice starts a seede
 
 Every melody note must fit the selected register, while preserving pitch classes, harmony and configured jump limits. Incompatible custom limits produce a generation error after bounded attempts; the generator does not fall back to another register. Register choice affects the melody independently of the Hands evaluation setting.
 
-Right-hand jump limits guide pitch selection within the chosen register. Stable melody notes follow the actual chord quality, including curated diminished and seventh chords; endings resolve to the final harmony's root. Bass range limits apply to played fundamental/counterbass notes, while bass jump limits measure the column distance between successive bass buttons. Bass difficulty uses physical button movement rather than MIDI voicing octaves, and exercises without accompaniment skip bass constraints.
+Right-hand jump practice separately controls target size, frequency, and a maximum safety limit. Left-hand jump practice uses harmony plans with deliberate Stradella-column movement; its maximum is measured in physical columns rather than MIDI voicing octaves. Stable melody notes follow the actual chord quality, including curated diminished and seventh chords, and endings resolve to the final harmony's root.
 
-Balanced, pattern-focus, key-fluency, rhythm-focus, interval-focus, read-ahead, left-hand, and coordination modes generate music from a shared harmonic plan. The deliberately different **random decoding** mode trains direct staff-symbol-to-button recognition.
+Six focused modes generate material from a shared harmonic plan: **General sight-reading**, **Note recognition**, **Patterns and intervals**, **Rhythm**, **Left-hand reading**, and **Two-hand coordination**. Pattern practice exposes its melodic families directly; keys and note frequency remain independent settings rather than hidden modes.
 
 Timed sight-reading uses an absolute clock: a wrong note is recorded but never pauses the score. Correction mode waits for the expected pitch and is useful for fingering drills. Each event retains its scale degree, harmony, motif, pattern, rhythm cell, metric position, interval, and challenge tags for feature-level analysis.
 

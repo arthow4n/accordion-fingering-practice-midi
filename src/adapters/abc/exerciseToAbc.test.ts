@@ -30,6 +30,18 @@ it("serializes dotted eighths as three sixteenths",()=>{
  exercise.rightHand=[{...exercise.rightHand[0]!,onset:0,duration:360,metadata:{challengeTags:[]}}];
  expect(exerciseToAbc(exercise)).toContain("3/2");
 });
+it("beams short notes together within beats",async()=>{
+ const request=defaultTrainingRequest();request.rhythm.noteValue="sixteenth";request.rhythm.style="steady";request.rhythm.smallestSubdivision="sixteenth";request.rhythm.noteDensity=1;
+ const abc=exerciseToAbc(generateExercise(request,0));
+ expect(abc).toMatch(/[A-Ga-g][,']*1\/2[A-Ga-g][,']*1\/2/);
+ const {parseOnly}=await import("abcjs"),notes=parseOnly(abc)[0].lines.flatMap(line=>line.staff??[]).flatMap(staff=>staff.voices??[]).flat().filter(e=>e.el_type==="note");
+ expect(notes.some(note=>note.startBeam)).toBe(true);expect(notes.some(note=>note.endBeam)).toBe(true);
+});
+it("starts a new beam at each quarter-note beat",()=>{
+ const request=defaultTrainingRequest();request.rhythm.noteValue="eighth";request.rhythm.style="steady";
+ const body=exerciseToAbc(generateExercise(request,0)).trim().split("\n").at(-1)!;
+ expect(body).toMatch(/[A-Ga-g][,']*[A-Ga-g][,']* [A-Ga-g]/);
+});
 
 it("ABCJS reads split held notes and dotted rhythms with the original total duration",async()=>{
  const {parseOnly}=await import("abcjs");

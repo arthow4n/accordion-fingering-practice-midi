@@ -40,13 +40,13 @@ export default defineConfig({
       includeAssets: ["icon.svg", "apple-touch-icon.png", "favicon.ico"],
       manifest: {
         name: "Accordion Fingering Practice MIDI",
-        short_name: "Accordion Practice",
+        short_name: "AFPM",
         description:
           "Accordion fingering and sight-reading practice with MIDI support",
         theme_color: "#1e293b",
         background_color: "#1e293b",
         display: "standalone",
-        orientation: "portrait",
+        orientation: "any",
         icons: [
           {
             src: "pwa-192x192.png",

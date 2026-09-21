@@ -15,6 +15,7 @@ const atom=(offset:number,duration:number,kind:AccompanimentAction["kind"],bassR
 // rhythmic/physical ideas extracted from the old absolute-note pattern strings.
 export const LEGACY_ACCOMPANIMENT_TEMPLATES:readonly AccompanimentTemplate[]=[
  {id:"legacy-bass-chord-4",style:"bassChord",meters:["4/4"],atoms:[atom(0,.5,"bass"),atom(.5,.5,"chord")],legacySource:"basic bass + chord",tags:["legacy","simple"]},
+ {id:"bass-chord-3",style:"bassChord",meters:["3/4"],atoms:[atom(0,1/3,"bass"),atom(1/3,2/3,"chord")],legacySource:"3/4 basic bass + sustained chord",tags:["derived","simple"]},
  {id:"legacy-polka-4",style:"polka",meters:["4/4"],atoms:[atom(0,.25,"bass"),atom(.25,.25,"chord"),atom(.5,.25,"bass","fifth"),atom(.75,.25,"chord")],legacySource:"16(root) 16(chord) 16(V root) 16(chord)",tags:["legacy","polka","alternating-bass"]},
  {id:"legacy-polka-swamp-4",style:"alternatingBass",meters:["4/4"],atoms:[atom(0,.25,"bass"),atom(.25,.125,"chord"),atom(.375,.125,"chord"),atom(.5,.25,"bass","fifth"),atom(.75,.25,"chord")],legacySource:"16(root) 8(chord) 8(chord) 16(V root) 16(chord)",tags:["legacy","polka","split-chord"]},
  {id:"legacy-waltz-3",style:"waltz",meters:["3/4"],atoms:[atom(0,1/3,"bass"),atom(1/3,1/3,"chord"),atom(2/3,1/3,"chord")],legacySource:"16(root) 16(chord) 16(chord)",tags:["legacy","waltz"]},
@@ -41,4 +42,24 @@ export const accompanimentTemplateFor=(style:AccompanimentStyle,meter:Meter)=>{
  if(meter.beatUnit===8)return LEGACY_ACCOMPANIMENT_TEMPLATES.find(template=>template.id==="legacy-compound-bass-chord")!;
  return LEGACY_ACCOMPANIMENT_TEMPLATES.find(template=>template.id==="legacy-polka-4")!;
 };
+export const accompanimentStylesForMeter=(meter:Meter):AccompanimentStyle[]=>[...new Set(LEGACY_ACCOMPANIMENT_TEMPLATES.filter(template=>template.meters.includes(meterKey(meter))).map(template=>template.style))];
 export const legacyBassLineById=(id:string|undefined)=>LEGACY_BASS_LINE_TEMPLATES.find(template=>template.id===id);
+
+/** Lead-sheet instruction for the exact generated pattern; the left hand is intentionally not rendered as a second staff. */
+export const accompanimentInstruction=(style:AccompanimentStyle,meter:Meter,legacyId?:string):string=>{
+ if(legacyId==="legacy-tonic-pedal-descending")return "In 3/4, play bass–chord–chord; follow the descending slash basses C, B, A, G.";
+ if(legacyId==="legacy-transition-to-IV")return "In 3/4, play bass–chord–chord, with the three-bass counterbass walk shown before IV.";
+ if(legacyId==="legacy-bb-fdim-line")return "In 3/4, play bass–chord–chord through the displayed Bb, diminished, F/C, and D7 changes.";
+ switch(accompanimentTemplateFor(style,meter).id){
+  case "legacy-bass-chord-4": return "Root bass at the start of the measure, then the chord halfway through.";
+  case "bass-chord-3": return "Root bass on beat 1, then hold the chord through beats 2 and 3.";
+  case "legacy-polka-4": return "Root bass, chord, fifth bass, chord—one attack on each beat.";
+  case "legacy-polka-swamp-4": return "Root bass, two short chords, fifth bass, then chord.";
+  case "legacy-waltz-3": return "Root bass on beat 1, then the chord on beats 2 and 3.";
+  case "legacy-polka-3": return "Bass on beat 1 and chords on beats 2 and 3; alternate root and fifth bass each measure.";
+  case "legacy-tango-4": return "Bass and chord together on beats 1, 2, and 3; short chord then fifth bass on beat 4.";
+  case "legacy-swing-4": return "Bass and chord together on every beat; use the root for beats 1–2 and the fifth for beats 3–4.";
+  case "legacy-compound-bass-chord": return "Root bass for the first half of the measure, then the chord for the second half.";
+  default: return "Follow the displayed chord symbols with the selected bass pattern.";
+ }
+};

@@ -16,7 +16,7 @@ Timed sight-reading uses an absolute clock: a wrong note is recorded but never p
 
 The **Note frequency** setting controls rhythmic activity independently of tempo, from half/quarter-note beginner reading through eighth/sixteenth-note practice. In timed sight-reading, completing an exercise generates the next score and waits there. The first accordion input starts its clock immediately, with no Start button or count-in.
 
-The notation remains a right-hand lead sheet with chord labels when left-hand-only practice is selected; the hand selection changes MIDI evaluation scope, not the displayed lead-sheet voice.
+The notation is intentionally an accordion lead sheet: one right-hand melodic staff with chord and slash-bass labels, never a second left-hand staff. A visible, configurable bass-pattern instruction explains how to realize those symbols, and the selected pattern determines left-hand MIDI evaluation. The hand selection changes evaluation scope, not the lead-sheet format.
 
 Exercises are deterministic. A request plus instrument profile and seed always produces the same score; copy the displayed seed to reproduce an issue or replay material.
 

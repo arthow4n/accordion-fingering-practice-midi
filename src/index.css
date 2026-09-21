@@ -142,3 +142,7 @@ pre { white-space: pre-wrap; font-size: .8rem; }
 .pattern-family-controls {
   margin: 0.5rem 0;
 }
+
+.accompaniment-instruction {
+  margin: 0.25rem 0;
+}

@@ -33,5 +33,8 @@ const serializeVoice=(events:ExerciseEvent[],exercise:Exercise,labels=new Map<nu
 };
 export const exerciseToAbc=(exercise:Exercise,markedOnset?:number)=>{
  const key=`${exercise.tonalContext.tonic}${exercise.tonalContext.mode==="minor"?"m":""}`;
+ // Accordion lead-sheet notation is intentionally one melodic staff with
+ // chord/slash-bass annotations. Never serialize the generated left hand as a
+ // second staff; its configured pattern is explained by the application UI.
  return `X:1\nM:${exercise.meter.beats}/${exercise.meter.beatUnit}\nL:1/8\nK:${key}\n${serializeVoice(exercise.rightHand,exercise,accompanimentLabels(exercise),markedOnset)}\n`;
 };

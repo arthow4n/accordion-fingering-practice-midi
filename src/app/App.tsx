@@ -67,12 +67,11 @@ export default function App(){
    console.error("SW registration error", error);
   },
  });
- const scoreRef=useRef<HTMLDivElement>(null);const performedRef=useRef<PerformedMidiEvent[]>([]);const rightNotesRef=useRef(new Map<number,number>());const leftNotesRef=useRef(new Map<number,number>());const timelineRef=useRef<AbsoluteTimeline>();const frameRef=useRef<number>();const midiListenerRef=useRef<MidiListener>(()=>{});const continueWithoutCountInRef=useRef(false);
+ const scoreRef=useRef<HTMLDivElement>(null);const performedRef=useRef<PerformedMidiEvent[]>([]);const rightNotesRef=useRef(new Map<number,number>());const leftNotesRef=useRef(new Map<number,number>());const timelineRef=useRef<AbsoluteTimeline>();const frameRef=useRef<number>();const midiListenerRef=useRef<MidiListener>(()=>{});
  const [initial]=useState(()=>{const session=loadStoredSession(),seed=session.settings.seed??nextSeed();try{return {settings:session.settings,mode:session.mode,seed,exercise:generateExercise(session.settings,seed),error:""};}catch(error){return {settings:session.settings,mode:session.mode,seed,exercise:generateExercise(defaultTrainingRequest(),0),error:error instanceof Error?error.message:String(error)};}});
  const [settings,setSettings]=useState(initial.settings);const [seed,setSeed]=useState(initial.seed);const [exercise,setExercise]=useState(initial.exercise);
- const [mode,setMode]=useState<RuntimeMode>(initial.mode);const [status,setStatus]=useState<"ready"|"countIn"|"playing">(initial.mode==="correction"?"playing":"ready");const [positionMs,setPositionMs]=useState(0);const [metrics,setMetrics]=useState<PerformanceMetrics>();const [sessionStats,setSessionStats]=useState(emptySessionStats);const [continuous,setContinuous]=useState(false);const [devices,setDevices]=useState<string[]>([]);const [midiError,setMidiError]=useState("");const [generationError,setGenerationError]=useState(initial.error);
+ const [mode,setMode]=useState<RuntimeMode>(initial.mode);const [status,setStatus]=useState<"ready"|"playing">(initial.mode==="correction"?"playing":"ready");const [positionMs,setPositionMs]=useState(0);const [metrics,setMetrics]=useState<PerformanceMetrics>();const [sessionStats,setSessionStats]=useState(emptySessionStats);const [devices,setDevices]=useState<string[]>([]);const [midiError,setMidiError]=useState("");const [generationError,setGenerationError]=useState(initial.error);
  const [rightIndex,setRightIndex]=useState(0);const [leftIndex,setLeftIndex]=useState(0);
- const [countInBeat,setCountInBeat]=useState(1);
  const [presets,setPresets]=useState<ConfigPreset[]>(()=>loadPresets());
  const [selectedPresetId,setSelectedPresetId]=useState<string>("");
  const [presetDraft,setPresetDraft]=useState<string>("");
@@ -118,11 +117,9 @@ export default function App(){
 
  const changeMode=(nextMode:RuntimeMode)=>{
   cancelAnimationFrame(frameRef.current??0);
-  continueWithoutCountInRef.current=false;
   setMode(nextMode);
   saveSettings(settings,nextMode);
   setStatus(nextMode==="correction"?"playing":"ready");
-  setContinuous(false);
   setRightIndex(0);
   setLeftIndex(0);
   rightNotesRef.current.clear();
@@ -131,8 +128,6 @@ export default function App(){
 
  const updateSettings=(next:TrainingRequest,persist=true,nextMode=mode)=>{
   cancelAnimationFrame(frameRef.current??0);
-  continueWithoutCountInRef.current=false;
-  setContinuous(false);
   setSettings(next);
   if(persist)saveSettings(next,nextMode);
   setMode(nextMode);
@@ -154,15 +149,14 @@ export default function App(){
   }
  };
 
- const regenerate=useCallback((newSeed=seed+1,keepPlaying=false)=>{
+ const regenerate=useCallback((newSeed=seed+1,preserveMetrics=false)=>{
   cancelAnimationFrame(frameRef.current??0);
   try{
    const next=generateExercise(settings,newSeed);
    setSeed(newSeed);
    setExercise(next);
-   continueWithoutCountInRef.current=keepPlaying&&mode==="sightReading";
    setStatus(mode==="correction"?"playing":"ready");
-   if(!keepPlaying)setMetrics(undefined);
+   if(!preserveMetrics)setMetrics(undefined);
    setPositionMs(0);
    setRightIndex(0);
    setLeftIndex(0);
@@ -172,7 +166,6 @@ export default function App(){
    setGenerationError("");
    console.debug(exerciseDiagnostics(next));
   }catch(error){
-   setContinuous(false);
    setStatus("ready");
    setGenerationError(error instanceof Error?error.message:String(error));
   }
@@ -191,30 +184,15 @@ export default function App(){
   regenerate(seed+1,true);
  },[exercise,settings.hands,regenerate,seed]);
 
- const start=useCallback((skipCountIn=false)=>{
-  setContinuous(true);
+ const start=useCallback(()=>{
   if(mode==="correction"){setStatus("playing");return;}
   performedRef.current=[];
-  const countInBeats=skipCountIn?0:4;
-  const timeline=new AbsoluteTimeline(exercise,0,countInBeats);
+  const timeline=new AbsoluteTimeline(exercise,0,0);
   timelineRef.current=timeline;
-  const sessionStart=timeline.start(performance.now());
-  const countInMs=ticksToMs(countInBeats*480,exercise.tempoBpm);
-  if(skipCountIn){
-   setStatus("playing");
-  }else{
-   setStatus("countIn");
-   setCountInBeat(1);
-  }
+  timeline.start(performance.now());
+  setStatus("playing");
   const tick=()=>{
    const now=performance.now();
-   if(now<sessionStart){
-    const elapsed=countInMs-(sessionStart-now);
-    const beat=Math.min(countInBeats,Math.max(1,Math.floor((elapsed/countInMs)*countInBeats)+1));
-    setCountInBeat(beat);
-   }else{
-    setStatus("playing");
-   }
    setPositionMs(timeline.positionAt(now));
    if(timeline.isFinished(now)){finish();return;}
    frameRef.current=requestAnimationFrame(tick);
@@ -227,11 +205,11 @@ export default function App(){
 
   if(mode==="sightReading"){
    if(status==="ready"){
-    start(true);
+    start();
     performedRef.current.push(event);
     return;
    }
-   if(status==="playing"||status==="countIn")performedRef.current.push(event);
+   if(status==="playing")performedRef.current.push(event);
    return;
   }
 
@@ -320,7 +298,6 @@ export default function App(){
  },[hasRight,hasLeft,mode,status,rightIndex,leftIndex,rightTargets,leftTargets,exercise.tempoBpm,seed,settings.hands,start,regenerate]);
 
  useEffect(()=>{midiListenerRef.current=acceptMidi;},[acceptMidi]);
- useEffect(()=>{if(continuous&&status==="ready"){const skipCountIn=continueWithoutCountInRef.current;continueWithoutCountInRef.current=false;start(skipCountIn);}},[continuous,status,exercise,start]);
  useEffect(()=>{let cancelled=false;let disconnect:undefined|(()=>void);connectWebMidi(event=>midiListenerRef.current(event),names=>{if(!cancelled)setDevices(names);}).then(x=>{if(cancelled)x.disconnect();else{setDevices(x.deviceNames);disconnect=x.disconnect;setMidiError("");}}).catch(e=>{if(!cancelled)setMidiError(e instanceof Error?e.message:String(e));});return()=>{cancelled=true;disconnect?.();};},[]);
 
  const r=hasRight&&rightIndex<rightTargets.length?rightTargets[rightIndex]?.onset:undefined;
@@ -350,9 +327,7 @@ export default function App(){
    onDismiss={() => setNeedRefresh(false)}
   />
   <div className="track" ref={scoreRef}/>
-  <p>{status==="countIn"
-   ?`Count in… beat ${countInBeat} of 4`
-   :mode==="correction"
+  <p>{mode==="correction"
     ?hasRight&&hasLeft
      ?`Right hand: ${rightIndex>=rightTargets.length?"done":`${rightIndex+1} of ${rightTargets.length}`} · Left hand: ${leftIndex>=leftTargets.length?"done":`${leftIndex+1} of ${leftTargets.length}`}`
      :hasRight
@@ -360,12 +335,12 @@ export default function App(){
       :`Event ${Math.min(leftIndex+1,leftTargets.length)} of ${leftTargets.length}`
     :status==="playing"
      ?"Sight-reading—keep the pulse"
-     :"Ready (play first note on accordion to begin, or click Start for count-in)"
+     :"Ready — play the first note on the accordion to begin"
   }</p>
   <p>Completed {sessionStats.completedExercises} exercises · {sessionStats.completedEvents} events · correct {sessionStats.attempts?`${(sessionStats.correct/sessionStats.attempts*100).toFixed(0)}%`:"—"} · missed {sessionStats.missed} · extra {sessionStats.extra}</p>
   {metrics&&<p>Last exercise: pitch {(metrics.pitchAccuracy*100).toFixed(0)}% · timing {(metrics.timingAccuracy*100).toFixed(0)}% · continuity {(metrics.continuity*100).toFixed(0)}%</p>}
   {generationError&&<p role="alert">These settings could not generate an exercise: {generationError}</p>}
-  <p><button onClick={()=>start()} disabled={Boolean(generationError)||status==="playing"||status==="countIn"||mode==="correction"}>Start</button>{" "}<button onClick={()=>{setContinuous(false);regenerate();}}>New exercise</button>{" "}<button onClick={()=>{setContinuous(false);regenerate(seed);}}>Replay seed</button>{" "}<button onClick={()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen({navigationUI:"hide"})}>Full screen</button></p>
+  <p><button onClick={()=>regenerate()}>New exercise</button>{" "}<button onClick={()=>regenerate(seed)}>Replay seed</button>{" "}<button onClick={()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen({navigationUI:"hide"})}>Full screen</button></p>
   <fieldset><legend>Practice settings</legend>
    <label>Training mode <select value={settings.intent} onChange={e=>setIntent(e.target.value as TrainingIntent)}>{intents.map(x=><option key={x}>{x}</option>)}</select></label>{" "}
    <label>Execution <select value={mode} onChange={e=>changeMode(e.target.value as RuntimeMode)}><option value="sightReading">Timed sight-reading</option><option value="correction">Correction / drill</option></select></label>{" "}

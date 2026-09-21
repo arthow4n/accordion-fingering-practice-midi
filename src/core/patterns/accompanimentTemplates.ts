@@ -48,6 +48,22 @@ export const accompanimentTemplateFor=(style:AccompanimentStyle,meter:Meter)=>{
 export const accompanimentStylesForMeter=(meter:Meter):AccompanimentStyle[]=>[...new Set(LEGACY_ACCOMPANIMENT_TEMPLATES.filter(template=>template.meters.includes(meterKey(meter))).map(template=>template.style))];
 export const legacyBassLineById=(id:string|undefined)=>LEGACY_BASS_LINE_TEMPLATES.find(template=>template.id===id);
 
+/** Compact, meter-specific examples for choosing a pattern before it is active. */
+export const accompanimentOptionLabel=(style:AccompanimentStyle,meter:Meter):string=>{
+ switch(accompanimentTemplateFor(style,meter).id){
+  case "legacy-bass-chord-4": return "Bass + chord — root on beats 1–2, chord on 3–4";
+  case "bass-chord-3": return "Bass + chord — root on beat 1, chord on 2–3";
+  case "legacy-polka-4": return "Polka — root, chord, fifth, chord";
+  case "legacy-polka-swamp-4": return "Alternating bass — root, two short chords, fifth, chord";
+  case "legacy-waltz-3": return "Waltz — root on 1, chord on 2 and 3";
+  case "legacy-polka-3": return "Polka — bass, chord, chord; root/fifth alternate by measure";
+  case "legacy-tango-4": return "Tango — bass+chord ×3, short chord, fifth bass";
+  case "legacy-swing-4": return "Swing — root+chord ×2, fifth+chord ×2";
+  case "legacy-compound-bass-chord": return "Bass + chord — root for first half, chord for second half";
+  default: return style;
+ }
+};
+
 /** Lead-sheet instruction for the exact generated pattern; the left hand is intentionally not rendered as a second staff. */
 export const accompanimentInstruction=(style:AccompanimentStyle,meter:Meter,legacyId?:string):string=>{
  if(legacyId==="legacy-tonic-pedal-descending")return "In 3/4, play bass–chord–chord; follow the descending slash basses C, B, A, G.";

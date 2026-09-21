@@ -22,6 +22,7 @@ import { exerciseDiagnostics } from "../core/generation/diagnostics";
 import { accompanimentInstruction, accompanimentOptionLabel, accompanimentStylesForMeter } from "../core/patterns/accompanimentTemplates";
 import type { PerformedMidiEvent, TrainingIntent } from "../core/model";
 import { PracticeSession } from "../application/practiceSession";
+import { generateFirstValidCandidate } from "../application/generateCandidate";
 import { timingOptions } from "../core/performance/timingSettings";
 import type { PerformanceMetrics } from "../core/performance/performanceMetrics";
 
@@ -31,6 +32,8 @@ type HandMode=TrainingRequest["hands"];
 type SessionStats={completedExercises:number;completedEvents:number;attempts:number;correct:number;timingCorrect:number;missed:number;extra:number};
 const emptySessionStats:SessionStats={completedExercises:0,completedEvents:0,attempts:0,correct:0,timingCorrect:0,missed:0,extra:0};
 const nextSeed=()=>Math.floor(Math.random()*0x2aaaaaaa)*3;
+const randomSeeds=(first=nextSeed())=>[first,nextSeed(),nextSeed(),nextSeed()];
+const sequentialSeeds=(first:number)=>[first,first+1,first+2,first+3];
 const intents:readonly {value:TrainingIntent;label:string}[]=[{value:"general",label:"General sight-reading"},{value:"noteRecognition",label:"Note recognition"},{value:"patternsIntervals",label:"Patterns and intervals"},{value:"rhythm",label:"Rhythm"},{value:"leftHand",label:"Left-hand reading"},{value:"coordination",label:"Two-hand coordination"}];
 const patternFamilies:readonly {value:string;label:string}[]=[{value:"repeated",label:"Repeated notes"},{value:"scale",label:"Scale fragments"},{value:"thirds",label:"Thirds"},{value:"triad",label:"Triads"},{value:"arpeggio",label:"Arpeggios"},{value:"neighbor",label:"Neighbor notes"},{value:"passing",label:"Passing notes"},{value:"leapRecovery",label:"Leap and recovery"},{value:"sequence",label:"Sequences"},{value:"cadence",label:"Cadential figures"},{value:"chordTone",label:"Chord-tone turns"}];
 const keys=["C major","G major","D major","F major","Bb major","Eb major","A minor","D minor","E minor"];
@@ -64,7 +67,7 @@ export default function App(){
   },
  });
  const scoreRef=useRef<HTMLDivElement>(null);const frameRef=useRef<number>();const midiListenerRef=useRef<MidiListener>(()=>{});
- const [initial]=useState(()=>{const session=loadStoredSession(),seed=session.settings.seed??nextSeed();try{return {settings:session.settings,mode:session.mode,seed,exercise:generateExercise(session.settings,seed),error:""};}catch(error){const settings=defaultTrainingRequest();return {settings,mode:defaultRuntimeMode(settings.intent),seed:0,exercise:generateExercise(settings,0),error:error instanceof Error?error.message:String(error)};}});
+ const [initial]=useState(()=>{const session=loadStoredSession(),seed=session.settings.seed??nextSeed();try{const candidate=generateFirstValidCandidate(randomSeeds(seed),candidateSeed=>generateExercise(session.settings,candidateSeed));return {settings:session.settings,mode:session.mode,seed:candidate.seed,exercise:candidate.value,error:""};}catch(error){const settings=defaultTrainingRequest();return {settings,mode:defaultRuntimeMode(settings.intent),seed:0,exercise:generateExercise(settings,0),error:error instanceof Error?error.message:String(error)};}});
  const [initialSession]=useState(()=>new PracticeSession(initial.exercise,initial.settings.hands,initial.mode,initial.settings.timing));
  const sessionRef=useRef(initialSession);
  const [waiting,setWaiting]=useState(false);
@@ -88,8 +91,7 @@ export default function App(){
   const target=presets.find(p=>p.id===selectedPresetId);
   if(!target)return;
   const targetMode=target.mode??defaultRuntimeMode(target.settings.intent);
-  updateSettings(target.settings,true,targetMode);
-  setPresetDraft(target.name);
+  if(updateSettings(target.settings,true,targetMode))setPresetDraft(target.name);
  };
 
  const handleDeletePreset=()=>{
@@ -116,27 +118,23 @@ export default function App(){
  const updateSettings=(raw:TrainingRequest,persist=true,nextMode=mode)=>{
   // Generate before changing the active settings, score, or persisted session.
   try{
-   const next=parseTrainingRequest(raw);let newSeed=nextSeed(),generated:ReturnType<typeof generateExercise>|undefined,lastError:unknown;
-   // A valid setting must not snap back just because one random seed exhausts
-   // bounded rejection sampling. Preserve the settings/score pairing, but try
-   // a few independent candidates before declaring the configuration invalid.
-   for(let attempt=0;attempt<4&&!generated;attempt++){try{generated=generateExercise(next,newSeed);}catch(error){lastError=error;if(attempt<3)newSeed=nextSeed();}}
-   if(!generated)throw lastError;
-   resetSession(generated,next,nextMode);
-   setSettings(next);setMode(nextMode);setSeed(newSeed);setExercise(generated);setMetrics(undefined);setGenerationError("");
+   const next=parseTrainingRequest(raw),candidate=generateFirstValidCandidate(randomSeeds(),candidateSeed=>generateExercise(next,candidateSeed));
+   resetSession(candidate.value,next,nextMode);
+   setSettings(next);setMode(nextMode);setSeed(candidate.seed);setExercise(candidate.value);setMetrics(undefined);setGenerationError("");
    if(persist)saveSettings(next,nextMode);
-  }catch(error){setGenerationError(error instanceof Error?error.message:String(error));}
+   return true;
+  }catch(error){setGenerationError(error instanceof Error?error.message:String(error));return false;}
  };
  const updateTiming=(timing:TrainingRequest["timing"])=>{
   const next=parseTrainingRequest({...settings,timing});
   resetSession(exercise,next);setSettings(next);setMetrics(undefined);saveSettings(next,mode);
  };
- const regenerate=useCallback((newSeed=seed+1,preserveMetrics=false)=>{
+ const regenerate=useCallback((newSeed=seed+1,preserveMetrics=false,retry=true)=>{
   try{
-   const next=generateExercise(settings,newSeed);
+   const candidate=generateFirstValidCandidate(retry?sequentialSeeds(newSeed):[newSeed],candidateSeed=>generateExercise(settings,candidateSeed)),next=candidate.value;
    cancelAnimationFrame(frameRef.current??0);
    sessionRef.current=new PracticeSession(next,settings.hands,mode,settings.timing);
-   setSeed(newSeed);setExercise(next);setStatus(mode==="correction"?"playing":"ready");
+   setSeed(candidate.seed);setExercise(next);setStatus(mode==="correction"?"playing":"ready");
    setWaiting(false);setPositionMs(0);setRightIndex(0);setLeftIndex(0);
    if(!preserveMetrics)setMetrics(undefined);
    setGenerationError("");
@@ -214,7 +212,7 @@ export default function App(){
   <p>Completed {sessionStats.completedExercises} exercises · {sessionStats.completedEvents} events · correct {sessionStats.attempts?`${(sessionStats.correct/sessionStats.attempts*100).toFixed(0)}%`:"—"} · missed {sessionStats.missed} · extra {sessionStats.extra}</p>
   {metrics&&<p>Last exercise: pitch {(metrics.pitchAccuracy*100).toFixed(0)}% · timing {(metrics.timingAccuracy*100).toFixed(0)}% · continuity {(metrics.continuity*100).toFixed(0)}%{metrics.durationAccuracy!==undefined&&<> · note lengths {(metrics.durationAccuracy*100).toFixed(0)}%</>} · longest hesitation {(metrics.longestHesitationMs/1000).toFixed(1)}s</p>}
   {generationError&&<p role="alert">Requested settings could not generate an exercise; the previous settings and score remain active: {generationError}</p>}
-  <p>{mode==="sightReading"&&status==="playing"&&<><button onClick={finish}>Finish exercise</button>{" "}</>}<button onClick={()=>regenerate()}>New exercise</button>{" "}<button onClick={()=>regenerate(seed)}>Replay seed</button>{" "}<button onClick={()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen({navigationUI:"hide"})}>Full screen</button></p>
+  <p>{mode==="sightReading"&&status==="playing"&&<><button onClick={finish}>Finish exercise</button>{" "}</>}<button onClick={()=>regenerate()}>New exercise</button>{" "}<button onClick={()=>regenerate(seed,false,false)}>Replay seed</button>{" "}<button onClick={()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen({navigationUI:"hide"})}>Full screen</button></p>
   <fieldset><legend>Practice settings</legend>
    <label>Training mode <select value={settings.intent} onChange={e=>setIntent(e.target.value as TrainingIntent)}>{intents.map(intent=><option key={intent.value} value={intent.value}>{intent.label}</option>)}</select></label>{" "}
    <label>Execution <select value={mode} onChange={e=>changeMode(e.target.value as RuntimeMode)}><option value="sightReading">Timed sight-reading</option><option value="correction">Correction / drill</option></select></label>{" "}
@@ -234,7 +232,7 @@ export default function App(){
    <p>Timed practice accepts up to {Math.round(tolerance.correctEarlyMs!)} ms early or {Math.round(tolerance.correctLateMs!)} ms late as on time. Chord spread: {Math.round(tolerance.simultaneityWindowMs)} ms. {settings.timing.followAfterPause?"The score waits after a hesitation and realigns when you resume; the pause is still recorded.":"The clock keeps its original pulse through mistakes and pauses."}</p>
    <IntegerInput label="Measures" value={settings.measures} min={2} max={32} onCommit={measures=>updateSettings({...settings,measures})}/>{" "}
    <label>Bass pattern <select value={settings.leftHand.accompanimentStyle} onChange={e=>updateSettings({...settings,leftHand:{...settings.leftHand,enabled:true,accompanimentStyle:e.target.value as TrainingRequest["leftHand"]["accompanimentStyle"],templateId:undefined}})}>{bassPatterns.filter(pattern=>accompanimentStylesForMeter(settings.rhythm.meters[0]!).includes(pattern)).map(pattern=><option key={pattern} value={pattern}>{accompanimentOptionLabel(pattern,settings.rhythm.meters[0]!)}</option>)}</select></label>{" "}
-   <label>Curated bass exercise <select value={settings.leftHand.templateId??""} onChange={e=>{const templateId=e.target.value||undefined;const isBb=templateId==="legacy-bb-fdim-line";updateSettings({...settings,measures:templateId?(isBb?6:4):settings.measures,tonal:isBb?{...settings.tonal,keys:["Bb major"],selection:"fixed"}:settings.tonal,rhythm:templateId?{...settings.rhythm,meters:[{beats:3,beatUnit:4}]}:settings.rhythm,leftHand:{...settings.leftHand,enabled:true,accompanimentStyle:"polka",templateId:templateId as TrainingRequest["leftHand"]["templateId"]}});}}><option value="">None</option>{legacyLines.map(line=><option key={line.id} value={line.id}>{line.label}</option>)}</select></label>
+   <label>Curated bass exercise <select value={settings.leftHand.templateId??""} onChange={e=>{const templateId=e.target.value||undefined,isBb=templateId==="legacy-bb-fdim-line",noteValue=templateId&&settings.rhythm.noteValue==="half"?"quarter":settings.rhythm.noteValue;updateSettings({...settings,measures:templateId?(isBb?6:4):settings.measures,tonal:isBb?{...settings.tonal,keys:["Bb major"],selection:"fixed"}:settings.tonal,rhythm:templateId?{...settings.rhythm,...rhythmLegacyValues(noteValue,settings.rhythm.style),noteValue,meters:[{beats:3,beatUnit:4}]}:settings.rhythm,leftHand:{...settings.leftHand,enabled:true,accompanimentStyle:"polka",templateId:templateId as TrainingRequest["leftHand"]["templateId"]}});}}><option value="">None</option>{legacyLines.map(line=><option key={line.id} value={line.id}>{line.label}</option>)}</select></label>
    {" "}<button type="button" onClick={reset}>Reset settings</button>
    {settings.intent==="patternsIntervals"&&<div className="pattern-family-controls"><span>Pattern families: </span>{patternFamilies.map(family=><label key={family.value}><input type="checkbox" checked={settings.patterns.allowedFamilies.includes(family.value)} onChange={e=>{const allowedFamilies=e.target.checked?[...settings.patterns.allowedFamilies,family.value]:settings.patterns.allowedFamilies.filter(value=>value!==family.value);if(allowedFamilies.length)updateSettings({...settings,patterns:{...settings.patterns,allowedFamilies}});}}/> {family.label}</label>)}</div>}
    <div className="preset-controls">

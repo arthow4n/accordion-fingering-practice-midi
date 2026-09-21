@@ -116,7 +116,12 @@ export default function App(){
  const updateSettings=(raw:TrainingRequest,persist=true,nextMode=mode)=>{
   // Generate before changing the active settings, score, or persisted session.
   try{
-   const next=parseTrainingRequest(raw),newSeed=nextSeed(),generated=generateExercise(next,newSeed);
+   const next=parseTrainingRequest(raw);let newSeed=nextSeed(),generated:ReturnType<typeof generateExercise>|undefined,lastError:unknown;
+   // A valid setting must not snap back just because one random seed exhausts
+   // bounded rejection sampling. Preserve the settings/score pairing, but try
+   // a few independent candidates before declaring the configuration invalid.
+   for(let attempt=0;attempt<4&&!generated;attempt++){try{generated=generateExercise(next,newSeed);}catch(error){lastError=error;if(attempt<3)newSeed=nextSeed();}}
+   if(!generated)throw lastError;
    resetSession(generated,next,nextMode);
    setSettings(next);setMode(nextMode);setSeed(newSeed);setExercise(generated);setMetrics(undefined);setGenerationError("");
    if(persist)saveSettings(next,nextMode);

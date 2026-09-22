@@ -34,8 +34,10 @@ describe("synchronous practice sessions",()=>{
  });
  it("requires the notes of a correction chord within the chord-spread window",()=>{
   const s=new PracticeSession(exercise([],[note(0,[48,52,55],"left")]),"left","correction",timing());
+  expect(s.currentExpected("left")?.id).toBe("left-0");
   s.accept(midi(48,1000,"left"));s.accept(midi(52,2000,"left"));s.accept(midi(55,2020,"left"));
   expect(s.done).toBe(false);expect(s.accept(midi(48,2040,"left")).completed).toBe(true);
+  expect(s.currentExpected("left")).toBeUndefined();
  });
  it("recovers after a hesitation, shifts later targets, and records the pause",()=>{
   const s=new PracticeSession(exercise([note(0,[60]),note(480,[62]),note(960,[64])]),"right","sightReading",defaultTimingSettings());

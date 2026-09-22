@@ -36,6 +36,7 @@ export class PracticeSession {
   count(hand: Hand) { return this.expected.filter(e => e.hand === hand).length; }
   completed(hand: Hand) { return this.expected.filter(e => e.hand === hand && this.completedIds.has(e.id)).length; }
   get correctionOnset() { return this.expected.find(e => !this.completedIds.has(e.id))?.onset; }
+  currentExpected(hand?: Hand) { return this.expected.find(e => (!hand || e.hand === hand) && !this.completedIds.has(e.id)); }
   private pending() { return this.expected.filter(e => e.onset > this.frontier); }
 
   accept(event: PerformedMidiEvent): SessionUpdate {

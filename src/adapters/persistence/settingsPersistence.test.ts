@@ -220,4 +220,20 @@ it("persists custom timing and recovery preferences in settings and presets",()=
  savePreset("Custom timing",request,"sightReading");expect(loadPresets().find(p=>p.name==="Custom timing")?.settings.timing).toEqual(request.timing);
 });
 
+it("persists left-hand only mode, accompaniment style, and jump configurations across sessions",()=>{
+ const request=defaultTrainingRequest();
+ request.hands="left";
+ request.leftHand.accompanimentStyle="polka";
+ request.leftHand.jumpFrequency="occasional";
+ request.leftHand.jumpSize="large";
+ saveSettings(request,"correction");
+
+ const loaded=loadStoredSession();
+ expect(loaded.settings.hands).toBe("left");
+ expect(loaded.settings.leftHand.accompanimentStyle).toBe("polka");
+ expect(loaded.settings.leftHand.jumpFrequency).toBe("occasional");
+ expect(loaded.settings.leftHand.jumpSize).toBe("large");
+ expect(loaded.mode).toBe("correction");
+});
+
 });

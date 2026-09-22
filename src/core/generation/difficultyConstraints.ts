@@ -9,6 +9,7 @@ export const requestedDifficultyBounds=(request:TrainingRequest):DifficultyBound
  const rhythmDensity=request.rhythm.style==="steady"?(request.rhythm.noteValue==="sixteenth"?1:request.rhythm.noteValue==="eighth"?.7:request.rhythm.noteValue==="quarter"?.4:.2):request.rhythm.noteDensity;
  const tempo=clamp((request.tempoBpm-30)/170);
  const jumpAllowance=request.rightHand.jumpFrequency==="none"?0:request.rightHand.jumpFrequency==="occasional"?.15:.4;
+ const leftJumpAllowance=request.leftHand.jumpFrequency==="none"?0:request.leftHand.jumpFrequency==="occasional"?.15:.4;
  return{
   tonal:{min:0,max:clamp(.4+request.tonal.chromaticism)},
   pitchMovement:{min:0,max:clamp(request.rightHand.movementDifficulty+.25+jumpAllowance)},
@@ -20,7 +21,7 @@ export const requestedDifficultyBounds=(request:TrainingRequest):DifficultyBound
   density:{min:0,max:clamp(.5+rhythmDensity*.65)},
   harmony:{min:0,max:clamp(request.harmony.chordVocabulary.length/4)},
   rightHandMotor:{min:0,max:clamp(request.rightHand.movementDifficulty+.25+jumpAllowance)},
-  leftHandMotor:{min:0,max:request.leftHand.enabled?clamp(request.leftHand.movementDifficulty+.25):0},
+  leftHandMotor:{min:0,max:request.leftHand.enabled?clamp(request.leftHand.movementDifficulty+.25+leftJumpAllowance):0},
   coordination:{min:0,max:request.leftHand.enabled?clamp(Math.max(request.coordination.difficulty+.35, rhythmDensity>=.7?.9:rhythmDensity>=.5?.8:0)):0},
   predictability:{min:clamp(request.patterns.repetition*.4),max:1},
   tempo:{min:Math.max(0,tempo-.001),max:Math.min(1,tempo+.001)},

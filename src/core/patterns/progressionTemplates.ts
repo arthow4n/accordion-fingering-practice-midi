@@ -9,6 +9,8 @@ export const PROGRESSIONS: readonly ProgressionTemplate[] = [
   { id: "jump-moderate-frequent", degrees: [2,1,2,1] },
   { id: "jump-large-occasional", degrees: [3,1,1,1] },
   { id: "jump-large-frequent", degrees: [3,1,3,1] },
+  { id: "jump-veryLarge-occasional", degrees: [1,4,7,1] },
+  { id: "jump-veryLarge-frequent", degrees: [1,7,4,7] },
   { id: "jump-very-large-occasional", degrees: [1,4,7,1] },
   { id: "jump-very-large-frequent", degrees: [1,7,4,7] },
 ];

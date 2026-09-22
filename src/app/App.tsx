@@ -32,8 +32,8 @@ type HandMode=TrainingRequest["hands"];
 type SessionStats={completedExercises:number;completedEvents:number;attempts:number;correct:number;timingCorrect:number;missed:number;extra:number};
 const emptySessionStats:SessionStats={completedExercises:0,completedEvents:0,attempts:0,correct:0,timingCorrect:0,missed:0,extra:0};
 const nextSeed=()=>Math.floor(Math.random()*0x2aaaaaaa)*3;
-const randomSeeds=(first=nextSeed())=>[first,nextSeed(),nextSeed(),nextSeed(),nextSeed(),nextSeed()];
-const sequentialSeeds=(first:number)=>[first,first+1,first+2,first+3,first+4,first+5];
+const randomSeeds=(first=nextSeed())=>[first,nextSeed(),nextSeed(),nextSeed(),nextSeed(),nextSeed(),nextSeed(),nextSeed()];
+const sequentialSeeds=(first:number)=>Array.from({length:8},(_,i)=>first+i);
 const intents:readonly {value:TrainingIntent;label:string}[]=[{value:"general",label:"General sight-reading"},{value:"noteRecognition",label:"Note recognition"},{value:"patternsIntervals",label:"Patterns and intervals"},{value:"rhythm",label:"Rhythm"},{value:"leftHand",label:"Left-hand reading"},{value:"coordination",label:"Two-hand coordination"}];
 const patternFamilies:readonly {value:string;label:string}[]=[{value:"repeated",label:"Repeated notes"},{value:"scale",label:"Scale fragments"},{value:"thirds",label:"Thirds"},{value:"triad",label:"Triads"},{value:"arpeggio",label:"Arpeggios"},{value:"neighbor",label:"Neighbor notes"},{value:"passing",label:"Passing notes"},{value:"leapRecovery",label:"Leap and recovery"},{value:"sequence",label:"Sequences"},{value:"cadence",label:"Cadential figures"},{value:"chordTone",label:"Chord-tone turns"}];
 const keys=["C major","G major","D major","F major","Bb major","Eb major","A minor","D minor","E minor"];
@@ -67,12 +67,12 @@ export default function App(){
   },
  });
  const scoreRef=useRef<HTMLDivElement>(null);const frameRef=useRef<number>();const midiListenerRef=useRef<MidiListener>(()=>{});
- const [initial]=useState(()=>{const session=loadStoredSession(),seed=session.settings.seed??nextSeed();try{const candidate=generateFirstValidCandidate(randomSeeds(seed),candidateSeed=>generateExercise(session.settings,candidateSeed));return {settings:session.settings,mode:session.mode,seed:candidate.seed,exercise:candidate.value,error:""};}catch(error){const settings=defaultTrainingRequest();return {settings,mode:defaultRuntimeMode(settings.intent),seed:0,exercise:generateExercise(settings,0),error:error instanceof Error?error.message:String(error)};}});
+ const [initial]=useState(()=>{const session=loadStoredSession(),seed=session.settings.seed??nextSeed();try{const candidate=generateFirstValidCandidate(randomSeeds(seed),candidateSeed=>generateExercise(session.settings,candidateSeed));return {settings:session.settings,mode:session.mode,seed:candidate.seed,exercise:candidate.value,error:"",pending:false};}catch(error){const fallback=generateExercise(defaultTrainingRequest(),0);return {settings:session.settings,mode:session.mode,seed:0,exercise:fallback,error:error instanceof Error?error.message:String(error),pending:true};}});
  const [initialSession]=useState(()=>new PracticeSession(initial.exercise,initial.settings.hands,initial.mode,initial.settings.timing));
  const sessionRef=useRef(initialSession);
  const [waiting,setWaiting]=useState(false);
  const [settings,setSettings]=useState(initial.settings);const [seed,setSeed]=useState(initial.seed);const [exercise,setExercise]=useState(initial.exercise);
- const [mode,setMode]=useState<RuntimeMode>(initial.mode);const [status,setStatus]=useState<"ready"|"playing">(initial.mode==="correction"?"playing":"ready");const [positionMs,setPositionMs]=useState(0);const [metrics,setMetrics]=useState<PerformanceMetrics>();const [sessionStats,setSessionStats]=useState(emptySessionStats);const [devices,setDevices]=useState<string[]>([]);const [midiError,setMidiError]=useState("");const [generationError,setGenerationError]=useState(initial.error);const [settingsPendingScore,setSettingsPendingScore]=useState(false);
+ const [mode,setMode]=useState<RuntimeMode>(initial.mode);const [status,setStatus]=useState<"ready"|"playing">(initial.mode==="correction"?"playing":"ready");const [positionMs,setPositionMs]=useState(0);const [metrics,setMetrics]=useState<PerformanceMetrics>();const [sessionStats,setSessionStats]=useState(emptySessionStats);const [devices,setDevices]=useState<string[]>([]);const [midiError,setMidiError]=useState("");const [generationError,setGenerationError]=useState(initial.error);const [settingsPendingScore,setSettingsPendingScore]=useState(initial.pending);
  const [rightIndex,setRightIndex]=useState(0);const [leftIndex,setLeftIndex]=useState(0);
  const [presets,setPresets]=useState<ConfigPreset[]>(()=>loadPresets());
  const [selectedPresetId,setSelectedPresetId]=useState<string>("");

@@ -20,7 +20,7 @@ import {
 import { generateExercise } from "../core/generation/generateExercise";
 import { exerciseDiagnostics } from "../core/generation/diagnostics";
 import { accompanimentInstruction, accompanimentOptionLabel, accompanimentStylesForMeter } from "../core/patterns/accompanimentTemplates";
-import type { PerformedMidiEvent, TrainingIntent } from "../core/model";
+import type { PerformedMidiEvent, RightHandEmphasis } from "../core/model";
 import { PracticeSession } from "../application/practiceSession";
 import { generateFirstValidCandidate } from "../application/generateCandidate";
 import { timingOptions } from "../core/performance/timingSettings";
@@ -34,8 +34,14 @@ const emptySessionStats:SessionStats={completedExercises:0,completedEvents:0,att
 const nextSeed=()=>Math.floor(Math.random()*0x2aaaaaaa)*3;
 const randomSeeds=(first=nextSeed())=>[first,nextSeed(),nextSeed(),nextSeed(),nextSeed(),nextSeed(),nextSeed(),nextSeed()];
 const sequentialSeeds=(first:number)=>Array.from({length:8},(_,i)=>first+i);
-const intents:readonly {value:TrainingIntent;label:string}[]=[{value:"general",label:"General sight-reading"},{value:"noteRecognition",label:"Note recognition"},{value:"patternsIntervals",label:"Patterns and intervals"},{value:"rhythm",label:"Rhythm"},{value:"leftHand",label:"Left-hand reading"},{value:"coordination",label:"Two-hand coordination"}];
-const patternFamilies:readonly {value:string;label:string}[]=[{value:"repeated",label:"Repeated notes"},{value:"scale",label:"Scale fragments"},{value:"thirds",label:"Thirds"},{value:"triad",label:"Triads"},{value:"arpeggio",label:"Arpeggios"},{value:"neighbor",label:"Neighbor notes"},{value:"passing",label:"Passing notes"},{value:"leapRecovery",label:"Leap and recovery"},{value:"sequence",label:"Sequences"},{value:"cadence",label:"Cadential figures"},{value:"chordTone",label:"Chord-tone turns"}];
+const emphasisOptions:readonly {value:RightHandEmphasis;label:string}[]=[
+ {value:"everything",label:"Everything"},
+ {value:"melodicPatterns",label:"Melodic patterns"},
+ {value:"intervals",label:"Intervals"},
+ {value:"arpeggios",label:"Arpeggios"},
+ {value:"cadencesApproaches",label:"Cadences & approaches"},
+ {value:"rhythm",label:"Rhythm"},
+];
 const keys=["C major","G major","D major","F major","Bb major","Eb major","A minor","D minor","E minor"];
 const bassRoots=["Ab","Eb","Bb","F","C","G","D","A","E","B"] as const;
 const bassPatterns:readonly TrainingRequest["leftHand"]["accompanimentStyle"][]=["bassChord","alternatingBass","polka","waltz","tango","swing"];
@@ -89,7 +95,7 @@ export default function App(){
  const handleLoadPreset=()=>{
   const target=presets.find(p=>p.id===selectedPresetId);
   if(!target)return;
-  const targetMode=target.mode??defaultRuntimeMode(target.settings.intent);
+  const targetMode=target.mode??defaultRuntimeMode();
   updateSettings(target.settings,true,targetMode);
   setPresetDraft(target.name);
  };
@@ -195,8 +201,7 @@ export default function App(){
  useEffect(()=>{if(scoreRef.current)renderScore(scoreRef.current,exerciseToAbc(exercise,markedOnset));},[exercise,markedOnset]);
  useEffect(()=>{if(!("wakeLock" in navigator))return;let lock:WakeLockSentinel|undefined;const acquire=async()=>{try{await lock?.release();lock=await navigator.wakeLock.request("screen");}catch{lock=undefined;}};const visibility=()=>{if(document.visibilityState==="visible")void acquire();};void acquire();document.addEventListener("visibilitychange",visibility);return()=>{document.removeEventListener("visibilitychange",visibility);void lock?.release();};},[]);
  useEffect(()=>()=>cancelAnimationFrame(frameRef.current??0),[]);
- const setIntent=(intent:TrainingIntent)=>{const nextMode=defaultRuntimeMode(intent);updateSettings({...settings,intent},true,nextMode);};
- const reset=()=>{if(!window.confirm("Reset all practice settings to their defaults? Saved presets will not be deleted."))return;const defaults=defaultTrainingRequest();clearSettings();updateSettings(defaults,false,defaultRuntimeMode(defaults.intent));};
+ const reset=()=>{if(!window.confirm("Reset all practice settings to their defaults? Saved presets will not be deleted."))return;const defaults=defaultTrainingRequest();clearSettings();updateSettings(defaults,false,defaultRuntimeMode());};
  return <main>
   <UpdateBanner
    show={needRefresh}
@@ -214,10 +219,9 @@ export default function App(){
   {generationError&&<p role="alert">Requested settings could not generate a new exercise. {settingsPendingScore?"Your selection was saved; the current score remains active until a new one can be generated.":"The previous settings and score remain active."} {generationError}</p>}
   <p>{mode==="sightReading"&&status==="playing"&&<><button onClick={finish}>Finish exercise</button>{" "}</>}<button onClick={()=>regenerate()}>New exercise</button>{" "}<button onClick={()=>regenerate(seed,false,false)}>Replay seed</button>{" "}<button onClick={()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen({navigationUI:"hide"})}>Full screen</button></p>
   <fieldset><legend>Practice settings</legend>
-   <label>Training mode <select value={settings.intent} onChange={e=>setIntent(e.target.value as TrainingIntent)}>{intents.map(intent=><option key={intent.value} value={intent.value}>{intent.label}</option>)}</select></label>{" "}
-   <label>Execution <select value={mode} onChange={e=>changeMode(e.target.value as RuntimeMode)}><option value="sightReading">Timed sight-reading</option><option value="correction">Correction / drill</option></select></label>{" "}
-   <label>Hands <select value={settings.hands} onChange={e=>updateSettings({...settings,hands:e.target.value as HandMode,leftHand:{...settings.leftHand,enabled:true,templateId:e.target.value==="right"?undefined:settings.leftHand.templateId}})}><option value="both">Both</option><option value="right">Right hand only</option><option value="left" disabled={settings.intent==="noteRecognition"}>Left hand only</option></select></label>{" "}
-   {settings.intent==="noteRecognition"&&<span>Note recognition practices the right hand.</span>}
+   <label>Hands <select value={settings.hands} onChange={e=>updateSettings({...settings,hands:e.target.value as HandMode,leftHand:{...settings.leftHand,enabled:true,templateId:e.target.value==="right"?undefined:settings.leftHand.templateId}})}><option value="both">Both</option><option value="right">Right hand only</option><option value="left">Left hand only</option></select></label>{" "}
+   <label>Practice behavior <select value={mode} onChange={e=>changeMode(e.target.value as RuntimeMode)}><option value="sightReading">Timed sight-reading</option><option value="correction">Correction / drill</option></select></label>{" "}
+   <label>Right-hand emphasis <select value={settings.emphasis} onChange={e=>updateSettings({...settings,emphasis:e.target.value as RightHandEmphasis})}>{emphasisOptions.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</select></label>{" "}
    <label>Key <select value={settings.tonal.keys.length===1?settings.tonal.keys[0]:"pool"} onChange={e=>updateSettings({...settings,tonal:{...settings.tonal,keys:e.target.value==="pool"?["C major","G major","D major","F major"]:[e.target.value],selection:e.target.value==="pool"?"random":"fixed"}})}><option value="pool">Easy key pool</option>{keys.map(x=><option key={x}>{x}</option>)}</select></label>{" "}
    <label>Pitch range <select value={settings.pitchRegister} onChange={e=>updateSettings({...settings,pitchRegister:e.target.value as TrainingRequest["pitchRegister"]})}><option value="rotating">Full range — rotating</option><option value="low">Low (G3–G4)</option><option value="middle">Middle (G4–G5)</option><option value="high">High (G5–G6)</option><option value="custom">Custom</option></select></label>
    {settings.pitchRegister==="rotating"&&<span>Current register: {registerForSeed(seed)} </span>}
@@ -234,7 +238,6 @@ export default function App(){
    <label>Bass pattern <select value={settings.leftHand.accompanimentStyle} onChange={e=>updateSettings({...settings,leftHand:{...settings.leftHand,enabled:true,accompanimentStyle:e.target.value as TrainingRequest["leftHand"]["accompanimentStyle"],templateId:undefined}})}>{bassPatterns.filter(pattern=>accompanimentStylesForMeter(settings.rhythm.meters[0]!).includes(pattern)).map(pattern=><option key={pattern} value={pattern}>{accompanimentOptionLabel(pattern,settings.rhythm.meters[0]!)}</option>)}</select></label>{" "}
    <label>Curated bass exercise <select value={settings.leftHand.templateId??""} onChange={e=>{const templateId=e.target.value||undefined,isBb=templateId==="legacy-bb-fdim-line",noteValue=templateId&&settings.rhythm.noteValue==="half"?"quarter":settings.rhythm.noteValue;updateSettings({...settings,measures:templateId?(isBb?6:4):settings.measures,tonal:isBb?{...settings.tonal,keys:["Bb major"],selection:"fixed"}:settings.tonal,rhythm:templateId?{...settings.rhythm,...rhythmLegacyValues(noteValue,settings.rhythm.style),noteValue,meters:[{beats:3,beatUnit:4}]}:settings.rhythm,leftHand:{...settings.leftHand,enabled:true,accompanimentStyle:"polka",templateId:templateId as TrainingRequest["leftHand"]["templateId"]}});}}><option value="">None</option>{legacyLines.map(line=><option key={line.id} value={line.id}>{line.label}</option>)}</select></label>
    {" "}<button type="button" onClick={reset}>Reset settings</button>
-   {settings.intent==="patternsIntervals"&&<div className="pattern-family-controls"><span>Pattern families: </span>{patternFamilies.map(family=><label key={family.value}><input type="checkbox" checked={settings.patterns.allowedFamilies.includes(family.value)} onChange={e=>{const allowedFamilies=e.target.checked?[...settings.patterns.allowedFamilies,family.value]:settings.patterns.allowedFamilies.filter(value=>value!==family.value);if(allowedFamilies.length)updateSettings({...settings,patterns:{...settings.patterns,allowedFamilies}});}}/> {family.label}</label>)}</div>}
    <div className="preset-controls">
     <label>Preset{" "}
      <select
@@ -264,9 +267,6 @@ export default function App(){
     <button type="button" onClick={handleDeletePreset} disabled={!selectedPresetId}>Delete</button>
    </div>
    <details><summary>Advanced generation</summary>
-    <label>Right jump frequency <select value={settings.rightHand.jumpFrequency} onChange={e=>updateSettings({...settings,rightHand:{...settings.rightHand,jumpFrequency:e.target.value as TrainingRequest["rightHand"]["jumpFrequency"]}})}><option value="none">Normal movement</option><option value="occasional">Occasional targeted jumps</option><option value="frequent">Frequent targeted jumps</option></select></label>{" "}
-    <label>Right jump size <select value={settings.rightHand.jumpSize} onChange={e=>{const jumpSize=e.target.value as TrainingRequest["rightHand"]["jumpSize"],required=jumpSize==="small"?4:jumpSize==="medium"?7:jumpSize==="large"?11:jumpSize==="octave"?12:24;updateSettings({...settings,pitchRegister:jumpSize==="octave"||jumpSize==="beyondOctave"?"custom":settings.pitchRegister,rightHand:{...settings.rightHand,jumpSize,maxJump:Math.max(required,settings.rightHand.maxJump)}});}}><option value="small">Small — seconds and thirds</option><option value="medium">Medium — fourths and fifths</option><option value="large">Large — sixths and sevenths</option><option value="octave">Octave</option><option value="beyondOctave">Beyond an octave</option></select></label>{" "}
-    <IntegerInput label="Right maximum" value={settings.rightHand.maxJump} min={settings.rightHand.jumpFrequency==="none"?0:settings.rightHand.jumpSize==="small"?1:settings.rightHand.jumpSize==="medium"?5:settings.rightHand.jumpSize==="large"?8:settings.rightHand.jumpSize==="octave"?12:13} max={36} onCommit={maxJump=>updateSettings({...settings,rightHand:{...settings.rightHand,maxJump}})}/>{" "}
     <IntegerInput label="Max accidentals" value={settings.rightHand.maxAccidentalsPerExercise} min={0} max={64} onCommit={maxAccidentalsPerExercise=>updateSettings({...settings,rightHand:{...settings.rightHand,maxAccidentalsPerExercise}})}/>{" "}
     <label>Left jump frequency <select value={settings.leftHand.jumpFrequency} onChange={e=>updateSettings({...settings,leftHand:{...settings.leftHand,jumpFrequency:e.target.value as TrainingRequest["leftHand"]["jumpFrequency"]}})}><option value="none">Normal movement</option><option value="occasional">Occasional targeted jumps</option><option value="frequent">Frequent targeted jumps</option></select></label>{" "}
     <label>Left jump size <select value={settings.leftHand.jumpSize} onChange={e=>{const jumpSize=e.target.value as TrainingRequest["leftHand"]["jumpSize"],required=jumpSize==="nearby"?1:jumpSize==="moderate"?3:jumpSize==="large"?5:11;updateSettings({...settings,measures:jumpSize==="veryLarge"?Math.max(3,settings.measures):settings.measures,leftHand:{...settings.leftHand,jumpSize,maxJump:Math.max(required,settings.leftHand.maxJump)}});}}><option value="nearby">Nearby — 1 column</option><option value="moderate">Moderate — 2–3 columns</option><option value="large">Large — 4–5 columns</option><option value="veryLarge">Very large — 6+ columns</option></select></label>{" "}

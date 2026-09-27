@@ -53,15 +53,19 @@ export const parseStoredSession = (value: string | null): StoredSession | undefi
   try {
     const raw = JSON.parse(value);
     if (raw && typeof raw === "object") {
-      const settings = ("settings" in raw && raw.settings)
-        ? parseTrainingRequest(raw.settings)
+      const rawTarget = ("settings" in raw && raw.settings)
+        ? raw.settings
         : ("request" in raw && raw.request)
-          ? parseTrainingRequest(raw.request)
-          : parseTrainingRequest(raw);
+          ? raw.request
+          : raw;
+      const rawIntent = (rawTarget && typeof rawTarget === "object" && "intent" in rawTarget)
+        ? (rawTarget as Record<string, unknown>).intent
+        : undefined;
+      const settings = parseTrainingRequest(rawTarget);
       const rawMode = ("mode" in raw && typeof raw.mode === "string") ? raw.mode : undefined;
       const mode: RuntimeMode = (rawMode === "correction" || rawMode === "sightReading")
         ? rawMode
-        : defaultRuntimeMode(settings.intent);
+        : defaultRuntimeMode(typeof rawIntent === "string" ? rawIntent : undefined);
       return { settings, mode };
     }
     return undefined;
@@ -82,7 +86,7 @@ export const loadStoredSession = (): StoredSession => {
     }
   }
   const settings = defaultTrainingRequest();
-  return { settings, mode: defaultRuntimeMode(settings.intent) };
+  return { settings, mode: defaultRuntimeMode() };
 };
 
 export const loadSettings = (): TrainingRequest => loadStoredSession().settings;
@@ -92,7 +96,7 @@ export const saveSettings = (request: TrainingRequest, mode?: RuntimeMode): void
   if (!storage) return;
   try {
     const parsed = parseTrainingRequest(request);
-    const resolvedMode = mode ?? defaultRuntimeMode(parsed.intent);
+    const resolvedMode = mode ?? defaultRuntimeMode();
     const payload: StoredSession = { settings: parsed, mode: resolvedMode };
     storage.setItem(SETTINGS_KEY, JSON.stringify(payload));
   } catch {
@@ -145,7 +149,7 @@ export const savePreset = (name: string, request: TrainingRequest, mode?: Runtim
   const presets = loadPresets();
   const trimmedName = name.trim() || `Preset ${presets.length + 1}`;
   const parsed = parseTrainingRequest(request);
-  const resolvedMode: RuntimeMode = mode ?? defaultRuntimeMode(parsed.intent);
+  const resolvedMode: RuntimeMode = mode ?? defaultRuntimeMode();
   const existingIndex = presets.findIndex((p) => p.name.toLowerCase() === trimmedName.toLowerCase());
   const now = Date.now();
   let saved: ConfigPreset;

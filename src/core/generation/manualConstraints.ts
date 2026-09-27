@@ -8,7 +8,6 @@ import { stradellaColumn } from "../instrument/stradella";
 export const manualConstraintViolations=(exercise:Exercise,request:TrainingRequest)=>{
  const violations:string[]=[];const right=exercise.rightHand.filter(event=>event.pitches.length&&!event.metadata.tieFromPrevious);
  if(right.some(event=>event.pitches.some(pitch=>pitch.midi<request.rightHand.range.low||pitch.midi>request.rightHand.range.high)))violations.push("melody cannot fit the selected pitch range");
- for(let index=1;index<right.length;index++){const jump=Math.abs(right[index]!.pitches[0]!.midi-right[index-1]!.pitches[0]!.midi);if(jump>request.rightHand.maxJump)violations.push(`right-hand jump ${jump} exceeds ${request.rightHand.maxJump}`);}
  const accidentals=right.filter(event=>event.metadata.chromatic).length;if(accidentals>request.rightHand.maxAccidentalsPerExercise)violations.push(`${accidentals} right-hand accidentals exceeds ${request.rightHand.maxAccidentalsPerExercise}`);
  const bass=exercise.leftHand.filter(event=>event.pitches.length&&(event.metadata.stradellaRow==="fundamental"||event.metadata.stradellaRow==="counterbass"));
  const low=stradellaColumn(request.leftHand.bassRootLow),high=stradellaColumn(request.leftHand.bassRootHigh);

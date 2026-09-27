@@ -1,21 +1,20 @@
 import fc from "fast-check";
 import { expect,it } from "vitest";
 import { generateExercise } from "./generateExercise";
-import { defaultTrainingRequest } from "../training/trainingIntent";
+import { defaultTrainingRequest, parseTrainingRequest } from "../training/trainingIntent";
 import { chordPitches } from "../music/harmony";
 import { analyzeDifficulty } from "./analyzeDifficulty";
 import { manualConstraintViolations } from "./manualConstraints";
 
-it("generates default Bb, rhythm drills and small-jump practice across seeds",()=>fc.assert(fc.property(fc.integer(),seed=>{
- for(const scenario of ["Bb","rhythm","smallJump"]){
+it("generates default Bb, rhythm drills and intervals practice across seeds",()=>fc.assert(fc.property(fc.integer(),seed=>{
+ for(const scenario of ["Bb","rhythm","intervals"]){
   const request=defaultTrainingRequest();
   if(scenario==="Bb")request.tonal.keys=["Bb major"];
-  if(scenario==="rhythm")request.intent="rhythm";
-  if(scenario==="smallJump")request.rightHand.maxJump=2;
+  if(scenario==="rhythm")request.emphasis="rhythm";
+  if(scenario==="intervals")request.emphasis="intervals";
   const exercise=generateExercise(request,seed);
   expect(exercise.metadata.attempts).toBeLessThanOrEqual(32);
-  const notes=exercise.rightHand.filter(e=>e.pitches.length&&!e.metadata.tieFromPrevious);
-  if(scenario==="smallJump")for(let i=1;i<notes.length;i++)expect(Math.abs(notes[i]!.pitches[0]!.midi-notes[i-1]!.pitches[0]!.midi)).toBeLessThanOrEqual(2);
+  expect(exercise.rightHand.every(e=>e.pitches.length<=1)).toBe(true);
  }
 }),{numRuns:100}),30000);
 
@@ -48,7 +47,7 @@ it("checks actual counterbass notes and skips absent accompaniment",()=>{
 });
 
 it("budgets recognition accidentals deterministically, including long exercises",()=>fc.assert(fc.property(fc.integer(),fc.constantFrom(4,16,32), (seed,measures)=>{
- const request=defaultTrainingRequest();request.intent="noteRecognition";request.measures=measures;
+ const request=parseTrainingRequest({...defaultTrainingRequest(),intent:"noteRecognition",measures});
  const exercise=generateExercise(request,seed);
  expect(exercise.rightHand.filter(e=>e.pitches.length&&!e.metadata.tieFromPrevious&&e.metadata.chromatic).length).toBeLessThanOrEqual(2);
  expect(generateExercise(request,seed)).toEqual(exercise);

@@ -119,6 +119,14 @@ export const applyProgressiveStudy = (request: TrainingRequest, seed: number): T
     ? leftJumpProgression[0]!
     : progressionForCycle(leftJumpProgression, cycle);
 
+  const orderedKeys = request.tonal.selection === "fixed" || request.tonal.keys.length <= 1
+    ? [request.tonal.keys[0]!]
+    : [selectedKey, ...request.tonal.keys.filter((k) => k !== selectedKey)];
+
+  const orderedProgressions = leftJumpProgression.length <= 1
+    ? [leftJumpProgression[0]!]
+    : [selectedProgression, ...leftJumpProgression.filter((p) => p !== selectedProgression)];
+
   // 2. Modulate difficulty, variation, and coordination cleanly across Step 1, 2, 3
   const patterns = { ...request.patterns };
   const challenge = { ...request.challenge };
@@ -126,10 +134,13 @@ export const applyProgressiveStudy = (request: TrainingRequest, seed: number): T
   let rhythmStyle = request.rhythm.style;
   let syncopation = request.rhythm.syncopation;
 
+  // Apply blended topic emphasis if emphasis wasn't explicitly locked by user
+  const activeEmphasis = stepInfo.emphasis;
+
   if (step === 1) {
     // Step 1: Theme / Exposition (Grounded, predictable, theme establishment)
-    patterns.repetition = Math.min(1, request.patterns.repetition * 1.25);
-    patterns.variation = Math.max(0, request.patterns.variation * 0.5);
+    patterns.repetition = Math.min(0.6, request.patterns.repetition * 1.1);
+    patterns.variation = Math.max(0.15, request.patterns.variation * 0.7);
     challenge.density = 0;
     coordination.difficulty = Math.max(0.1, request.coordination.difficulty * 0.7);
     syncopation = Math.max(0, request.rhythm.syncopation * 0.5);
@@ -138,8 +149,8 @@ export const applyProgressiveStudy = (request: TrainingRequest, seed: number): T
     }
   } else if (step === 2) {
     // Step 2: Variation (Dexterity, rhythmic variety, exploring the theme)
-    patterns.repetition = Math.max(0.2, request.patterns.repetition * 0.85);
-    patterns.variation = Math.min(1, request.patterns.variation * 1.4);
+    patterns.repetition = Math.max(0.25, request.patterns.repetition * 0.85);
+    patterns.variation = Math.min(0.8, request.patterns.variation * 1.3);
     challenge.density = request.challenge.density * 0.5;
     coordination.difficulty = request.coordination.difficulty;
     syncopation = request.rhythm.syncopation;
@@ -156,8 +167,7 @@ export const applyProgressiveStudy = (request: TrainingRequest, seed: number): T
     ...request,
     tonal: {
       ...request.tonal,
-      keys: [selectedKey],
-      selection: "fixed",
+      keys: orderedKeys,
     },
     rhythm: {
       ...request.rhythm,
@@ -167,9 +177,9 @@ export const applyProgressiveStudy = (request: TrainingRequest, seed: number): T
     },
     harmony: {
       ...request.harmony,
-      progressionVocabulary: [selectedProgression],
+      progressionVocabulary: orderedProgressions,
     },
-    emphasis: stepInfo.emphasis,
+    emphasis: activeEmphasis,
     patterns,
     challenge,
     coordination,

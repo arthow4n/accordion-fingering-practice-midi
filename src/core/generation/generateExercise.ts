@@ -51,14 +51,16 @@ export const generateExercise = (
   let lastRejection: string[] = [];
   const studyInfo = studyStepForSeed(seed, parsed.emphasis);
   for (let attempt = 1; attempt <= 32; attempt++) {
-    const context = parseKey(rng.pick(request.tonal.keys));
+    const keyCandidates = attempt <= 20 ? [request.tonal.keys[0]!] : request.tonal.keys;
+    const progressionCandidates = attempt <= 20 ? [leftJumpProgression(request)[0]!] : leftJumpProgression(request);
+    const context = parseKey(rng.pick(keyCandidates));
     const meter = rng.pick(request.rhythm.meters);
     const phrase = generatePhrasePlan(request.measures, rng);
     const harmonyResult = generateHarmony(
       context,
       meter,
       request.measures,
-      leftJumpProgression(request),
+      progressionCandidates,
       request.harmony.chordVocabulary,
       rng,
       request.leftHand.templateId

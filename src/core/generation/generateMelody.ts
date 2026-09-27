@@ -13,13 +13,20 @@ type MotifPlan = {
   instanceId: string;
 };
 
-const categoryWeights = (emphasis: RightHandEmphasis = "everything"): { category: PatternCategory; weight: number }[] => {
+const categoryWeights = (emphasis: RightHandEmphasis = "everything", rangeSpan = 36): { category: PatternCategory; weight: number }[] => {
   const categories: PatternCategory[] = ["melodicPatterns", "intervals", "arpeggios", "cadencesApproaches", "rhythm"];
 
   return categories.map((cat) => {
     let weight = 1;
     if (emphasis === cat) weight = 6;
     else if (emphasis === "everything" && cat === "rhythm") weight = 0.35;
+
+    // In tight register spans (< 14 semitones), dampen large interval jumps
+    // to preserve melodic playable bounds while maintaining stepwise movement.
+    if (rangeSpan < 14 && (cat === "intervals" || cat === "arpeggios")) {
+      weight = Math.min(weight, 1.5);
+    }
+
     return { category: cat, weight };
   });
 };
@@ -86,9 +93,28 @@ export const generateMelody = (
             .map((x) => x.cell)
         );
 
+  const rangeSpan = request.rightHand.range.high - request.rightHand.range.low;
+  let previousCategory: PatternCategory | undefined;
+
   const chooseCategory = (): PatternCategory => {
-    const weights = categoryWeights(request.emphasis);
-    return rng.weightedPick(weights.map((w) => ({ value: w.category, weight: w.weight })));
+    const weights = categoryWeights(request.emphasis, rangeSpan);
+    if (!previousCategory || request.emphasis !== "everything") {
+      const chosen = rng.weightedPick(weights.map((w) => ({ value: w.category, weight: w.weight })));
+      previousCategory = chosen;
+      return chosen;
+    }
+    const adjusted = weights.map((w) => {
+      let weight = w.weight;
+      if ((previousCategory === "arpeggios" || previousCategory === "intervals") && w.category === "melodicPatterns") {
+        weight *= 1.4;
+      } else if (previousCategory === "melodicPatterns" && (w.category === "arpeggios" || w.category === "intervals")) {
+        weight *= 1.25;
+      }
+      return { value: w.category, weight };
+    });
+    const chosen = rng.weightedPick(adjusted);
+    previousCategory = chosen;
+    return chosen;
   };
 
   return phrase.flatMap((section, measure) => {
@@ -176,6 +202,7 @@ export const generateMelody = (
 
     const motif: MotifPlan = { pattern, notes, cell, instanceId };
     if (measure === 0) baseMotif = motif;
+    previousCategory = pattern.category;
 
     let onset = measure * measureTicks;
     const exactRhythm = request.rhythm.style === "steady";

@@ -170,6 +170,39 @@ describe("progressiveStudy", () => {
     }
   });
 
+  it("strictly subordinates compound blending to steady rhythm style", () => {
+    const request = parseTrainingRequest({
+      ...defaultTrainingRequest(),
+      sessionProgression: "progressive",
+      rhythm: {
+        ...defaultTrainingRequest().rhythm,
+        style: "steady",
+        noteValue: "eighth",
+        smallestSubdivision: "eighth",
+      },
+    });
+
+    for (let seed = 0; seed < 9; seed++) {
+      const exercise = generateExercise(request, seed);
+      const rhNotes = exercise.rightHand.filter((e) => e.pitches.length > 0);
+      expect(rhNotes.every((e) => e.duration === 240)).toBe(true);
+    }
+  });
+
+  it("subordinates compound blending to narrow pitch ranges without bounds exhaustion", () => {
+    const request = parseTrainingRequest({
+      ...defaultTrainingRequest(),
+      sessionProgression: "progressive",
+      pitchRegister: "low",
+    });
+
+    for (let seed = 0; seed < 9; seed++) {
+      const exercise = generateExercise(request, seed);
+      const pitches = exercise.rightHand.flatMap((e) => e.pitches);
+      expect(pitches.every((p) => p.midi >= 55 && p.midi <= 67)).toBe(true);
+    }
+  });
+
   it("preserves strict determinism for identical (request, seed)", () => {
     const request = parseTrainingRequest({
       ...defaultTrainingRequest(),

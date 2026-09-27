@@ -1,7 +1,7 @@
 import type { Exercise } from "../model";
 export const exerciseDiagnostics = (x: Exercise) => [
   `seed: ${x.seed}`,
-  ...(x.metadata.studyStep ? [`study arc: step ${x.metadata.studyStep} (${x.metadata.studyLabel}), cycle ${x.metadata.studyCycle}`] : []),
+  ...(x.metadata.studyStep ? [`study arc: step ${x.metadata.studyStep} (${x.metadata.studyLabel}), cycle ${x.metadata.studyCycle}${x.metadata.studyTopic ? ` · ${x.metadata.studyTopic}` : ""}`] : []),
   `key: ${x.tonalContext.tonic} ${x.tonalContext.mode}`,
   `meter: ${x.meter.beats}/${x.meter.beatUnit}`,
   `tempo: ${x.tempoBpm}`,

@@ -1,4 +1,4 @@
-import type { Meter } from "../model";
+import type { Meter, RightHandEmphasis } from "../model";
 import type { TrainingRequest } from "../training/trainingIntent";
 import { createRng } from "../random/rng";
 
@@ -6,19 +6,51 @@ export interface StudyStepInfo {
   step: 1 | 2 | 3;
   label: "Theme" | "Variation" | "Challenge";
   cycle: number;
+  topic: string;
+  emphasis: RightHandEmphasis;
 }
 
-export const studyStepForSeed = (seed: number): StudyStepInfo => {
+export const STUDY_TOPICS: readonly { emphasis: RightHandEmphasis; label: string }[] = [
+  { emphasis: "melodicPatterns", label: "Linear Fluency" },
+  { emphasis: "arpeggios", label: "Harmonic Outlines" },
+  { emphasis: "intervals", label: "Interval Dexterity" },
+  { emphasis: "cadencesApproaches", label: "Cadence & Integration" },
+  { emphasis: "rhythm", label: "Rhythmic Articulation" },
+];
+
+export const topicForCycle = (cycle: number): { emphasis: RightHandEmphasis; label: string } => {
+  const index = ((cycle % STUDY_TOPICS.length) + STUDY_TOPICS.length) % STUDY_TOPICS.length;
+  return STUDY_TOPICS[index]!;
+};
+
+const formatEmphasisLabel = (emphasis: RightHandEmphasis): string => {
+  switch (emphasis) {
+    case "melodicPatterns": return "Melodic Patterns";
+    case "intervals": return "Intervals";
+    case "arpeggios": return "Arpeggios";
+    case "cadencesApproaches": return "Cadences & Approaches";
+    case "rhythm": return "Rhythm";
+    case "everything":
+    default:
+      return "General Practice";
+  }
+};
+
+export const studyStepForSeed = (seed: number, baseEmphasis: RightHandEmphasis = "everything"): StudyStepInfo => {
   const cycle = Math.floor(seed / 3);
   const stepIndex = ((seed % 3) + 3) % 3;
+  const topic = topicForCycle(cycle);
+  const activeEmphasis = baseEmphasis === "everything" ? topic.emphasis : baseEmphasis;
+  const activeTopicLabel = baseEmphasis === "everything" ? topic.label : formatEmphasisLabel(baseEmphasis);
+
   switch (stepIndex) {
     case 0:
-      return { step: 1, label: "Theme", cycle };
+      return { step: 1, label: "Theme", cycle, topic: activeTopicLabel, emphasis: activeEmphasis };
     case 1:
-      return { step: 2, label: "Variation", cycle };
+      return { step: 2, label: "Variation", cycle, topic: activeTopicLabel, emphasis: activeEmphasis };
     case 2:
     default:
-      return { step: 3, label: "Challenge", cycle };
+      return { step: 3, label: "Challenge", cycle, topic: activeTopicLabel, emphasis: activeEmphasis };
   }
 };
 
@@ -48,8 +80,15 @@ export const meterForCycle = (meters: readonly Meter[], cycle: number): Meter =>
 
 export const progressionForCycle = (progressions: readonly string[], cycle: number): string => {
   if (progressions.length <= 1) return progressions[0]!;
-  const rng = createRng(cycle * 53 + 17);
-  return rng.pick(progressions);
+  const round = Math.floor(cycle / progressions.length);
+  const indexInRound = ((cycle % progressions.length) + progressions.length) % progressions.length;
+  const roundRng = createRng(round * 991 + 19);
+  const shuffled = [...progressions];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = roundRng.integer(0, i);
+    [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
+  }
+  return shuffled[indexInRound]!;
 };
 
 export const applyProgressiveStudy = (request: TrainingRequest, seed: number): TrainingRequest => {
@@ -57,11 +96,12 @@ export const applyProgressiveStudy = (request: TrainingRequest, seed: number): T
     return request;
   }
 
-  const stepInfo = studyStepForSeed(seed);
+  const stepInfo = studyStepForSeed(seed, request.emphasis);
   const cycle = stepInfo.cycle;
   const step = stepInfo.step;
 
   // 1. Shared harmonic and rhythmic foundation across the 3 exercises in this cycle
+  // If the user specified a single key or fixed key, that key is preserved 100%.
   // Only rotate if the request has multiple keys/meters/progressions to choose from.
   const selectedKey = request.tonal.selection === "fixed" || request.tonal.keys.length <= 1
     ? request.tonal.keys[0]!
@@ -129,6 +169,7 @@ export const applyProgressiveStudy = (request: TrainingRequest, seed: number): T
       ...request.harmony,
       progressionVocabulary: [selectedProgression],
     },
+    emphasis: stepInfo.emphasis,
     patterns,
     challenge,
     coordination,

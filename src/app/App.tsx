@@ -254,7 +254,7 @@ export default function App(){
   <div className="track" ref={scoreRef}/>
   {exercise.metadata.studyStep && settings.sessionProgression !== "independent" && (
    <p className="study-arc-indicator">
-    <strong>Study set:</strong> Set {(exercise.metadata.studyCycle ?? 0) + 1} · Step {exercise.metadata.studyStep} of 3 ({exercise.metadata.studyLabel})
+    <strong>Study set:</strong> Set {(exercise.metadata.studyCycle ?? 0) + 1}{exercise.metadata.studyTopic ? ` · ${exercise.metadata.studyTopic}` : ""} · Step {exercise.metadata.studyStep} of 3 ({exercise.metadata.studyLabel})
    </p>
   )}
   {hasLeft&&<p className="accompaniment-instruction"><strong>Left hand:</strong> {accompanimentInstruction(settings.leftHand.accompanimentStyle,exercise.meter,settings.leftHand.templateId)}</p>}

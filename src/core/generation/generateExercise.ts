@@ -49,7 +49,7 @@ export const generateExercise = (
   request.rightHand.range = pitchWindow(request.pitchRegister, request.rightHand.range, seed, instrument.rightHandRange);
 
   let lastRejection: string[] = [];
-  const studyInfo = studyStepForSeed(seed);
+  const studyInfo = studyStepForSeed(seed, parsed.emphasis);
   for (let attempt = 1; attempt <= 32; attempt++) {
     const context = parseKey(rng.pick(request.tonal.keys));
     const meter = rng.pick(request.rhythm.meters);
@@ -81,6 +81,7 @@ export const generateExercise = (
         studyStep: studyInfo.step,
         studyLabel: studyInfo.label,
         studyCycle: studyInfo.cycle,
+        studyTopic: studyInfo.topic,
       },
     };
 

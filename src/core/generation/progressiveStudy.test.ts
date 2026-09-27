@@ -5,19 +5,21 @@ import { generateExercise } from "./generateExercise";
 import {
   applyProgressiveStudy,
   keyForCycle,
+  STUDY_TOPICS,
   studyStepForSeed,
+  topicForCycle,
 } from "./progressiveStudy";
 import { accordionProfile } from "../instrument/accordionProfile";
 import { validateExercise } from "./validateExercise";
 
 describe("progressiveStudy", () => {
-  it("computes deterministic 3-step cycle and label for any seed", () => {
-    expect(studyStepForSeed(0)).toEqual({ step: 1, label: "Theme", cycle: 0 });
-    expect(studyStepForSeed(1)).toEqual({ step: 2, label: "Variation", cycle: 0 });
-    expect(studyStepForSeed(2)).toEqual({ step: 3, label: "Challenge", cycle: 0 });
-    expect(studyStepForSeed(3)).toEqual({ step: 1, label: "Theme", cycle: 1 });
-    expect(studyStepForSeed(4)).toEqual({ step: 2, label: "Variation", cycle: 1 });
-    expect(studyStepForSeed(5)).toEqual({ step: 3, label: "Challenge", cycle: 1 });
+  it("computes deterministic 3-step cycle, topic, and label for any seed", () => {
+    expect(studyStepForSeed(0)).toMatchObject({ step: 1, label: "Theme", cycle: 0, topic: "Linear Fluency", emphasis: "melodicPatterns" });
+    expect(studyStepForSeed(1)).toMatchObject({ step: 2, label: "Variation", cycle: 0, topic: "Linear Fluency", emphasis: "melodicPatterns" });
+    expect(studyStepForSeed(2)).toMatchObject({ step: 3, label: "Challenge", cycle: 0, topic: "Linear Fluency", emphasis: "melodicPatterns" });
+    expect(studyStepForSeed(3)).toMatchObject({ step: 1, label: "Theme", cycle: 1, topic: "Harmonic Outlines", emphasis: "arpeggios" });
+    expect(studyStepForSeed(4)).toMatchObject({ step: 2, label: "Variation", cycle: 1, topic: "Harmonic Outlines", emphasis: "arpeggios" });
+    expect(studyStepForSeed(5)).toMatchObject({ step: 3, label: "Challenge", cycle: 1, topic: "Harmonic Outlines", emphasis: "arpeggios" });
 
     fc.assert(
       fc.property(fc.integer({ min: -100000, max: 100000 }), (seed) => {
@@ -25,8 +27,17 @@ describe("progressiveStudy", () => {
         expect([1, 2, 3]).toContain(info.step);
         expect(["Theme", "Variation", "Challenge"]).toContain(info.label);
         expect(Number.isInteger(info.cycle)).toBe(true);
+        expect(typeof info.topic).toBe("string");
       })
     );
+  });
+
+  it("rotates pedagogical topics cyclically across sets", () => {
+    for (let cycle = 0; cycle < 15; cycle++) {
+      const topic = topicForCycle(cycle);
+      const expected = STUDY_TOPICS[cycle % STUDY_TOPICS.length]!;
+      expect(topic).toEqual(expected);
+    }
   });
 
   it("rotates keys as a deterministic shuffle-bag without immediate repeats across cycles", () => {
@@ -48,6 +59,41 @@ describe("progressiveStudy", () => {
     for (let i = 0; i < selected.length - 1; i++) {
       expect(selected[i]).not.toBe(selected[i + 1]);
     }
+  });
+
+  it("maintains a single fixed key across long multi-cycle sessions while rotating topics and progressions", () => {
+    const fixedKeyRequest = parseTrainingRequest({
+      ...defaultTrainingRequest(),
+      tonal: {
+        keys: ["C major"],
+        selection: "fixed",
+        modePolicy: "major",
+        chromaticism: 0.03,
+      },
+      sessionProgression: "progressive",
+    });
+
+    const exercises = [];
+    // Simulate playing 30 consecutive exercises (10 cycles of 3 steps = ~500 notes)
+    for (let seed = 0; seed < 30; seed++) {
+      const ex = generateExercise(fixedKeyRequest, seed);
+      exercises.push(ex);
+
+      // Key must strictly remain C major
+      expect(`${ex.tonalContext.tonic} ${ex.tonalContext.mode}`).toBe("C major");
+
+      // Verify study metadata
+      expect(ex.metadata.studyStep).toBe(studyStepForSeed(seed).step);
+      expect(ex.metadata.studyTopic).toBe(studyStepForSeed(seed).topic);
+    }
+
+    // Verify all 5 topics were practiced within C major
+    const observedTopics = new Set(exercises.map((e) => e.metadata.studyTopic));
+    expect(observedTopics.size).toBe(5);
+
+    // Verify progressions changed across cycles in C major
+    const observedProgressions = new Set(exercises.map((e) => e.metadata.progressionId));
+    expect(observedProgressions.size).toBeGreaterThan(1);
   });
 
   it("modulates theme, variation, and challenge across the 3 study steps", () => {
@@ -88,16 +134,24 @@ describe("progressiveStudy", () => {
     expect(ex1.metadata.studyStep).toBe(1);
     expect(ex1.metadata.studyLabel).toBe("Theme");
     expect(ex1.metadata.studyCycle).toBe(0);
+    expect(ex1.metadata.studyTopic).toBe("Linear Fluency");
 
     const ex2 = generateExercise(request, 1);
     expect(ex2.metadata.studyStep).toBe(2);
     expect(ex2.metadata.studyLabel).toBe("Variation");
     expect(ex2.metadata.studyCycle).toBe(0);
+    expect(ex2.metadata.studyTopic).toBe("Linear Fluency");
 
     const ex3 = generateExercise(request, 2);
     expect(ex3.metadata.studyStep).toBe(3);
     expect(ex3.metadata.studyLabel).toBe("Challenge");
     expect(ex3.metadata.studyCycle).toBe(0);
+    expect(ex3.metadata.studyTopic).toBe("Linear Fluency");
+
+    const ex4 = generateExercise(request, 3);
+    expect(ex4.metadata.studyStep).toBe(1);
+    expect(ex4.metadata.studyCycle).toBe(1);
+    expect(ex4.metadata.studyTopic).toBe("Harmonic Outlines");
   });
 
   it("generates valid exercises for hands=right, hands=left, and hands=both across all 3 steps", () => {

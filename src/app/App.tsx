@@ -102,7 +102,21 @@ export default function App(){
   await applyUpdate(swRegistration, updateServiceWorker);
  }, [swRegistration, updateServiceWorker]);
  const scoreRef=useRef<HTMLDivElement>(null);const frameRef=useRef<number>();const midiListenerRef=useRef<MidiListener>(()=>{});
- const [initial]=useState(()=>{const session=loadStoredSession(),seed=session.settings.seed??nextSeed();try{const candidate=generateFirstValidCandidate(randomSeeds(seed),candidateSeed=>generateExercise(session.settings,candidateSeed));return {settings:session.settings,mode:session.mode,seed:candidate.seed,exercise:candidate.value,error:"",pending:false};}catch(error){const fallback=generateExercise(defaultTrainingRequest(),0);return {settings:session.settings,mode:session.mode,seed:0,exercise:fallback,error:error instanceof Error?error.message:String(error),pending:true};}});
+ const [initial]=useState(()=>{
+  const session=loadStoredSession();
+  const sessionSettings: TrainingRequest = {
+   ...session.settings,
+   sessionProgression: session.settings.sessionProgression ?? "progressive",
+  };
+  const seed=sessionSettings.seed??nextSeed();
+  try{
+   const candidate=generateFirstValidCandidate(randomSeeds(seed),candidateSeed=>generateExercise(sessionSettings,candidateSeed));
+   return {settings:sessionSettings,mode:session.mode,seed:candidate.seed,exercise:candidate.value,error:"",pending:false};
+  }catch(error){
+   const fallback=generateExercise(defaultTrainingRequest(),0);
+   return {settings:sessionSettings,mode:session.mode,seed:0,exercise:fallback,error:error instanceof Error?error.message:String(error),pending:true};
+  }
+ });
  const [initialSession]=useState(()=>new PracticeSession(initial.exercise,initial.settings.hands,initial.mode,initial.settings.timing));
  const sessionRef=useRef(initialSession);
  const [waiting,setWaiting]=useState(false);
@@ -238,6 +252,11 @@ export default function App(){
    onDismiss={() => setNeedRefresh(false)}
   />
   <div className="track" ref={scoreRef}/>
+  {exercise.metadata.studyStep && settings.sessionProgression !== "independent" && (
+   <p className="study-arc-indicator">
+    <strong>Study set:</strong> Set {(exercise.metadata.studyCycle ?? 0) + 1} · Step {exercise.metadata.studyStep} of 3 ({exercise.metadata.studyLabel})
+   </p>
+  )}
   {hasLeft&&<p className="accompaniment-instruction"><strong>Left hand:</strong> {accompanimentInstruction(settings.leftHand.accompanimentStyle,exercise.meter,settings.leftHand.templateId)}</p>}
   {mode==="sightReading"&&<p>{status==="playing"
     ?waiting?"Paused — resume playing, or finish this exercise":"Sight-reading—keep the pulse"
@@ -248,6 +267,7 @@ export default function App(){
   {generationError&&<p role="alert">Requested settings could not generate a new exercise. {settingsPendingScore?"Your selection was saved; the current score remains active until a new one can be generated.":"The previous settings and score remain active."} {generationError}</p>}
   <p>{mode==="sightReading"&&status==="playing"&&<><button onClick={finish}>Finish exercise</button>{" "}</>}<button onClick={()=>regenerate()}>New exercise</button>{" "}<button onClick={()=>regenerate(seed,false,false)}>Replay seed</button>{" "}<button onClick={()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen({navigationUI:"hide"})}>Full screen</button></p>
   <fieldset><legend>Practice settings</legend>
+   <label>Progression <select value={settings.sessionProgression ?? "progressive"} onChange={e=>updateSettings({...settings,sessionProgression:e.target.value as TrainingRequest["sessionProgression"]})}><option value="progressive">3-stage progressive study</option><option value="independent">Independent random drills</option></select></label>{" "}
    <label>Hands <select value={settings.hands} onChange={e=>updateSettings({...settings,hands:e.target.value as HandMode,leftHand:{...settings.leftHand,enabled:true,templateId:e.target.value==="right"?undefined:settings.leftHand.templateId}})}><option value="both">Both</option><option value="right">Right hand only</option><option value="left">Left hand only</option></select></label>{" "}
    <label>Practice behavior <select value={mode} onChange={e=>changeMode(e.target.value as RuntimeMode)}><option value="sightReading">Timed sight-reading</option><option value="correction">Correction / drill</option></select></label>{" "}
    <label>Right-hand emphasis <select value={settings.emphasis} onChange={e=>updateSettings({...settings,emphasis:e.target.value as RightHandEmphasis})}>{emphasisOptions.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</select></label>{" "}

@@ -13,6 +13,7 @@ import { validateExercise } from "./validateExercise";
 import { legacyBassLineById } from "../patterns/accompanimentTemplates";
 import { manualConstraintViolations } from "./manualConstraints";
 import { pitchWindow } from "./pitchRegister";
+import { applyProgressiveStudy, studyStepForSeed } from "./progressiveStudy";
 
 const parseKey = (name: string): TonalContext => {
   const match = name.match(/^(.+?)\s+(major|minor)$/);
@@ -44,10 +45,11 @@ export const generateExercise = (
     : parsed;
 
   const rng = createRng(seed);
-  const request = { ...normalized };
+  const request = applyProgressiveStudy({ ...normalized }, seed);
   request.rightHand.range = pitchWindow(request.pitchRegister, request.rightHand.range, seed, instrument.rightHandRange);
 
   let lastRejection: string[] = [];
+  const studyInfo = studyStepForSeed(seed);
   for (let attempt = 1; attempt <= 32; attempt++) {
     const context = parseKey(rng.pick(request.tonal.keys));
     const meter = rng.pick(request.rhythm.meters);
@@ -72,7 +74,14 @@ export const generateExercise = (
       phrase,
       rightHand: generateMelody(context, meter, harmonyResult.events, phrase, request, rng),
       leftHand: generateBass(context, meter, harmonyResult.events, request),
-      metadata: { emphasis: request.emphasis, progressionId: harmonyResult.progressionId, attempts: attempt },
+      metadata: {
+        emphasis: request.emphasis,
+        progressionId: harmonyResult.progressionId,
+        attempts: attempt,
+        studyStep: studyInfo.step,
+        studyLabel: studyInfo.label,
+        studyCycle: studyInfo.cycle,
+      },
     };
 
     const exercise: Exercise = { ...base, difficulty: analyzeDifficulty(base) };

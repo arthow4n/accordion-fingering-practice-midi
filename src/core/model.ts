@@ -43,7 +43,7 @@ export type RightHandEmphasis = "everything" | "melodicPatterns" | "intervals" |
 export type Exercise = {
   seed: number; tonalContext: TonalContext; meter: Meter; tempoBpm: number; totalDuration: Tick;
   harmony: HarmonyEvent[]; phrase: PhraseSection[]; rightHand: ExerciseEvent[]; leftHand: ExerciseEvent[];
-  difficulty: DifficultyVector; metadata: { emphasis?: RightHandEmphasis; progressionId: string; attempts: number };
+  difficulty: DifficultyVector; metadata: { emphasis?: RightHandEmphasis; progressionId: string; attempts: number; studyStep?: 1 | 2 | 3; studyLabel?: "Theme" | "Variation" | "Challenge"; studyCycle?: number };
 };
 export type AccompanimentStyle = "bassChord" | "alternatingBass" | "polka" | "waltz" | "tango" | "swing";
 export type PerformedMidiEvent = { midiNote: number; type: "noteOn" | "noteOff"; timestampMs: number; velocity: number; hand?: Hand };

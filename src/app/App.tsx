@@ -73,7 +73,6 @@ export default function App(){
  const [waiting,setWaiting]=useState(false);
  const [settings,setSettings]=useState(initial.settings);const [seed,setSeed]=useState(initial.seed);const [exercise,setExercise]=useState(initial.exercise);
  const [mode,setMode]=useState<RuntimeMode>(initial.mode);const [status,setStatus]=useState<"ready"|"playing">(initial.mode==="correction"?"playing":"ready");const [positionMs,setPositionMs]=useState(0);const [metrics,setMetrics]=useState<PerformanceMetrics>();const [sessionStats,setSessionStats]=useState(emptySessionStats);const [devices,setDevices]=useState<string[]>([]);const [midiError,setMidiError]=useState("");const [generationError,setGenerationError]=useState(initial.error);const [settingsPendingScore,setSettingsPendingScore]=useState(initial.pending);
- const [rightIndex,setRightIndex]=useState(0);const [leftIndex,setLeftIndex]=useState(0);
  const [presets,setPresets]=useState<ConfigPreset[]>(()=>loadPresets());
  const [selectedPresetId,setSelectedPresetId]=useState<string>("");
  const [presetDraft,setPresetDraft]=useState<string>("");
@@ -104,14 +103,13 @@ export default function App(){
   setPresetDraft("");
  };
 
- const rightCount=sessionRef.current.count("right"),leftCount=sessionRef.current.count("left");
- const hasRight=rightCount>0,hasLeft=leftCount>0;
+ const hasLeft=sessionRef.current.count("left")>0;
 
  const resetSession=(nextExercise=exercise,nextSettings=settings,nextMode=mode)=>{
   cancelAnimationFrame(frameRef.current??0);
   sessionRef.current=new PracticeSession(nextExercise,nextSettings.hands,nextMode,nextSettings.timing);
   setStatus(nextMode==="correction"?"playing":"ready");
-  setWaiting(false);setPositionMs(0);setRightIndex(0);setLeftIndex(0);
+  setWaiting(false);setPositionMs(0);
  };
  const changeMode=(nextMode:RuntimeMode)=>{
   resetSession(exercise,settings,nextMode);setMode(nextMode);setMetrics(undefined);saveSettings(settings,nextMode);
@@ -144,7 +142,7 @@ export default function App(){
    cancelAnimationFrame(frameRef.current??0);
    sessionRef.current=new PracticeSession(next,settings.hands,mode,settings.timing);
    setSeed(candidate.seed);setExercise(next);setStatus(mode==="correction"?"playing":"ready");
-   setWaiting(false);setPositionMs(0);setRightIndex(0);setLeftIndex(0);
+   setWaiting(false);setPositionMs(0);
    if(!preserveMetrics)setMetrics(undefined);
    setGenerationError("");setSettingsPendingScore(false);
   }catch(error){
@@ -166,7 +164,6 @@ export default function App(){
   const result=session.accept(event);
   if(session.mode==="correction"){
    if(result.accepted||result.wrong){
-    setRightIndex(session.completed("right"));setLeftIndex(session.completed("left"));
     setSessionStats(x=>({...x,completedEvents:x.completedEvents+result.accepted,attempts:x.attempts+result.accepted+result.wrong,correct:x.correct+result.accepted,completedExercises:x.completedExercises+(result.completed?1:0)}));
    }
    if(result.completed){
@@ -208,16 +205,10 @@ export default function App(){
   />
   <div className="track" ref={scoreRef}/>
   {hasLeft&&<p className="accompaniment-instruction"><strong>Left hand:</strong> {accompanimentInstruction(settings.leftHand.accompanimentStyle,exercise.meter,settings.leftHand.templateId)}</p>}
-  <p>{mode==="correction"
-    ?hasRight&&hasLeft
-     ?`Right hand: ${rightIndex>=rightCount?"done":`${rightIndex+1} of ${rightCount}`} · Left hand: ${leftIndex>=leftCount?"done":`${leftIndex+1} of ${leftCount}`}`
-     :hasRight
-      ?`Event ${Math.min(rightIndex+1,rightCount)} of ${rightCount}`
-      :`Event ${Math.min(leftIndex+1,leftCount)} of ${leftCount}${sessionRef.current.currentExpected("left")?.metadata.stradellaButton?` · Next: ${sessionRef.current.currentExpected("left")!.metadata.stradellaButton}`:""}`
-    :status==="playing"
-     ?waiting?"Paused — resume playing, or finish this exercise":"Sight-reading—keep the pulse"
-     :"Ready — play the first note on the accordion to begin"
-  }</p>
+  {mode==="sightReading"&&<p>{status==="playing"
+    ?waiting?"Paused — resume playing, or finish this exercise":"Sight-reading—keep the pulse"
+    :"Ready — play the first note on the accordion to begin"
+  }</p>}
   <p>Completed {sessionStats.completedExercises} exercises · {sessionStats.completedEvents} events · correct {sessionStats.attempts?`${(sessionStats.correct/sessionStats.attempts*100).toFixed(0)}%`:"—"} · missed {sessionStats.missed} · extra {sessionStats.extra}</p>
   {metrics&&<p>Last exercise: pitch {(metrics.pitchAccuracy*100).toFixed(0)}% · timing {(metrics.timingAccuracy*100).toFixed(0)}% · continuity {(metrics.continuity*100).toFixed(0)}%{metrics.durationAccuracy!==undefined&&<> · note lengths {(metrics.durationAccuracy*100).toFixed(0)}%</>} · longest hesitation {(metrics.longestHesitationMs/1000).toFixed(1)}s</p>}
   {generationError&&<p role="alert">Requested settings could not generate a new exercise. {settingsPendingScore?"Your selection was saved; the current score remains active until a new one can be generated.":"The previous settings and score remain active."} {generationError}</p>}

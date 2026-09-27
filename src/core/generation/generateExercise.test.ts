@@ -19,4 +19,23 @@ describe("procedural generator",()=>{
  it("generates playable exercises when left hand only mode is selected",()=>fc.assert(fc.property(fc.integer({min:0,max:0x7fffffff}),fc.constantFrom("polka" as const,"bassChord" as const,"alternatingBass" as const),(seed,style)=>{const request=defaultTrainingRequest();request.hands="left";request.leftHand.accompanimentStyle=style;const exercise=generateExercise(request,seed);expect(validateExercise(exercise,accordionProfile).valid).toBe(true);expect(exercise.leftHand.length).toBeGreaterThan(0);}),{numRuns:100}));
  it("honors left-hand jump configurations without difficulty constraint rejections",()=>fc.assert(fc.property(fc.integer({min:0,max:0x7fffffff}),fc.constantFrom("occasional" as const,"frequent" as const),fc.constantFrom("moderate" as const,"large" as const,"veryLarge" as const),(seed,jumpFrequency,jumpSize)=>{const request=defaultTrainingRequest();request.leftHand.jumpFrequency=jumpFrequency;request.leftHand.jumpSize=jumpSize;request.leftHand.maxJump=jumpSize==="veryLarge"?11:jumpSize==="large"?5:3;if(jumpSize==="veryLarge")request.measures=Math.max(3,request.measures);const exercise=generateExercise(request,seed);expect(validateExercise(exercise,accordionProfile).valid).toBe(true);}),{numRuns:100}));
  it("generates valid complete exercises across seeds, keys and meters",()=>fc.assert(fc.property(fc.integer(),fc.constantFrom("C major","D major","Eb major","A minor"),fc.constantFrom({beats:4 as const,beatUnit:4 as const},{beats:3 as const,beatUnit:4 as const},{beats:6 as const,beatUnit:8 as const}),(seed,key,meter)=>{const request=defaultTrainingRequest();request.tonal.keys=[key];request.rhythm.meters=[meter];const exercise=generateExercise(request,seed);expect(exercise.totalDuration).toBe(ticksPerMeasure(meter)*request.measures);expect(validateExercise(exercise,accordionProfile).valid).toBe(true);expect([...exercise.rightHand,...exercise.leftHand].every(e=>e.duration>0)).toBe(true);expect(Object.values(exercise.difficulty).every(Number.isFinite)).toBe(true);expect(()=>exerciseToAbc(exercise)).not.toThrow();}),{numRuns:300}));
+  it("bounds consecutive pitch repetitions to preserve melodic variety across styles", () => {
+    for (const emphasis of ["everything", "melodicPatterns", "intervals", "arpeggios", "cadencesApproaches", "rhythm"] as const) {
+      for (let seed = 1; seed <= 20; seed++) {
+        const request = defaultTrainingRequest();
+        request.emphasis = emphasis;
+        const exercise = generateExercise(request, seed);
+        const rhEvents = exercise.rightHand.filter((e) => e.pitches.length > 0 && !e.metadata.tieFromPrevious);
+        let run = 1;
+        for (let i = 1; i < rhEvents.length; i++) {
+          if (rhEvents[i]!.pitches[0]!.midi === rhEvents[i - 1]!.pitches[0]!.midi) {
+            run++;
+            expect(run, `Seed ${seed}, emphasis ${emphasis} has excessive run of unisons`).toBeLessThanOrEqual(3);
+          } else {
+            run = 1;
+          }
+        }
+      }
+    }
+  });
 });

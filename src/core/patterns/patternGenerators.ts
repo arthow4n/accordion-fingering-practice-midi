@@ -300,57 +300,64 @@ export const generateNotesForPattern = (
         break;
       case "lower-chromatic-approach":
         if (accidentalsBudget > 0) {
+          const preambleLen = Math.max(0, count - 2);
+          for (let i = 0; i < preambleLen; i++) {
+            notes.push(createDiatonicNote(context, targetStep - (preambleLen + 1 - i), "scale tone", activeHarmony));
+          }
           notes.push(createChromaticNote(context, targetStep, -1, "chromatic approach", "lowerChromaticApproach", activeHarmony));
           notes.push(createDiatonicNote(context, targetStep, "chord tone", activeHarmony));
-          while (notes.length < count) {
-            notes.push(createDiatonicNote(context, targetStep + (notes.length % 2), "scale tone", activeHarmony));
-          }
         }
         break;
       case "upper-chromatic-approach":
         if (accidentalsBudget > 0) {
+          const preambleLen = Math.max(0, count - 2);
+          for (let i = 0; i < preambleLen; i++) {
+            notes.push(createDiatonicNote(context, targetStep + (preambleLen + 1 - i), "scale tone", activeHarmony));
+          }
           notes.push(createChromaticNote(context, targetStep, 1, "chromatic approach", "upperChromaticApproach", activeHarmony));
           notes.push(createDiatonicNote(context, targetStep, "chord tone", activeHarmony));
-          while (notes.length < count) {
-            notes.push(createDiatonicNote(context, targetStep + (notes.length % 2), "scale tone", activeHarmony));
-          }
         }
         break;
       case "upper-lower-enclosure":
         if (accidentalsBudget >= 2) {
+          const preambleLen = Math.max(0, count - 3);
+          for (let i = 0; i < preambleLen; i++) {
+            notes.push(createDiatonicNote(context, targetStep + (preambleLen - i), "scale tone", activeHarmony));
+          }
           notes.push(createChromaticNote(context, targetStep, 1, "chromatic approach", "upperLowerEnclosure", activeHarmony));
           notes.push(createChromaticNote(context, targetStep, -1, "chromatic approach", "upperLowerEnclosure", activeHarmony));
           notes.push(createDiatonicNote(context, targetStep, "chord tone", activeHarmony));
-          while (notes.length < count) {
-            notes.push(createDiatonicNote(context, targetStep, "chord tone", activeHarmony));
-          }
         }
         break;
       case "lower-upper-enclosure":
         if (accidentalsBudget >= 2) {
+          const preambleLen = Math.max(0, count - 3);
+          for (let i = 0; i < preambleLen; i++) {
+            notes.push(createDiatonicNote(context, targetStep - (preambleLen - i), "scale tone", activeHarmony));
+          }
           notes.push(createChromaticNote(context, targetStep, -1, "chromatic approach", "lowerUpperEnclosure", activeHarmony));
           notes.push(createChromaticNote(context, targetStep, 1, "chromatic approach", "lowerUpperEnclosure", activeHarmony));
           notes.push(createDiatonicNote(context, targetStep, "chord tone", activeHarmony));
-          while (notes.length < count) {
-            notes.push(createDiatonicNote(context, targetStep, "chord tone", activeHarmony));
-          }
         }
         break;
-      case "leading-tone-to-tonic":
-        notes.push(createDiatonicNote(context, 6, "leading tone", activeHarmony, isMinor ? 1 : 0));
-        notes.push(createDiatonicNote(context, 7, "cadence tone", activeHarmony));
-        while (notes.length < count) {
-          notes.push(createDiatonicNote(context, 7, "chord tone", activeHarmony));
+      case "leading-tone-to-tonic": {
+        const preambleLen = Math.max(0, count - 2);
+        for (let i = 0; i < preambleLen; i++) {
+          notes.push(createDiatonicNote(context, baseStep + 5 - (preambleLen - 1 - i), "scale tone", activeHarmony));
         }
+        notes.push(createDiatonicNote(context, baseStep + 6, "leading tone", activeHarmony, isMinor ? 1 : 0));
+        notes.push(createDiatonicNote(context, baseStep + 7, "cadence tone", activeHarmony));
         break;
+      }
       case "chromatic-neighbor":
         if (accidentalsBudget > 0) {
+          const preambleLen = Math.max(0, count - 3);
+          for (let i = 0; i < preambleLen; i++) {
+            notes.push(createDiatonicNote(context, targetStep - (preambleLen - i), "scale tone", activeHarmony));
+          }
           notes.push(createDiatonicNote(context, targetStep, "chord tone", activeHarmony));
           notes.push(createChromaticNote(context, targetStep, 1, "neighbor tone", "chromaticNeighbor", activeHarmony));
           notes.push(createDiatonicNote(context, targetStep, "chord tone", activeHarmony));
-          while (notes.length < count) {
-            notes.push(createDiatonicNote(context, targetStep, "chord tone", activeHarmony));
-          }
         }
         break;
     }
@@ -373,10 +380,24 @@ export const generateNotesForPattern = (
         notes.push(createDiatonicNote(context, repeatStep, i === 1 ? "scale tone" : "repeated tone", activeHarmony));
       }
       notes.push(createDiatonicNote(context, baseStep + 2, "scale tone", activeHarmony));
-    } else {
-      // Direct repetition
+    } else if (pattern.id === "repeated-notes-short") {
+      // Repeated pairs (e.g. 0, 0, 1, 1, 2, 2...)
       for (let i = 0; i < count; i++) {
-        notes.push(createDiatonicNote(context, baseStep, i === 0 ? "scale tone" : "repeated tone", activeHarmony));
+        const step = baseStep + Math.floor(i / 2);
+        notes.push(createDiatonicNote(context, step, i % 2 === 0 ? "scale tone" : "repeated tone", activeHarmony));
+      }
+    } else if (pattern.id === "repeated-notes-medium") {
+      // Groups of 3 (e.g. 0, 0, 0, 1, 1, 1...)
+      for (let i = 0; i < count; i++) {
+        const step = baseStep + Math.floor(i / 3);
+        notes.push(createDiatonicNote(context, step, i % 3 === 0 ? "scale tone" : "repeated tone", activeHarmony));
+      }
+    } else {
+      // Direct repetition capped at at most 3 notes before shifting
+      const repeatLimit = Math.min(3, count);
+      for (let i = 0; i < count; i++) {
+        const step = i < repeatLimit ? baseStep : baseStep + 1 + Math.floor((i - repeatLimit) / 2);
+        notes.push(createDiatonicNote(context, step, i === 0 || i === repeatLimit ? "scale tone" : "repeated tone", activeHarmony));
       }
     }
     const fitted = fitNotesToRange(notes, range, context);
@@ -385,11 +406,14 @@ export const generateNotesForPattern = (
 
   // 5. Melodic intervals
   if (pattern.category === "intervals") {
+    const rangeSpan = range.high - range.low;
     let leap = 2; // third by default
-    if (pattern.id.includes("octave")) leap = 7;
-    else {
-      const leapOptions = [2, 3, 4, 5, 6, 7];
-      leap = rng.pick(leapOptions);
+    if (pattern.id.includes("octave")) {
+      leap = rangeSpan >= 12 ? 7 : Math.max(2, Math.floor(rangeSpan / 2));
+    } else {
+      const maxLeap = Math.max(2, Math.min(5, Math.floor(rangeSpan / 3)));
+      const leapOptions = [2, 3, 4, 5].filter((l) => l <= maxLeap);
+      leap = rng.pick(leapOptions.length ? leapOptions : [2]);
     }
 
     const notes: GeneratedPatternNote[] = [];
@@ -520,11 +544,11 @@ export const generateNotesForPattern = (
     if (revFitted) return revFitted;
   }
 
-  // Absolute safety fallback: stepwise notes around a valid pitch
+  // Absolute safety fallback: stepwise arch around a valid pitch
   const safeNotes: GeneratedPatternNote[] = [];
-  const safeBase = baseStep;
+  const safeArch = [0, 1, 2, 1, 0, -1, 0, 1];
   for (let i = 0; i < count; i++) {
-    safeNotes.push(createDiatonicNote(context, safeBase + (i % 2), "scale tone", activeHarmony));
+    safeNotes.push(createDiatonicNote(context, baseStep + safeArch[i % safeArch.length]!, "scale tone", activeHarmony));
   }
   return fitNotesToRange(safeNotes, range, context) ?? safeNotes;
 };

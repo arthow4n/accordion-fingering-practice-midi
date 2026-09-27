@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { UpdateBanner } from "./pwa/UpdateBanner";
 import { AppFooter } from "./pwa/AppFooter";
+import { applyUpdate } from "../adapters/pwa/pwaService";
 import { exerciseToAbc } from "../adapters/abc/exerciseToAbc";
 import { connectWebMidi, type MidiListener } from "../adapters/midi/webMidiInput";
 import {
@@ -65,13 +66,41 @@ export default function App(){
   needRefresh: [needRefresh, setNeedRefresh],
   updateServiceWorker,
  } = useRegisterSW({
+  immediate: true,
   onRegisteredSW(_swUrl, r) {
-   setSwRegistration(r);
+   if (r) setSwRegistration(r);
   },
   onRegisterError(error) {
    console.error("SW registration error", error);
   },
  });
+
+ useEffect(() => {
+  if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+   navigator.serviceWorker.getRegistration().then((r) => {
+    if (r) setSwRegistration(r);
+   }).catch(() => {});
+  }
+ }, []);
+
+ useEffect(() => {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+  let refreshing = false;
+  const onControllerChange = () => {
+   if (!refreshing) {
+    refreshing = true;
+    window.location.reload();
+   }
+  };
+  navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+  return () => {
+   navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+  };
+ }, []);
+
+ const handleApplyUpdate = useCallback(async () => {
+  await applyUpdate(swRegistration, updateServiceWorker);
+ }, [swRegistration, updateServiceWorker]);
  const scoreRef=useRef<HTMLDivElement>(null);const frameRef=useRef<number>();const midiListenerRef=useRef<MidiListener>(()=>{});
  const [initial]=useState(()=>{const session=loadStoredSession(),seed=session.settings.seed??nextSeed();try{const candidate=generateFirstValidCandidate(randomSeeds(seed),candidateSeed=>generateExercise(session.settings,candidateSeed));return {settings:session.settings,mode:session.mode,seed:candidate.seed,exercise:candidate.value,error:"",pending:false};}catch(error){const fallback=generateExercise(defaultTrainingRequest(),0);return {settings:session.settings,mode:session.mode,seed:0,exercise:fallback,error:error instanceof Error?error.message:String(error),pending:true};}});
  const [initialSession]=useState(()=>new PracticeSession(initial.exercise,initial.settings.hands,initial.mode,initial.settings.timing));
@@ -205,7 +234,7 @@ export default function App(){
  return <main>
   <UpdateBanner
    show={needRefresh}
-   onUpdate={() => updateServiceWorker(true)}
+   onUpdate={handleApplyUpdate}
    onDismiss={() => setNeedRefresh(false)}
   />
   <div className="track" ref={scoreRef}/>
@@ -279,7 +308,9 @@ export default function App(){
   <p>Detected MIDI: {devices.join(", ")||midiError||"none (you can still inspect generated scores)"}</p>
   <AppFooter
    registration={swRegistration}
+   needRefresh={needRefresh}
    onUpdateDetected={() => setNeedRefresh(true)}
+   onApplyUpdate={handleApplyUpdate}
   />
  </main>;
 }

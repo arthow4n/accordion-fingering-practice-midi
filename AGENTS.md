@@ -54,3 +54,75 @@ For generator changes, add or update deterministic and property-based tests. At 
 ## Deployment
 
 `.github/workflows/deploy-pages.yml` must run `npm ci` followed by `npm run check` before uploading `dist`. Do not routinely monitor GitHub Actions or the deployed site after ordinary application changes; that is usually unnecessary. Inspect the remote run only when the task directly concerns CI/deployment or there is concrete evidence that deployment may be broken.
+
+## Programmatic UI review & virtual MIDI bridge
+
+To review UI states programmatically (in browser agents, Playwright, or browser DevTools) without physical MIDI hardware, the application exposes a global bridge at `window.accordionBridge` (and alias `window.__accordionBridge`) in all environments (both dev and production).
+
+### Bridge API
+
+- `window.accordionBridge.getState()`: Returns a snapshot of the current state:
+  ```ts
+  {
+    mode: "sightReading" | "correction",
+    status: "ready" | "playing" | "review",
+    waiting: boolean,
+    positionMs: number,
+    playheadOnset: number | undefined,
+    markedOnset: number | undefined,
+    exercise: Exercise,
+    metrics: PerformanceMetrics | undefined,
+    reviewAnnotations: ReviewAnnotation[],
+    sessionStats: SessionStats,
+    devices: string[],
+    settings: TrainingRequest,
+    seed: number
+  }
+  ```
+- `window.accordionBridge.sendNoteOn(midiNote, { hand?, velocity?, timestampMs? })`: Sends a normalized `noteOn`.
+- `window.accordionBridge.sendNoteOff(midiNote, { hand?, timestampMs? })`: Sends a normalized `noteOff`.
+- `window.accordionBridge.sendEvent(performedEvent)`: Sends any raw `PerformedMidiEvent`.
+- `window.accordionBridge.playNextNote({ mistake?, hand? })`: Advances to the next expected note (with correct or incorrect pitch).
+- `window.accordionBridge.fastForwardToReview({ mistakeCount?: number })`: Simulates completing an exercise (default 2 mistakes) and immediately transitions to the `"review"` status, rendering colored score annotations and performance metrics.
+- `window.accordionBridge.simulatePause()`: Enters the timed sight-reading session with an onset in the past, triggering hesitation detection to display the `"Paused — resume playing..."` alert.
+- `window.accordionBridge.dismissReview()`: Sends a note to dismiss the review screen and advance to the next exercise.
+- `window.accordionBridge.sendDeviceNames(["Device 1", "Device 2"])`: Updates detected MIDI device list.
+- `window.accordionBridge.setMode("sightReading" | "correction")`: Changes practice mode.
+- `window.accordionBridge.resetSession()` / `regenerate(seed?)`: Resets or generates new exercises.
+
+### Recipes for agents
+
+#### 1. Jump to the Review Screen (annotated score + metrics)
+```js
+window.accordionBridge.fastForwardToReview({ mistakeCount: 2 });
+const state = window.accordionBridge.getState();
+console.log(state.status); // "review"
+console.log(state.reviewAnnotations); // note error highlights on the ABC score
+```
+
+#### 2. Jump to Paused / Hesitation State
+```js
+window.accordionBridge.simulatePause();
+const state = window.accordionBridge.getState();
+console.log(state.status); // "playing"
+console.log(state.waiting); // true ("Paused — resume playing..." banner visible)
+```
+
+#### 3. Step Through Notes One-by-One
+```js
+// Play next expected note correctly
+window.accordionBridge.playNextNote();
+
+// Play next expected note with wrong pitch
+window.accordionBridge.playNextNote({ mistake: true });
+```
+
+#### 4. Test MIDI Device Detection UI
+```js
+// Simulate connected Roland accordion
+window.accordionBridge.sendDeviceNames(["Roland FR-1x"]);
+
+// Simulate disconnected devices
+window.accordionBridge.sendDeviceNames([]);
+```
+

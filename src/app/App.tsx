@@ -8,6 +8,7 @@ import { AppFooter } from "./pwa/AppFooter";
 import { applyUpdate } from "../adapters/pwa/pwaService";
 import { exerciseToAbc } from "../adapters/abc/exerciseToAbc";
 import { connectWebMidi, type MidiListener } from "../adapters/midi/webMidiInput";
+import { registerBridge, createReviewMidiEvents } from "../adapters/midi/virtualMidiBridge";
 import {
   clearSettings,
   deletePreset,
@@ -186,7 +187,7 @@ export default function App(){
 
  const hasLeft=sessionRef.current.count("left")>0;
 
- const resetSession=(nextExercise=exercise,nextSettings=settings,nextMode=mode)=>{
+ const resetSession=useCallback((nextExercise=exercise,nextSettings=settings,nextMode=mode)=>{
   cancelAnimationFrame(frameRef.current??0);
   if(nextMode==="sightReading"){
    coordinatorRef.current.reset(nextExercise,nextSettings.hands,nextSettings.timing);
@@ -197,10 +198,10 @@ export default function App(){
   setStatus(nextMode==="correction"?"playing":"ready");
   setWaiting(false);setPositionMs(0);
   setReviewAnnotations([]);
- };
- const changeMode=(nextMode:RuntimeMode)=>{
+ },[exercise,settings,mode]);
+ const changeMode=useCallback((nextMode:RuntimeMode)=>{
   resetSession(exercise,settings,nextMode);setMode(nextMode);setMetrics(undefined);saveSettings(settings,nextMode);
- };
+ },[exercise,settings,resetSession]);
  const updateSettings=(raw:TrainingRequest,persist=true,nextMode=mode,keepValidSettingsOnGenerationFailure=true)=>{
   // Generate before changing the active settings, score, or persisted session.
   let next:TrainingRequest|undefined;
@@ -320,6 +321,135 @@ export default function App(){
 
  useEffect(()=>{if(!("wakeLock" in navigator))return;let lock:WakeLockSentinel|undefined;const acquire=async()=>{try{await lock?.release();lock=await navigator.wakeLock.request("screen");}catch{lock=undefined;}};const visibility=()=>{if(document.visibilityState==="visible")void acquire();};void acquire();document.addEventListener("visibilitychange",visibility);return()=>{document.removeEventListener("visibilitychange",visibility);void lock?.release();};},[]);
  useEffect(()=>()=>cancelAnimationFrame(frameRef.current??0),[]);
+
+ useEffect(()=>{
+  const unregister=registerBridge({
+   getState:()=>({
+    mode,
+    status,
+    waiting,
+    positionMs,
+    playheadOnset:playhead,
+    markedOnset,
+    exercise,
+    metrics,
+    reviewAnnotations,
+    sessionStats,
+    devices,
+    settings,
+    seed,
+   }),
+   sendEvent:acceptMidi,
+   sendNoteOn:(midiNote,options)=>{
+    acceptMidi({
+     midiNote,
+     type:"noteOn",
+     timestampMs:options?.timestampMs??performance.now(),
+     velocity:options?.velocity??80,
+     hand:options?.hand,
+    });
+   },
+   sendNoteOff:(midiNote,options)=>{
+    acceptMidi({
+     midiNote,
+     type:"noteOff",
+     timestampMs:options?.timestampMs??performance.now(),
+     velocity:0,
+     hand:options?.hand,
+    });
+   },
+   sendDeviceNames:names=>setDevices(names),
+   setMode:changeMode,
+   resetSession:()=>resetSession(),
+   regenerate:(newSeed?:number)=>regenerate(newSeed),
+   dismissReview:()=>{
+    acceptMidi({midiNote:60,type:"noteOn",timestampMs:performance.now(),velocity:80});
+   },
+   playNextNote:(options)=>{
+    if(mode==="correction"){
+     const session=sessionRef.current;
+     const onset=session.correctionOnset;
+     if(onset===undefined)return false;
+     const target=session.expected.find(
+      e=>e.onset===onset&&!session.completedIds.has(e.id)&&(!options?.hand||e.hand===options.hand)
+     );
+     if(!target||!target.pitches[0])return false;
+     const midiNote=options?.mistake?target.pitches[0].midi+1:target.pitches[0].midi;
+     const now=performance.now();
+     acceptMidi({midiNote,type:"noteOn",timestampMs:now,velocity:80,hand:target.hand});
+     acceptMidi({midiNote,type:"noteOff",timestampMs:now+100,velocity:0,hand:target.hand});
+     return true;
+    }
+    if(mode==="sightReading"){
+     if(status==="review"){
+      acceptMidi({midiNote:60,type:"noteOn",timestampMs:performance.now(),velocity:80});
+      return true;
+     }
+     const session=coordinatorRef.current.session;
+     const target=status==="ready"
+      ?session.expected.find(e=>!options?.hand||e.hand===options.hand)
+      :session.currentExpected(options?.hand)??session.expected.find(e=>!session.completedIds.has(e.id));
+     if(!target||!target.pitches[0])return false;
+     const midiNote=options?.mistake?target.pitches[0].midi+1:target.pitches[0].midi;
+     const now=performance.now();
+     acceptMidi({midiNote,type:"noteOn",timestampMs:now,velocity:80,hand:target.hand});
+     acceptMidi({midiNote,type:"noteOff",timestampMs:now+100,velocity:0,hand:target.hand});
+     return true;
+    }
+    return false;
+   },
+   fastForwardToReview:(options)=>{
+    if(mode!=="sightReading"){
+     changeMode("sightReading");
+    }
+    if(status==="review"){
+     acceptMidi({midiNote:60,type:"noteOn",timestampMs:performance.now(),velocity:80});
+    }
+    const activeExercise=coordinatorRef.current.exercise;
+    const now=performance.now();
+    const events=createReviewMidiEvents(activeExercise,settings.hands,options?.mistakeCount??2,now);
+    for(const event of events){
+     acceptMidi(event);
+    }
+    finish();
+   },
+   simulatePause:()=>{
+    if(mode!=="sightReading"){
+     changeMode("sightReading");
+    }
+    if(status==="review"){
+     acceptMidi({midiNote:60,type:"noteOn",timestampMs:performance.now(),velocity:80});
+    }
+    const session=coordinatorRef.current.session;
+    const target=session.expected[0];
+    if(!target||!target.pitches[0])return;
+    const past=performance.now()-5000;
+    acceptMidi({midiNote:target.pitches[0].midi,type:"noteOn",timestampMs:past,velocity:80,hand:target.hand});
+    acceptMidi({midiNote:target.pitches[0].midi,type:"noteOff",timestampMs:past+100,velocity:0,hand:target.hand});
+   },
+  });
+  return unregister;
+ },[
+  mode,
+  status,
+  waiting,
+  positionMs,
+  playhead,
+  markedOnset,
+  exercise,
+  metrics,
+  reviewAnnotations,
+  sessionStats,
+  devices,
+  settings,
+  seed,
+  acceptMidi,
+  changeMode,
+  finish,
+  regenerate,
+  resetSession,
+ ]);
+
  const reset=()=>{if(!window.confirm("Reset all practice settings to their defaults? Saved presets will not be deleted."))return;const defaults=defaultTrainingRequest();clearSettings();updateSettings(defaults,false,defaultRuntimeMode());};
  return <main>
   <UpdateBanner

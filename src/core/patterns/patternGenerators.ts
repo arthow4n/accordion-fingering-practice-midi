@@ -550,5 +550,25 @@ export const generateNotesForPattern = (
   for (let i = 0; i < count; i++) {
     safeNotes.push(createDiatonicNote(context, baseStep + safeArch[i % safeArch.length]!, "scale tone", activeHarmony));
   }
-  return fitNotesToRange(safeNotes, range, context) ?? safeNotes;
+  const safeFitted = fitNotesToRange(safeNotes, range, context);
+  if (safeFitted) return safeFitted;
+
+  const fallbackChordTones = findChordTonesInRange(context, activeHarmony, range);
+  if (fallbackChordTones.length) {
+    const midTone = fallbackChordTones[Math.floor(fallbackChordTones.length / 2)]!;
+    const safeBaseStep = (midTone.degree.degree - 1) + (midTone.degree.octaveOffset * 7);
+    const inRangeSafeNotes: GeneratedPatternNote[] = [];
+    for (let i = 0; i < count; i++) {
+      const step = safeBaseStep + safeArch[i % safeArch.length]!;
+      const note = createDiatonicNote(context, step, "scale tone", activeHarmony);
+      if (note.pitch.midi >= range.low && note.pitch.midi <= range.high) {
+        inRangeSafeNotes.push(note);
+      } else {
+        inRangeSafeNotes.push({ ...midTone, role: "scale tone" });
+      }
+    }
+    return inRangeSafeNotes;
+  }
+
+  return safeNotes;
 };

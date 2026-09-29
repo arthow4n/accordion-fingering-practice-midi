@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { defaultTimingSettings, timingSettingsSchema } from "../performance/timingSettings";
 import type { RightHandEmphasis } from "../model";
+import { STRADELLA_ROOTS } from "../instrument/stradella";
 
 const meterSchema = z.object({ beats: z.number().int().min(2).max(6), beatUnit: z.union([z.literal(4), z.literal(8)]) });
 const rangeSchema = z.object({ low: z.number().int().min(0).max(127), high: z.number().int().min(0).max(127) }).refine((x) => x.low <= x.high);
@@ -25,7 +26,7 @@ export const trainingRequestSchema = z.object({
   rhythm: z.object({ meters: z.array(meterSchema).min(1), noteValue: z.enum(["half","quarter","eighth","sixteenth"]), style: z.enum(["steady","mostlySteady","mixed","challenge"]), smallestSubdivision: z.enum(["quarter","eighth","sixteenth"]), syncopation: z.number().min(0).max(1), restDensity: z.number().min(0).max(1), tieDensity: z.number().min(0).max(1), noteDensity: z.number().min(0).max(1) }),
   harmony: z.object({ progressionVocabulary: z.array(z.string()).min(1), chordVocabulary: z.array(z.enum(["major","minor","dominant7","diminished"])) }),
   rightHand: z.object({ range: rangeSchema, maxAccidentalsPerExercise: z.number().int().min(0).max(64).default(2) }),
-  leftHand: z.object({ enabled: z.boolean(), accompanimentStyle: z.enum(["bassChord","alternatingBass","polka","waltz","tango","swing"]), movementDifficulty: z.number().min(0).max(1), jumpFrequency: jumpFrequencySchema.default("none"), jumpSize: z.enum(["nearby","moderate","large","veryLarge"]).default("moderate"), maxJump: z.number().int().min(0).max(11).default(5), bassRootLow: z.enum(["Ab","Eb","Bb","F","C","G","D","A","E","B"]).default("Ab"), bassRootHigh: z.enum(["Ab","Eb","Bb","F","C","G","D","A","E","B"]).default("B"), templateId: z.enum(["legacy-tonic-pedal-descending","legacy-transition-to-IV","legacy-bb-fdim-line"]).optional() }),
+  leftHand: z.object({ enabled: z.boolean(), accompanimentStyle: z.enum(["bassChord","alternatingBass","polka","waltz","tango","swing"]), movementDifficulty: z.number().min(0).max(1), jumpFrequency: jumpFrequencySchema.default("none"), jumpSize: z.enum(["nearby","moderate","large","veryLarge"]).default("moderate"), maxJump: z.number().int().min(0).max(11).default(5), bassRootLow: z.enum(STRADELLA_ROOTS).default("Db"), bassRootHigh: z.enum(STRADELLA_ROOTS).default("F#"), templateId: z.enum(["legacy-tonic-pedal-descending","legacy-transition-to-IV","legacy-bb-fdim-line"]).optional() }),
   coordination: z.object({ difficulty: z.number().min(0).max(1) }).default({ difficulty: 0.3 }),
   challenge: z.object({ density: z.number().min(0).max(1), allowedTypes: z.array(z.enum(["largeLeap","chromatic","unfamiliarRhythm","syncopation","bassJump","handIndependence","unpredictable"])) }).default({ density: 0.06, allowedTypes: ["largeLeap","chromatic","syncopation","bassJump","handIndependence"] }),
   sessionProgression: z.enum(["progressive", "independent"]).default("independent"),
@@ -94,7 +95,7 @@ export const defaultTrainingRequest = (): TrainingRequest => ({
   rhythm: { meters: [{ beats: 4, beatUnit: 4 }], noteValue: "eighth", style: "mostlySteady", smallestSubdivision: "eighth", syncopation: 0.1, restDensity: 0.05, tieDensity: 0.05, noteDensity: 0.55 },
   harmony: { progressionVocabulary: ["I-I-V-I", "I-IV-V-I", "I-vi-IV-V", "I-ii-V7-I"], chordVocabulary: ["major", "minor", "dominant7", "diminished"] },
   rightHand: { range: { low: 55, high: 91 }, maxAccidentalsPerExercise: 2 },
-  leftHand: { enabled: true, accompanimentStyle: "bassChord", movementDifficulty: 0.35, jumpFrequency: "none", jumpSize: "moderate", maxJump: 5, bassRootLow: "Ab", bassRootHigh: "B" },
+  leftHand: { enabled: true, accompanimentStyle: "bassChord", movementDifficulty: 0.35, jumpFrequency: "none", jumpSize: "moderate", maxJump: 5, bassRootLow: "Db", bassRootHigh: "F#" },
   coordination: { difficulty: 0.3 },
   challenge: { density: 0.06, allowedTypes: ["largeLeap", "chromatic", "syncopation", "bassJump", "handIndependence"] },
   sessionProgression: "independent",

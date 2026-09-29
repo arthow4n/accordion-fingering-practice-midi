@@ -31,3 +31,17 @@ it("migrates all legacy training intents to emphasis according to spec",()=>{
  expect(nr.emphasis).toBe("everything");
  expect(nr.hands).toBe("right");
 });
+
+it("defaults left-hand bass range to the full Roland FR-1XB Stradella range (Db to F#)", () => {
+ const req = defaultTrainingRequest();
+ expect(req.leftHand.bassRootLow).toBe("Db");
+ expect(req.leftHand.bassRootHigh).toBe("F#");
+
+ const parsed = parseTrainingRequest({
+  ...req,
+  leftHand: { ...req.leftHand, bassRootLow: "Db", bassRootHigh: "F#" },
+ });
+ expect(parsed.leftHand.bassRootLow).toBe("Db");
+ expect(parsed.leftHand.bassRootHigh).toBe("F#");
+});
+

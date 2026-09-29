@@ -28,6 +28,7 @@ import { timingOptions } from "../core/performance/timingSettings";
 import type { PerformanceMetrics } from "../core/performance/performanceMetrics";
 
 import { defaultRuntimeMode, defaultTrainingRequest, parseTrainingRequest, type TrainingRequest } from "../core/training/trainingIntent";
+import { STRADELLA_ROOTS } from "../core/instrument/stradella";
 
 type HandMode=TrainingRequest["hands"];
 type SessionStats={completedExercises:number;completedEvents:number;attempts:number;correct:number;timingCorrect:number;missed:number;extra:number};
@@ -44,7 +45,7 @@ const emphasisOptions:readonly {value:RightHandEmphasis;label:string}[]=[
  {value:"rhythm",label:"Rhythm"},
 ];
 const keys=["C major","G major","D major","F major","Bb major","Eb major","A minor","D minor","E minor"];
-const bassRoots=["Ab","Eb","Bb","F","C","G","D","A","E","B"] as const;
+const bassRoots=STRADELLA_ROOTS;
 const bassPatterns:readonly TrainingRequest["leftHand"]["accompanimentStyle"][]=["bassChord","alternatingBass","polka","waltz","tango","swing"];
 const legacyLines=[{id:"legacy-tonic-pedal-descending",label:"Tonic pedal: C/C–C/B–C/A–C/G"},{id:"legacy-transition-to-IV",label:"Counterbass walk: C/C–C/D–C/E–F"},{id:"legacy-bb-fdim-line",label:"Bb–Fdim/B–Fdim/G–Fdim/G–F/C–D7"}] as const;
 const noteValues=[{value:"half",label:"Half notes"},{value:"quarter",label:"Quarter notes"},{value:"eighth",label:"Eighth notes"},{value:"sixteenth",label:"Sixteenth notes"}] as const;

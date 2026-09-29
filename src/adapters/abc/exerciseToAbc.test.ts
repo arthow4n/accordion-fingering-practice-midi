@@ -109,3 +109,19 @@ it("renders review annotations: extra notes show ghost note and extra marking",(
  expect(abc).toContain("_extra");
  expect(abc).toMatch(/\{[=_^]?[A-Ga-g][,']*\}/);
 });
+
+it("does not duplicate review annotations across split tied segments",()=>{
+ const request=defaultTrainingRequest();
+ request.leftHand.templateId="legacy-transition-to-IV"; // causes split at counterbass label
+ request.tonal.keys=["C major"];
+ const exercise=generateExercise(request,0);
+ const target=exercise.rightHand[0]!;
+ const abc=exerciseToAbc(exercise,{
+  reviewAnnotations:[
+   { kind:"wrongPitch", expectedEventId:target.id, playedMidiNotes:[65] }
+  ]
+ });
+ const matches=abc.match(/_wrong/g);
+ expect(matches).toHaveLength(1);
+});
+

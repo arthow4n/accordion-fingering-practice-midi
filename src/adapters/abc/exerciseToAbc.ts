@@ -124,6 +124,7 @@ const serializeVoice = (
       metadata: {
         ...event.metadata,
         tieToNext: event.pitches.length > 0 && (index < boundaries.length - 2 || event.metadata.tieToNext),
+        isTiedContinuation: index > 0,
       },
     }));
   });
@@ -157,7 +158,7 @@ const serializeVoice = (
     const tie = event.metadata.tieToNext ? "-" : "";
     const annotation = labels.get(event.onset);
 
-    const eventAnns = annotationsByEventId.get(event.id) ?? [];
+    const eventAnns = event.metadata.isTiedContinuation ? [] : (annotationsByEventId.get(event.id) ?? []);
     const extraAnns = extraAnnotationsByOnset.get(event.onset) ?? [];
 
     const wrongAnn = eventAnns.find(a => a.kind === "wrongPitch");

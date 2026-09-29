@@ -56,12 +56,11 @@ export const deriveReviewAnnotations = (
         const wrongPitches = match.performed
           .filter(p => !expectedPitches.some(ep => pitchMatches(match.expected!, ep.midi, p.midiNote)))
           .map(p => p.midiNote);
-        const playedMidiNotes = wrongPitches.length > 0 ? wrongPitches : match.performed.map(p => p.midiNote);
 
         annotations.push({
           kind: "wrongPitch",
           expectedEventId: match.expected.id,
-          playedMidiNotes,
+          playedMidiNotes: wrongPitches,
         });
       }
       continue;

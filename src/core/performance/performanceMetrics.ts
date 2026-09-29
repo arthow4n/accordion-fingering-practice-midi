@@ -3,7 +3,7 @@ import type { EventMatch } from "./eventMatcher";
 export type FeatureMetrics = { attempts: number; correct: number; pitchAccuracy: number; timingAccuracy: number };
 export type HandMetrics = FeatureMetrics & { missed: number; extra: number };
 export type PerformanceMetrics = {
-  pitchAccuracy: number; timingAccuracy: number; missedNotes: number; extraNotes: number;
+  pitchAccuracy: number; timingAccuracy: number; missedNotes: number; extraNotes: number; wrongNotes: number;
   continuity: number; durationAccuracy?: number; longestHesitationMs: number; lateEventClusters: number;
   recoveryMetrics: { meanRecoveryMsAfterError: number; meanRecoveryBeatsAfterError: number };
   rightHand: HandMetrics; leftHand: HandMetrics; byFeature: Record<string, FeatureMetrics>;
@@ -54,6 +54,7 @@ export const computeMetrics = (matches: EventMatch[], beatMs = 750): Performance
   const continuous = targets.filter(m => m.performed.length && Math.abs(m.timingErrorMs ?? 0) <= beatMs / 2).length;
   return {
     pitchAccuracy: overall.pitchAccuracy, timingAccuracy: overall.timingAccuracy, missedNotes: overall.missed, extraNotes: overall.extra,
+    wrongNotes: matches.filter(m => m.classification === "wrongPitch").length,
     continuity: overall.attempts ? continuous / overall.attempts : 1,
     durationAccuracy: durations.length ? durations.filter(m => m.durationCorrect).length / durations.length : undefined,
     longestHesitationMs: Math.max(0, longestGap, ...matches.map(m => m.timingErrorMs ?? 0)),

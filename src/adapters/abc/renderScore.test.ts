@@ -61,4 +61,25 @@ describe("renderScoreHighlight", () => {
       }
     }
   });
+
+  it("applies subtle review classes and fills to annotation elements", async () => {
+    const { renderReviewDecorations } = await import("./renderScore");
+    const classesAdded: string[] = [];
+    const attrsSet: [string, string][] = [];
+    const el = {
+      textContent: "wrong",
+      classList: { add: (c: string) => classesAdded.push(c) },
+      setAttribute: (k: string, v: string) => attrsSet.push([k, v]),
+    };
+    const container = {
+      querySelector: () => ({
+        querySelectorAll: () => [el],
+      }),
+    } as unknown as HTMLElement;
+
+    renderReviewDecorations(container);
+    expect(classesAdded).toContain("review-wrong");
+    expect(attrsSet).toEqual([["fill", "#b91c1c"]]);
+  });
 });
+

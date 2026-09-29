@@ -58,3 +58,54 @@ it("preserves double accidentals in chromatic note recognition",()=>{
  exercise.rightHand=[{...exercise.rightHand[0]!,pitches:[{midi:67,name:"F##4"}],metadata:{challengeTags:[]}}];
  expect(exerciseToAbc(exercise)).toContain("^^F");
 });
+
+it("renders review annotations: wrong pitch shows ghost note and wrong marking",()=>{
+ const exercise=generateExercise(defaultTrainingRequest(),0);
+ const target=exercise.rightHand[0]!;
+ const abc=exerciseToAbc(exercise,{
+  reviewAnnotations:[
+   { kind:"wrongPitch", expectedEventId:target.id, playedMidiNotes:[65] }
+  ]
+ });
+ expect(abc).toContain("_wrong");
+ expect(abc).toMatch(/\{[=_^]?[A-Ga-g][,']*\}/);
+});
+
+it("renders review annotations: missed notes show missed marking without ghost notes",()=>{
+ const exercise=generateExercise(defaultTrainingRequest(),0);
+ const target=exercise.rightHand[0]!;
+ const abc=exerciseToAbc(exercise,{
+  reviewAnnotations:[
+   { kind:"missed", expectedEventId:target.id }
+  ]
+ });
+ expect(abc).toContain("_missed");
+ expect(abc).not.toContain("{");
+});
+
+it("renders review annotations: timing deviations show early/late marking without pitch error",()=>{
+ const exercise=generateExercise(defaultTrainingRequest(),0);
+ const targetEarly=exercise.rightHand[0]!;
+ const targetLate=exercise.rightHand[1]!;
+ const abc=exerciseToAbc(exercise,{
+  reviewAnnotations:[
+   { kind:"timing", expectedEventId:targetEarly.id, direction:"early" },
+   { kind:"timing", expectedEventId:targetLate.id, direction:"late" },
+  ]
+ });
+ expect(abc).toContain("_early");
+ expect(abc).toContain("_late");
+ expect(abc).not.toContain("_wrong");
+ expect(abc).not.toContain("{");
+});
+
+it("renders review annotations: extra notes show ghost note and extra marking",()=>{
+ const exercise=generateExercise(defaultTrainingRequest(),0);
+ const abc=exerciseToAbc(exercise,{
+  reviewAnnotations:[
+   { kind:"extra", musicalPosition:0, playedMidiNotes:[65] }
+  ]
+ });
+ expect(abc).toContain("_extra");
+ expect(abc).toMatch(/\{[=_^]?[A-Ga-g][,']*\}/);
+});

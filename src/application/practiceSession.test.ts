@@ -22,7 +22,7 @@ describe("synchronous practice sessions",()=>{
  it("records all notes in a starting chord without restarting the clock",()=>{
   const s=new PracticeSession(exercise([note(0,[60,64,67])]),"right","sightReading",timing());
   for(const p of [60,64,67])s.accept(midi(p,1000));
-  expect(s.performed).toHaveLength(3);expect(s.finish().pitchAccuracy).toBe(1);
+  expect(s.performed).toHaveLength(3);expect(s.finish().metrics.pitchAccuracy).toBe(1);
  });
  it("advances both hands atomically and completes simultaneous final events once",()=>{
   const s=new PracticeSession(exercise([note(0,[60]),note(480,[62])],[note(0,[48],"left"),note(480,[50],"left")]),"both","correction",timing());
@@ -43,13 +43,14 @@ describe("synchronous practice sessions",()=>{
   const s=new PracticeSession(exercise([note(0,[60]),note(480,[62]),note(960,[64])]),"right","sightReading",defaultTimingSettings());
   s.accept(midi(60,1000));expect(s.isWaiting(2500)).toBe(true);expect(s.shouldFinish(5000)).toBe(false);
   s.accept(midi(62,3000));expect(s.expected.map(e=>e.expectedMs)).toEqual([1000,3000,3500]);
-  s.accept(midi(64,3500));const metrics=s.finish();
+  s.accept(midi(64,3500));const { metrics, matches }=s.finish();
+  expect(matches.length).toBeGreaterThan(0);
   expect(metrics.pitchAccuracy).toBe(1);expect(metrics.longestHesitationMs).toBe(1500);expect(metrics.continuity).toBeLessThan(1);
  });
  it("keeps the absolute pulse when recovery assistance is disabled",()=>{
   const s=new PracticeSession(exercise([note(0,[60]),note(480,[62])]),"right","sightReading",timing());
   s.accept(midi(60,1000));s.accept(midi(62,3000));
-  expect(s.expected[1]!.expectedMs).toBe(1500);expect(s.finish().pitchAccuracy).toBe(.5);
+  expect(s.expected[1]!.expectedMs).toBe(1500);expect(s.finish().metrics.pitchAccuracy).toBe(.5);
  });
  it("waits for the late tolerance at the end instead of discarding a final attack",()=>{
   const e=exercise([note(1800,[60],"right",120)]);
@@ -85,11 +86,11 @@ it("does not let duplicate bass voices consume the next repeated correction targ
 it("leaves a silent final passage waiting in follow mode until finished explicitly",()=>{
  const s=new PracticeSession(exercise([note(0,[60]),note(480,[62])]),"right","sightReading",defaultTimingSettings());
  s.accept(midi(60,1000));expect(s.shouldFinish(10000)).toBe(false);
- const metrics=s.finish();expect(metrics.missedNotes).toBe(1);expect(s.done).toBe(true);
+ const { metrics }=s.finish();expect(metrics.missedNotes).toBe(1);expect(s.done).toBe(true);
 });
 it("does not stretch the clock for an intentional rest",()=>{
  const s=new PracticeSession(exercise([note(0,[60]),note(1440,[62])]),"right","sightReading",defaultTimingSettings());
- s.accept(midi(60,1000));s.accept(midi(62,2500));expect(s.recoveryCount).toBe(0);expect(s.finish().pitchAccuracy).toBe(1);
+ s.accept(midi(60,1000));s.accept(midi(62,2500));expect(s.recoveryCount).toBe(0);expect(s.finish().metrics.pitchAccuracy).toBe(1);
 });
 
 it("allows overlapping bass and chord roots at distinct correction onsets",()=>{
@@ -103,5 +104,5 @@ it("recovers when a wrong restart note is followed by the correct note",()=>{
  const s=new PracticeSession(exercise([note(0,[60]),note(480,[62])]),"right","sightReading",defaultTimingSettings());
  s.accept(midi(60,1000));s.accept(midi(70,3000));s.accept(midi(62,3100));
  expect(s.recoveryCount).toBe(1);expect(s.expected[1]!.expectedMs).toBe(3100);
- expect(s.finish().pitchAccuracy).toBe(1);
+ expect(s.finish().metrics.pitchAccuracy).toBe(1);
 });

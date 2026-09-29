@@ -3,6 +3,7 @@ import { createExpectedTimeline, ticksToMs, type TimedExpectedEvent } from "../c
 import { matchEvents, pitchMatches } from "../core/performance/eventMatcher";
 import { computeMetrics } from "../core/performance/performanceMetrics";
 import { timingOptions, type TimingSettings } from "../core/performance/timingSettings";
+import type { PerformanceReport } from "../core/performance/evaluatePerformance";
 
 export type PracticeMode = "correction" | "sightReading";
 export type SessionUpdate = { accepted: number; wrong: number; completed: boolean };
@@ -116,11 +117,12 @@ export class PracticeSession {
     const end = this.startMs! + this.shiftMs + ticksToMs(this.exercise.totalDuration, this.exercise.tempoBpm);
     return nowMs >= end + this.options.lateToleranceMs;
   }
-  finish() {
+  finish(): PerformanceReport {
     this.ended = true;
-    const metrics = computeMetrics(matchEvents(this.expected, this.performed, this.options), 60_000 / this.exercise.tempoBpm);
+    const matches = matchEvents(this.expected, this.performed, this.options);
+    const metrics = computeMetrics(matches, 60_000 / this.exercise.tempoBpm);
     metrics.longestHesitationMs = Math.max(metrics.longestHesitationMs, this.hesitationMs);
     if (this.recoveryCount) metrics.continuity *= Math.max(0, 1 - this.recoveryCount / Math.max(1, this.expected.length));
-    return metrics;
+    return { metrics, matches };
   }
 }

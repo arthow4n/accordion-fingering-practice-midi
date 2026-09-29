@@ -37,6 +37,32 @@ main {
   border: none;
 }
 
+.track .abcjs-annotation {
+  font-family: inherit;
+  font-size: 11px;
+  fill: #64748b;
+}
+
+.track text.review-wrong {
+  fill: #b91c1c;
+  font-weight: 500;
+}
+
+.track text.review-missed {
+  fill: #64748b;
+  font-weight: 500;
+}
+
+.track text.review-timing {
+  fill: #d97706;
+  font-weight: 500;
+}
+
+.track text.review-extra {
+  fill: #b45309;
+  font-weight: 500;
+}
+
 .summary { font-variant-numeric: tabular-nums; }
 fieldset { border: 1px solid #bbb; padding: .75rem; }
 label { display: inline-block; margin: .25rem .5rem .25rem 0; }

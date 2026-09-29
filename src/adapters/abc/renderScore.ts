@@ -88,6 +88,28 @@ export const renderScoreHighlight = (container: HTMLElement): void => {
   svg.insertBefore(rect, svg.firstChild);
 };
 
+export const renderReviewDecorations = (container: HTMLElement): void => {
+  const svg = container.querySelector("svg");
+  if (!svg) return;
+  const annotations = svg.querySelectorAll<SVGTextElement>(".abcjs-annotation");
+  for (const el of annotations) {
+    const text = el.textContent?.trim();
+    if (text === "wrong") {
+      el.classList.add("review-wrong");
+      el.setAttribute("fill", "#b91c1c");
+    } else if (text === "missed") {
+      el.classList.add("review-missed");
+      el.setAttribute("fill", "#64748b");
+    } else if (text === "early" || text === "late") {
+      el.classList.add("review-timing");
+      el.setAttribute("fill", "#d97706");
+    } else if (text === "extra") {
+      el.classList.add("review-extra");
+      el.setAttribute("fill", "#b45309");
+    }
+  }
+};
+
 export const renderScore = (container: HTMLElement, abc: string): void => {
   renderAbc(container, abc, {
     add_classes: true,
@@ -95,4 +117,6 @@ export const renderScore = (container: HTMLElement, abc: string): void => {
     selectTypes: [],
   });
   renderScoreHighlight(container);
+  renderReviewDecorations(container);
 };
+

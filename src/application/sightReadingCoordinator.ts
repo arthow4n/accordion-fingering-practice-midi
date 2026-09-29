@@ -31,7 +31,7 @@ export class SightReadingCoordinator {
   report?: PerformanceReport;
   reviewAnnotations: ReviewAnnotation[] = [];
 
-  private dismissBurstUntilMs = 0;
+  private dismissBurstUntilMs = -Infinity;
   private dismissHeldKeys = new Set<string>();
 
   constructor(options: SightReadingCoordinatorOptions) {
@@ -103,7 +103,7 @@ export class SightReadingCoordinator {
 
   finish(): PerformanceReport {
     this.status = "review";
-    this.dismissBurstUntilMs = 0;
+    this.dismissBurstUntilMs = -Infinity;
     this.dismissHeldKeys.clear();
     this.report = this.session.finish();
     this.reviewAnnotations = deriveReviewAnnotations(this.report, this.exercise);
@@ -115,7 +115,7 @@ export class SightReadingCoordinator {
     this.hands = hands;
     this.timing = timing;
     this.status = "ready";
-    this.dismissBurstUntilMs = 0;
+    this.dismissBurstUntilMs = -Infinity;
     this.dismissHeldKeys.clear();
     this.report = undefined;
     this.reviewAnnotations = [];

@@ -65,7 +65,8 @@ main {
 
 .summary { font-variant-numeric: tabular-nums; }
 fieldset { border: 1px solid #bbb; padding: .75rem; }
-label { display: inline-block; margin: .25rem .5rem .25rem 0; }
+label,
+.register-indicator { display: inline-block; margin: .25rem .5rem .25rem 0; }
 input[inputmode="numeric"] { width: 4.5rem; }
 pre { white-space: pre-wrap; font-size: .8rem; }
 

@@ -123,6 +123,7 @@ export default function App(){
  });
  const seedRef=useRef(initial.seed);
  const settingsRef=useRef(initial.settings);
+ const modeRef=useRef(initial.mode);
  const coordinatorRef=useRef<SightReadingCoordinator>(
   new SightReadingCoordinator({
    exercise:initial.exercise,
@@ -140,6 +141,7 @@ export default function App(){
 
  useEffect(()=>{seedRef.current=seed;},[seed]);
  useEffect(()=>{settingsRef.current=settings;},[settings]);
+ useEffect(()=>{modeRef.current=mode;},[mode]);
 
  const onNextExercise=useCallback(()=>{
   try{
@@ -200,6 +202,7 @@ export default function App(){
   setReviewAnnotations([]);
  },[exercise,settings,mode]);
  const changeMode=useCallback((nextMode:RuntimeMode)=>{
+  modeRef.current=nextMode;
   resetSession(exercise,settings,nextMode);setMode(nextMode);setMetrics(undefined);saveSettings(settings,nextMode);
  },[exercise,settings,resetSession]);
  const updateSettings=(raw:TrainingRequest,persist=true,nextMode=mode,keepValidSettingsOnGenerationFailure=true)=>{
@@ -248,17 +251,18 @@ export default function App(){
   const session=sessionRef.current;
   if(session.done||!session.started)return;
   cancelAnimationFrame(frameRef.current??0);
-  const report=mode==="sightReading"?coordinatorRef.current.finish():session.finish();setMetrics(report.metrics);
+  const currentMode=modeRef.current;
+  const report=currentMode==="sightReading"?coordinatorRef.current.finish():session.finish();setMetrics(report.metrics);
   const attempts=report.metrics.rightHand.attempts+report.metrics.leftHand.attempts,correct=report.metrics.rightHand.correct+report.metrics.leftHand.correct;
   setSessionStats(x=>({...x,completedExercises:x.completedExercises+1,completedEvents:x.completedEvents+attempts,attempts:x.attempts+attempts,correct:x.correct+correct,timingCorrect:x.timingCorrect+Math.round(report.metrics.timingAccuracy*attempts),missed:x.missed+report.metrics.missedNotes,extra:x.extra+report.metrics.extraNotes}));
-  if(mode==="sightReading"){
+  if(currentMode==="sightReading"){
    setReviewAnnotations(coordinatorRef.current.reviewAnnotations);
    setStatus("review");
   }
   setWaiting(false);
- },[mode]);
+ },[]);
  const acceptMidi=useCallback((event:PerformedMidiEvent)=>{
-  if(mode==="sightReading"){
+  if(modeRef.current==="sightReading"){
    const coordinator=coordinatorRef.current;
    const res=coordinator.acceptMidi(event);
    if(res.action==="dismissedReview"){
@@ -402,9 +406,7 @@ export default function App(){
     if(mode!=="sightReading"){
      changeMode("sightReading");
     }
-    if(status==="review"){
-     acceptMidi({midiNote:60,type:"noteOn",timestampMs:performance.now(),velocity:80});
-    }
+    resetSession(exercise,settings,"sightReading");
     const activeExercise=coordinatorRef.current.exercise;
     const now=performance.now();
     const events=createReviewMidiEvents(activeExercise,settings.hands,options?.mistakeCount??2,now);
@@ -417,9 +419,7 @@ export default function App(){
     if(mode!=="sightReading"){
      changeMode("sightReading");
     }
-    if(status==="review"){
-     acceptMidi({midiNote:60,type:"noteOn",timestampMs:performance.now(),velocity:80});
-    }
+    resetSession(exercise,settings,"sightReading");
     const session=coordinatorRef.current.session;
     const target=session.expected[0];
     if(!target||!target.pitches[0])return;
@@ -480,9 +480,9 @@ export default function App(){
    <label>Practice behavior <select value={mode} onChange={e=>changeMode(e.target.value as RuntimeMode)}><option value="sightReading">Timed sight-reading</option><option value="correction">Correction / drill</option></select></label>{" "}
    <label>Right-hand emphasis <select value={settings.emphasis} onChange={e=>updateSettings({...settings,emphasis:e.target.value as RightHandEmphasis})}>{emphasisOptions.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</select></label>{" "}
    <label>Key <select value={settings.tonal.keys.length===1?settings.tonal.keys[0]:"pool"} onChange={e=>updateSettings({...settings,tonal:{...settings.tonal,keys:e.target.value==="pool"?["C major","G major","D major","F major"]:[e.target.value],selection:e.target.value==="pool"?"random":"fixed"}})}><option value="pool">Easy key pool</option>{keys.map(x=><option key={x}>{x}</option>)}</select></label>{" "}
-   <label>Pitch range <select value={settings.pitchRegister} onChange={e=>updateSettings({...settings,pitchRegister:e.target.value as TrainingRequest["pitchRegister"]})}><option value="rotating">Full range — rotating</option><option value="low">Low (G3–G4)</option><option value="middle">Middle (G4–G5)</option><option value="high">High (G5–G6)</option><option value="custom">Custom</option></select></label>
-   {settings.pitchRegister==="rotating"&&<span>Current register: {registerForSeed(seed)} </span>}
-   {settings.pitchRegister==="custom"&&(["low","high"] as const).map(bound=><label key={bound}>{bound==="low"?"Lowest note":"Highest note"} <select value={settings.rightHand.range[bound]} onChange={e=>{const value=Number(e.target.value);const range={...settings.rightHand.range,[bound]:value};if(bound==="low")range.high=Math.max(value,range.high);else range.low=Math.min(value,range.low);updateSettings({...settings,rightHand:{...settings.rightHand,range}});}}>{Array.from({length:37},(_,i)=>i+55).map(midi=><option key={midi} value={midi}>{Note.fromMidi(midi)}</option>)}</select></label>)}
+   <label>Pitch range <select value={settings.pitchRegister} onChange={e=>updateSettings({...settings,pitchRegister:e.target.value as TrainingRequest["pitchRegister"]})}><option value="rotating">Full range — rotating</option><option value="low">Low (G3–G4)</option><option value="middle">Middle (G4–G5)</option><option value="high">High (G5–G6)</option><option value="custom">Custom</option></select></label>{" "}
+   {settings.pitchRegister==="rotating"&&<span className="register-indicator">Register: <strong>{registerForSeed(seed)}</strong></span>}{" "}
+   {settings.pitchRegister==="custom"&&(["low","high"] as const).map(bound=><label key={bound}>{bound==="low"?"Lowest note":"Highest note"} <select value={settings.rightHand.range[bound]} onChange={e=>{const value=Number(e.target.value);const range={...settings.rightHand.range,[bound]:value};if(bound==="low")range.high=Math.max(value,range.high);else range.low=Math.min(value,range.low);updateSettings({...settings,rightHand:{...settings.rightHand,range}});}}>{Array.from({length:37},(_,i)=>i+55).map(midi=><option key={midi} value={midi}>{Note.fromMidi(midi)}</option>)}</select></label>)}{" "}
    <label>Time signature <select value={`${settings.rhythm.meters[0]!.beats}/${settings.rhythm.meters[0]!.beatUnit}`} onChange={e=>{const [beats,beatUnit]=e.target.value.split("/").map(Number),meter={beats,beatUnit:beatUnit as 4|8},styles=accompanimentStylesForMeter(meter),accompanimentStyle=styles.includes(settings.leftHand.accompanimentStyle)?settings.leftHand.accompanimentStyle:"bassChord",noteValue=beats===3&&settings.rhythm.noteValue==="half"?"quarter":settings.rhythm.noteValue;updateSettings({...settings,rhythm:{...settings.rhythm,...rhythmLegacyValues(noteValue,settings.rhythm.style),noteValue,meters:[meter]},leftHand:{...settings.leftHand,accompanimentStyle,templateId:undefined}});}}><option value="3/4">3/4</option><option value="4/4">4/4</option></select></label>{" "}
    <IntegerInput label="Tempo" value={settings.tempoBpm} min={30} max={240} onCommit={tempoBpm=>updateSettings({...settings,tempoBpm})}/>{" "}
    <label>Note value <select value={settings.rhythm.noteValue} onChange={e=>{const noteValue=e.target.value as TrainingRequest["rhythm"]["noteValue"];updateSettings({...settings,rhythm:{...settings.rhythm,...rhythmLegacyValues(noteValue,settings.rhythm.style),noteValue}});}}>{noteValues.map(option=><option key={option.value} value={option.value} disabled={option.value==="half"&&settings.rhythm.meters[0]!.beats===3}>{option.label}</option>)}</select></label>{" "}

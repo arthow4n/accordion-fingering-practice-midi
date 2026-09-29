@@ -149,4 +149,32 @@ describe("virtualMidiBridge", () => {
     expect(dismissRes.action).toBe("dismissedReview");
     expect(coordinator.status).toBe("ready");
   });
+
+  it("triggers hesitation / waiting state in SightReadingCoordinator", () => {
+    const settings = defaultTrainingRequest();
+    const exercise = generateExercise(settings, 12);
+    const coordinator = new SightReadingCoordinator({
+      exercise,
+      hands: settings.hands,
+      timing: settings.timing,
+      onNextExercise: () => exercise,
+    });
+
+    const target = coordinator.session.expected[0]!;
+    const past = 1000;
+    const res = coordinator.acceptMidi({
+      midiNote: target.pitches[0]!.midi,
+      type: "noteOn",
+      timestampMs: past,
+      velocity: 80,
+      hand: target.hand,
+    });
+    expect(res.action).toBe("started");
+    expect(coordinator.status).toBe("playing");
+    expect(coordinator.session.started).toBe(true);
+
+    // After waiting 5 seconds past late tolerance
+    const later = past + 5000;
+    expect(coordinator.session.isWaiting(later)).toBe(true);
+  });
 });

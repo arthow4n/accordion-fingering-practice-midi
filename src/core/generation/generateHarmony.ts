@@ -14,10 +14,12 @@ export const generateHarmony = (
   rng: Rng,
   legacyTemplateId?: string,
   phraseSections?: PhraseSection[],
-  cadencePlan?: CadencePlan
+  cadencePlan?: CadencePlan,
+  weights?: import("./grammarWeights").GrammarWeights,
+  antiRepetition?: import("./antiRepetition").AntiRepetitionTracker
 ): { events: HarmonyEvent[]; progressionId: string; harmonicRhythmId: string } => {
   const isJumpMode = allowed.some((id) => id.startsWith("jump-"));
-  const defaultCadence = cadencePlan ?? planCadence(context.mode, meter, true, "cadence", rng);
+  const defaultCadence = cadencePlan ?? planCadence(context.mode, meter, true, "cadence", rng, weights, antiRepetition);
   const sections = phraseSections ?? Array.from({ length: measures }, (_, i) => ({
     id: `sec-${i}`,
     label: i === measures - 1 ? "cadence" : "A",
@@ -36,6 +38,8 @@ export const generateHarmony = (
     defaultCadence,
     rng,
     legacyTemplateId,
-    isJumpMode
+    isJumpMode,
+    weights,
+    antiRepetition
   );
 };

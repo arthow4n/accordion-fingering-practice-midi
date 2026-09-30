@@ -1,4 +1,5 @@
 import type { Exercise } from "../model";
+import { ticksPerBeat } from "../music/meter";
 
 export type StructuralSignature = {
   phraseArchetype: string;
@@ -50,8 +51,8 @@ export const computeStructuralSignature = (exercise: Exercise): StructuralSignat
   // Final scale degree and arrival beat
   const finalScaleDegree = lastNote?.metadata.scaleDegree?.degree;
   const lastOnset = lastNote?.onset ?? 0;
-  const ticksPerBeat = 480;
-  const arrivalBeat = Math.floor((lastOnset % (exercise.meter.beats * ticksPerBeat)) / ticksPerBeat) + 1;
+  const beatTicks = ticksPerBeat(exercise.meter);
+  const arrivalBeat = Math.floor((lastOnset % (exercise.meter.beats * beatTicks)) / beatTicks) + 1;
 
   return {
     phraseArchetype,

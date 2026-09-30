@@ -6,6 +6,8 @@ import { PROGRESSIONS } from "../patterns/progressionTemplates";
 import { legacyBassLineById } from "../patterns/accompanimentTemplates";
 import type { CadencePlan } from "./cadenceGrammar";
 import type { PhraseSection } from "../model";
+import { defaultGrammarWeights, type GrammarWeights } from "./grammarWeights";
+import type { AntiRepetitionTracker } from "./antiRepetition";
 
 export type FunctionalRegion = "T" | "TE" | "PD" | "D" | "R";
 
@@ -104,7 +106,9 @@ export const generateHarmonyWithGrammar = (
   cadencePlan: CadencePlan,
   rng: Rng,
   legacyTemplateId?: string,
-  jumpMode = false
+  jumpMode = false,
+  weights: GrammarWeights = defaultGrammarWeights,
+  antiRepetition?: AntiRepetitionTracker
 ): { events: HarmonyEvent[]; progressionId: string; harmonicRhythmId: string } => {
   const duration = ticksPerMeasure(meter);
 
@@ -170,16 +174,17 @@ export const generateHarmonyWithGrammar = (
   const allowVariable = chordVocabulary.length >= 2 && meter.beats === 4;
 
   if (allowVariable && measures >= 4) {
-    const roll = rng.next();
-    if (roll < 0.60) {
-      harmonicRhythmId = "onePerMeasure";
-    } else if (roll < 0.85) {
-      harmonicRhythmId = "lateDominant";
-    } else if (roll < 0.95) {
-      harmonicRhythmId = "changeOnBeat3";
-    } else {
-      harmonicRhythmId = "twoPerMeasure";
-    }
+    const hrOptions: { id: HarmonicRhythmPattern; baseWeight: number }[] = [
+      { id: "onePerMeasure", baseWeight: 0.60 },
+      { id: "lateDominant", baseWeight: 0.25 },
+      { id: "changeOnBeat3", baseWeight: 0.10 },
+      { id: "twoPerMeasure", baseWeight: 0.05 },
+    ];
+    const weightedHr = hrOptions.map((opt) => ({
+      value: opt.id,
+      weight: opt.baseWeight * (antiRepetition ? antiRepetition.getHarmonicRhythmPenalty(opt.id) : 1.0),
+    })).filter((o) => o.weight > 0);
+    harmonicRhythmId = weightedHr.length ? rng.weightedPick(weightedHr) : "onePerMeasure";
   }
 
   // Build functional path across measures
@@ -199,38 +204,21 @@ export const generateHarmonyWithGrammar = (
     } else if (section?.role === "climax") {
       currentFn = rng.next() < 0.7 ? "D" : "PD";
     } else {
-      switch (currentFn) {
-        case "T":
-          currentFn = rng.weightedPick([
-            { value: "T" as const, weight: 1.0 },
-            { value: "TE" as const, weight: 1.5 },
-            { value: "PD" as const, weight: 2.0 },
-            { value: "D" as const, weight: 1.2 },
-          ]);
-          break;
-        case "TE":
-          currentFn = rng.weightedPick([
-            { value: "PD" as const, weight: 2.5 },
-            { value: "D" as const, weight: 1.8 },
-            { value: "T" as const, weight: 0.8 },
-          ]);
-          break;
-        case "PD":
-          currentFn = rng.weightedPick([
-            { value: "D" as const, weight: 3.5 },
-            { value: "PD" as const, weight: 0.8 },
-          ]);
-          break;
-        case "D":
-          currentFn = rng.weightedPick([
-            { value: "T" as const, weight: 3.0 },
-            { value: "TE" as const, weight: 0.5 },
-          ]);
-          break;
-        case "R":
-          currentFn = "T";
-          break;
-      }
+      const candidates: ("T" | "TE" | "PD" | "D" | "R")[] = ["T", "TE", "PD", "D", "R"];
+      const weightedCandidates = candidates.map((candidate) => ({
+        value: candidate,
+        weight: weights.harmonicTransitionWeight(
+          {
+            previousFunction: currentFn,
+            phraseRole: section?.role ?? "continuation",
+            measureIndex: m,
+            totalMeasures: measures,
+            mode: context.mode,
+          },
+          candidate
+        ),
+      })).filter((c) => c.weight > 0);
+      currentFn = weightedCandidates.length ? rng.weightedPick(weightedCandidates) : "T";
     }
     functions.push(currentFn);
   }
@@ -245,7 +233,7 @@ export const generateHarmonyWithGrammar = (
     const isPenultimate = m === measures - 2;
 
     if (isLast) {
-      if (harmonicRhythmId === "lateDominant" || harmonicRhythmId === "changeOnBeat3" || harmonicRhythmId === "twoPerMeasure") {
+      if (harmonicRhythmId === "changeOnBeat3" || harmonicRhythmId === "twoPerMeasure") {
         const splitTick = Math.floor(duration / 2);
         events.push({
           id: `harmony-${eventIdx++}`,

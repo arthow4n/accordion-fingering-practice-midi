@@ -185,7 +185,8 @@ export const generateMeasureRhythm = (
     const roll = rng.next();
     if (roll < 0.35 && minDuration <= 480) {
       // 2-beat + 1-beat
-      const cell2 = rng.pick(TWO_BEAT_CELLS.filter((c) => c.atoms.every((a) => a.duration >= minDuration)) || [{ duration: 960, atoms: [{ duration: 960 }] }]);
+      const valid2 = TWO_BEAT_CELLS.filter((c) => c.atoms.every((a) => a.duration >= minDuration));
+      const cell2 = rng.pick(valid2.length ? valid2 : TWO_BEAT_CELLS.slice(0, 1));
       const cell1 = rng.pick(pool1);
       return { atoms: [...cell2.atoms, ...cell1.atoms], rhythmCellId: `${cell2.id}+${cell1.id}` };
     } else {

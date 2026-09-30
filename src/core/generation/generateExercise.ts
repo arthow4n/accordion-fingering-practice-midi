@@ -61,8 +61,8 @@ export const generateExercise = (
     const meter = rng.pick(request.rhythm.meters);
 
     // Generation Hierarchy
-    const phrasePlanResult = generatePhrasePlanWithGrammar(request.measures, rng, undefined, antiRepetition);
-    const cadencePlan = planCadence(context.mode, meter, true, "cadence", rng);
+    const phrasePlanResult = generatePhrasePlanWithGrammar(request.measures, rng, undefined, antiRepetition, context.mode);
+    const cadencePlan = planCadence(context.mode, meter, true, "cadence", rng, undefined, antiRepetition);
     const harmonyResult = generateHarmony(
       context,
       meter,
@@ -72,7 +72,9 @@ export const generateExercise = (
       rng,
       request.leftHand.templateId,
       phrasePlanResult.sections,
-      cadencePlan
+      cadencePlan,
+      undefined,
+      antiRepetition
     );
     const anchors = planMelodicAnchors(
       context,

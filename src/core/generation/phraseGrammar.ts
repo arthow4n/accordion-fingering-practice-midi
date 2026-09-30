@@ -375,7 +375,8 @@ export const generatePhrasePlanWithGrammar = (
   measures: number,
   rng: Rng,
   weights: GrammarWeights = defaultGrammarWeights,
-  antiRepetition?: AntiRepetitionTracker
+  antiRepetition?: AntiRepetitionTracker,
+  mode: import("../model").Mode = "major"
 ): PhrasePlanResult => {
   // Diffuse PRNG state so low integer seeds explore all archetypes uniformly
   rng.next();
@@ -388,7 +389,7 @@ export const generatePhrasePlanWithGrammar = (
   if (compatible.length > 0) {
     const candidates = compatible.map((arch) => ({
       value: arch,
-      weight: weights.phraseArchetypeWeight({ measures, phraseIndex: 0, totalPhrases: 1, mode: "major" }, arch.id) *
+      weight: weights.phraseArchetypeWeight({ measures, phraseIndex: 0, totalPhrases: 1, mode }, arch.id) *
         (antiRepetition ? antiRepetition.getArchetypePenalty(arch.id) : 1.0),
     }));
     archetypeResult = rng.weightedPick(candidates).build(measures, rng);

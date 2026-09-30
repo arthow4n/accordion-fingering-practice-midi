@@ -372,6 +372,7 @@ export const generateMelody = (
   const events: ExerciseEvent[] = [];
 
   let previousPitch: Pitch | undefined;
+  let previousDegree: ScaleDegree | undefined;
   let accidentalsRemaining = request.rightHand.maxAccidentalsPerExercise;
   let consecutiveUnisons = 0;
   let tieIntoNext = false;
@@ -425,9 +426,17 @@ export const generateMelody = (
       const arrivalDegreeNum = cadencePlan.arrivalDegree;
       const targetStep = (targetArrivalTone.degree.degree - 1) + (targetArrivalTone.degree.octaveOffset * 7);
 
+      let arrivalIndex = count - 1;
+      if (cadencePlan.arrivalMetric === "beat1Sustain") {
+        arrivalIndex = 0;
+      } else if (cadencePlan.arrivalMetric === "beat3Arrival" && count >= 3) {
+        arrivalIndex = Math.floor(count / 2);
+      } else if (cadencePlan.arrivalMetric === "earlyWithRepetition" && count >= 2) {
+        arrivalIndex = Math.max(0, count - 2);
+      }
+
       measureNotes = measureRhythm.atoms.map((_, idx) => {
-        const isFinalNote = idx === count - 1;
-        if (isFinalNote) {
+        if (idx >= arrivalIndex) {
           return {
             degree: targetArrivalTone.degree,
             pitch: targetArrivalTone.pitch,
@@ -435,8 +444,8 @@ export const generateMelody = (
             chromatic: false,
           };
         }
-        const distFromEnd = count - 1 - idx;
-        const degreeOffset = shape.degrees[Math.max(0, shape.degrees.length - 1 - distFromEnd)] ?? (arrivalDegreeNum + distFromEnd);
+        const distFromArrival = arrivalIndex - idx;
+        const degreeOffset = shape.degrees[Math.max(0, shape.degrees.length - 1 - distFromArrival)] ?? (arrivalDegreeNum + distFromArrival);
         const relStep = targetStep + (degreeOffset - arrivalDegreeNum);
         const realized = realizeDiatonicStep(context, relStep, startHarmony);
         return {
@@ -457,13 +466,14 @@ export const generateMelody = (
       );
       measureNotes = transformed.notes;
       activeGestureType = transformed.gestureType;
-      if (!isSteady && transformed.rhythm.length === measureRhythm.atoms.length) {
+      const transformedDur = transformed.rhythm.reduce((s, a) => s + a.duration, 0);
+      if (!isSteady && transformedDur === measureTicks && transformed.rhythm.length > 0) {
         measureRhythm = { atoms: transformed.rhythm, rhythmCellId: `trans-${section.transformation}` };
       }
     } else {
       const count = measureRhythm.atoms.length;
       const startPitch = previousPitch ?? measureAnchor.pitch;
-      const startDegree = measureAnchor.degree;
+      const startDegree = (previousPitch && previousDegree) ? previousDegree : measureAnchor.degree;
 
       const generated = generateMelodicGesture(
         context,
@@ -537,7 +547,7 @@ export const generateMelody = (
       }
 
       // In minor key dominant V, ensure scale degree 7 has leading tone alteration
-      if (context.mode === "minor" && activeHarmonyForEvent.rootDegree.degree === 5 && degree.degree === 7) {
+      if (context.mode === "minor" && activeHarmonyForEvent.rootDegree.degree === 5 && degree.degree === 7 && degree.alteration !== 1) {
         degree.alteration = 1;
         pitch = pitchFromMidi(pitch.midi + 1, false);
       }
@@ -569,7 +579,7 @@ export const generateMelody = (
           consecutiveUnisons = 0;
         }
 
-        const maxUnisons = request.emphasis === "rhythm" ? 3 : 2;
+        const maxUnisons = (request.emphasis === "rhythm" || activeGestureType === "repeatNote") ? 3 : 2;
         if (consecutiveUnisons >= maxUnisons) {
           const chordTones = findChordTonesInRange(context, activeHarmonyForEvent, request.rightHand.range)
             .filter((ct) => ct.pitch.midi !== pitch.midi);
@@ -646,6 +656,7 @@ export const generateMelody = (
 
       if (!tieFromPrevious) {
         previousPitch = pitch;
+        previousDegree = { ...degree };
         if (chromatic) accidentalsRemaining--;
       }
 

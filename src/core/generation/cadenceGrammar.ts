@@ -1,5 +1,7 @@
 import type { CadenceType, ChordQuality, Meter, Mode, PhraseRole } from "../model";
 import type { Rng } from "../random/rng";
+import { defaultGrammarWeights, type GrammarWeights } from "./grammarWeights";
+import type { AntiRepetitionTracker } from "./antiRepetition";
 
 export type MelodicApproachDirection = "descending" | "ascending" | "leapAndStep" | "neighbor" | "direct";
 
@@ -41,9 +43,9 @@ export const MELODIC_CADENCE_SHAPES: MelodicCadenceShape[] = [
   { id: "triad-fall-5-3-1", degrees: [5, 3, 1], arrivalDegree: 1, direction: "descending", suitableTypes: ["strongTonic", "weakTonic"] },
 
   // Tonic closures ending on 3 (imperfect tonic closure)
-  { id: "step-down-5-4-3", degrees: [5, 4, 3], arrivalDegree: 3, direction: "descending", suitableTypes: ["strongTonic", "weakTonic", "plagal"] },
-  { id: "step-down-4-3", degrees: [4, 3], arrivalDegree: 3, direction: "descending", suitableTypes: ["strongTonic", "weakTonic", "plagal"] },
-  { id: "step-up-2-3", degrees: [2, 3], arrivalDegree: 3, direction: "ascending", suitableTypes: ["weakTonic", "strongTonic"] },
+  { id: "step-down-5-4-3", degrees: [5, 4, 3], arrivalDegree: 3, direction: "descending", suitableTypes: ["weakTonic", "plagal"] },
+  { id: "step-down-4-3", degrees: [4, 3], arrivalDegree: 3, direction: "descending", suitableTypes: ["weakTonic", "plagal"] },
+  { id: "step-up-2-3", degrees: [2, 3], arrivalDegree: 3, direction: "ascending", suitableTypes: ["weakTonic"] },
 
   // Tonic closures ending on 5 (open/fifth tonic closure)
   { id: "step-up-3-4-5", degrees: [3, 4, 5], arrivalDegree: 5, direction: "ascending", suitableTypes: ["weakTonic", "plagal"] },
@@ -71,36 +73,25 @@ export const planCadence = (
   meter: Meter,
   isFinalPhrase: boolean,
   role: PhraseRole,
-  rng: Rng
+  rng: Rng,
+  weights: GrammarWeights = defaultGrammarWeights,
+  antiRepetition?: AntiRepetitionTracker
 ): CadencePlan => {
-  let cadenceType: CadenceType;
+  const candidateTypes: CadenceType[] = isFinalPhrase
+    ? ["strongTonic", "weakTonic", "plagal", "deceptive"]
+    : (role === "cadentialPreparation" || role === "statement" || role === "opening")
+    ? ["half", "open", "weakTonic", "deceptive"]
+    : ["half", "weakTonic"];
 
-  if (isFinalPhrase) {
-    const roll = rng.next();
-    if (roll < 0.60) {
-      cadenceType = "strongTonic";
-    } else if (roll < 0.85) {
-      cadenceType = "weakTonic";
-    } else {
-      cadenceType = "plagal";
-    }
-  } else {
-    // Internal cadence (e.g. antecedent or continuation)
-    if (role === "cadentialPreparation" || role === "statement" || role === "opening") {
-      const roll = rng.next();
-      if (roll < 0.55) {
-        cadenceType = "half";
-      } else if (roll < 0.80) {
-        cadenceType = "open";
-      } else if (roll < 0.92) {
-        cadenceType = "weakTonic";
-      } else {
-        cadenceType = "deceptive";
-      }
-    } else {
-      cadenceType = rng.next() < 0.6 ? "half" : "weakTonic";
-    }
-  }
+  const weightedTypes = candidateTypes.map((cType) => ({
+    value: cType,
+    weight: weights.cadenceWeight({ phraseRole: role, isFinalPhrase, meter, mode }, cType) *
+      (antiRepetition ? antiRepetition.getCadencePenalty(cType, cType === "half" ? 2 : 1, "") : 1.0),
+  })).filter((c) => c.weight > 0);
+
+  const cadenceType: CadenceType = weightedTypes.length
+    ? rng.weightedPick(weightedTypes)
+    : (isFinalPhrase ? "strongTonic" : "half");
 
   // Harmonic realization
   let penultimateDegree: 1 | 2 | 3 | 4 | 5 | 6 | 7 = 5;
@@ -171,7 +162,11 @@ export const planCadence = (
 
   // Melodic cadence shapes compatible with cadenceType
   const compatibleShapes = MELODIC_CADENCE_SHAPES.filter((s) => s.suitableTypes.includes(cadenceType));
-  const melodicShape = compatibleShapes.length > 0 ? rng.pick(compatibleShapes) : MELODIC_CADENCE_SHAPES[0]!;
+  const weightedShapes = compatibleShapes.map((shape) => ({
+    value: shape,
+    weight: antiRepetition ? antiRepetition.getCadencePenalty(cadenceType, shape.arrivalDegree, shape.id) : 1.0,
+  })).filter((c) => c.weight > 0);
+  const melodicShape = weightedShapes.length ? rng.weightedPick(weightedShapes) : MELODIC_CADENCE_SHAPES[0]!;
 
   // Metric arrival choice
   let arrivalMetric: CadenceMetricArrival;

@@ -40,8 +40,8 @@ export const applyMotifTransformation = (
   range: PitchRange,
   rng: Rng
 ): { notes: GeneratedPatternNote[]; rhythm: RhythmAtom[]; gestureType: MelodicGestureType } => {
-  let notes = [...base.notes];
-  let rhythm = [...base.rhythm];
+  let notes = base.notes.map((n) => ({ ...n, degree: { ...n.degree }, pitch: { ...n.pitch } }));
+  let rhythm = base.rhythm.map((a) => ({ ...a }));
   let gestureType: MelodicGestureType = base.gestures[0]?.type ?? "stepUpward";
 
   switch (transformation) {

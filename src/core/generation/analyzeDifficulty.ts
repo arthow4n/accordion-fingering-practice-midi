@@ -1,4 +1,5 @@
 import type { DifficultyVector, Exercise, ExerciseEvent } from "../model";
+import { ticksPerBeat, ticksPerMeasure } from "../music/meter";
 import { MELODIC_PATTERNS } from "../patterns/melodicPatterns";
 import { RHYTHM_CELLS } from "../patterns/rhythmCells";
 
@@ -14,7 +15,8 @@ export const analyzeDifficulty = (exercise: Omit<Exercise, "difficulty">): Diffi
   const all = [...exercise.rightHand, ...exercise.leftHand];
   const soundingNotes = all.filter((e) => e.pitches.length);
   const rhSounding = exercise.rightHand.filter((e) => e.pitches.length);
-  const phraseCount = Math.max(1, exercise.phrase?.length || Math.round(exercise.totalDuration / 1920));
+  const measureTicks = ticksPerMeasure(exercise.meter);
+  const phraseCount = Math.max(1, exercise.phrase?.length || Math.round(exercise.totalDuration / measureTicks));
 
   // 1. Observable interval & pattern analysis
   const intervals = rhSounding.slice(1).map((e, i) => Math.abs(e.pitches[0]!.midi - rhSounding[i]!.pitches[0]!.midi));
@@ -68,7 +70,8 @@ export const analyzeDifficulty = (exercise: Omit<Exercise, "difficulty">): Diffi
   const tonal = clamp(keyComplexity + chromaticRatio);
 
   // Density & harmony
-  const totalBeats = Math.max(1, exercise.totalDuration / 480);
+  const beatTicks = ticksPerBeat(exercise.meter);
+  const totalBeats = Math.max(1, exercise.totalDuration / beatTicks);
   const density = clamp(soundingNotes.length / totalBeats);
   const qualityCount = new Set(exercise.harmony.map((h) => h.quality)).size;
   const harmonyRate = exercise.harmony.length / phraseCount;

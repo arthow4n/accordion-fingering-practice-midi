@@ -1,7 +1,6 @@
 import type { DifficultyVector, HarmonyEvent, NoteRole, Pitch, PitchRange, PhraseRole, ScaleDegree, TonalContext } from "../model";
 import type { Rng } from "../random/rng";
 import { findChordTonesInRange, realizeDiatonicStep, type GeneratedPatternNote } from "../patterns/melodicPatterns";
-import { pitchFromMidi } from "../music/pitch";
 
 export type MelodicGestureType =
   | "stepUpward"
@@ -77,12 +76,22 @@ export const generateMelodicGesture = (
   const baseStep = (fromDegree.degree - 1) + (fromDegree.octaveOffset * 7);
 
   const makeNote = (step: number, role: NoteRole, alteration = 0): GeneratedPatternNote => {
-    const realized = realizeDiatonicStep(context, step, harmony, alteration);
-    const clampedMidi = Math.max(range.low, Math.min(range.high, realized.pitch.midi));
-    const pitch = clampedMidi !== realized.pitch.midi ? pitchFromMidi(clampedMidi, context.tonic.includes("b")) : realized.pitch;
+    let activeStep = step;
+    let realized = realizeDiatonicStep(context, activeStep, harmony, alteration);
+    if (realized.pitch.midi > range.high) {
+      while (realized.pitch.midi > range.high && activeStep > -50) {
+        activeStep -= 7;
+        realized = realizeDiatonicStep(context, activeStep, harmony, alteration);
+      }
+    } else if (realized.pitch.midi < range.low) {
+      while (realized.pitch.midi < range.low && activeStep < 150) {
+        activeStep += 7;
+        realized = realizeDiatonicStep(context, activeStep, harmony, alteration);
+      }
+    }
     return {
       degree: realized.degree,
-      pitch,
+      pitch: realized.pitch,
       role,
       chromatic: alteration !== 0,
       chromaticRole: alteration !== 0 ? "accidental" : undefined,

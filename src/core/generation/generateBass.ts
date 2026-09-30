@@ -24,6 +24,12 @@ export const generateBass=(context:TonalContext,meter:Meter,harmony:HarmonyEvent
    const root=realizeScaleDegree(context,{...h.rootDegree,octaveOffset:-1},3);const rootClass=Note.pitchClass(root.name);const harmonyButton=findStradellaButton(rootClass,chordRow(h.quality));const chord=buttonPitches(harmonyButton,[]);
    const action={...templateAtom.action};
    if(realizedTemplateId==="legacy-polka-3"&&measureIndex%2===1&&action.kind!=="chord")action.bassRelation="fifth";
+   const onsetInMeasure = onset % measure;
+   if(onsetInMeasure > 0 && !bassLine && action.kind !== "chord"){
+     const prevBeatOnset=onset-(measure/meter.beats);
+     const prevBeatHarmony=harmony.find(ev=>ev.onset<=prevBeatOnset&&prevBeatOnset<ev.onset+ev.duration);
+     if(prevBeatHarmony&&prevBeatHarmony.id!==h.id){action.bassRelation="root";}
+   }
    const relation=action.bassRelation??"root";const targetBass=bassPitch(root,relation,context.tonic.includes("b"));const row=(action.buttonRow??"fundamental") as Extract<StradellaRow,"counterbass"|"fundamental">;const bassButton=findStradellaBassButton(Note.pitchClass(targetBass.name),row);const bass=buttonPitches(bassButton,[targetBass]);const pitches=action.kind==="chord"?chord:action.kind==="bassChord"?uniquePitches([...bass,...chord]):bass;
    const activeButton=action.kind==="chord"?harmonyButton:bassButton;const distance=previousButton&&activeButton?stradellaMovementCost(previousButton.root,activeButton.root,previousButton.row,activeButton.row):0;if(activeButton)previousButton=activeButton;
    const label=action.kind==="bassChord"?`${bassButton?.label??Note.pitchClass(targetBass.name)} bass + ${harmonyButton?.label??h.symbol} chord`:activeButton?`${activeButton.label} ${activeButton.row}`:`${h.symbol} ${action.kind}`;

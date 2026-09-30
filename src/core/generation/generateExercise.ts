@@ -4,7 +4,9 @@ import { accordionProfile } from "../instrument/accordionProfile";
 import { createRng } from "../random/rng";
 import { parseTrainingRequest, type TrainingRequest } from "../training/trainingIntent";
 import { ticksPerMeasure } from "../music/meter";
-import { generatePhrasePlan } from "./generateCompositionPlan";
+import { generatePhrasePlanWithGrammar } from "./phraseGrammar";
+import { planCadence } from "./cadenceGrammar";
+import { planMelodicAnchors } from "./melodicAnchors";
 import { generateHarmony } from "./generateHarmony";
 import { generateMelody } from "./generateMelody";
 import { generateBass } from "./generateBass";
@@ -14,6 +16,7 @@ import { legacyBassLineById } from "../patterns/accompanimentTemplates";
 import { manualConstraintViolations } from "./manualConstraints";
 import { pitchWindow } from "./pitchRegister";
 import { applyProgressiveStudy, studyStepForSeed } from "./progressiveStudy";
+import { computeStructuralSignature } from "./structuralSignature";
 
 const parseKey = (name: string): TonalContext => {
   const match = name.match(/^(.+?)\s+(major|minor)$/);
@@ -29,7 +32,8 @@ const leftJumpProgression = (request: TrainingRequest) =>
 export const generateExercise = (
   raw: TrainingRequest,
   seed = raw.seed ?? Date.now(),
-  instrument: InstrumentProfile = accordionProfile
+  instrument: InstrumentProfile = accordionProfile,
+  antiRepetition?: import("./antiRepetition").AntiRepetitionTracker
 ): Exercise => {
   const parsed = parseTrainingRequest(raw);
   const legacy = legacyBassLineById(parsed.leftHand.templateId);
@@ -52,10 +56,13 @@ export const generateExercise = (
   const studyInfo = studyStepForSeed(seed, parsed.emphasis);
   for (let attempt = 1; attempt <= 32; attempt++) {
     const keyCandidates = attempt <= 20 ? [request.tonal.keys[0]!] : request.tonal.keys;
-    const progressionCandidates = attempt <= 20 ? [leftJumpProgression(request)[0]!] : leftJumpProgression(request);
+    const progressionCandidates = leftJumpProgression(request);
     const context = parseKey(rng.pick(keyCandidates));
     const meter = rng.pick(request.rhythm.meters);
-    const phrase = generatePhrasePlan(request.measures, rng);
+
+    // Generation Hierarchy
+    const phrasePlanResult = generatePhrasePlanWithGrammar(request.measures, rng, undefined, antiRepetition);
+    const cadencePlan = planCadence(context.mode, meter, true, "cadence", rng);
     const harmonyResult = generateHarmony(
       context,
       meter,
@@ -63,18 +70,47 @@ export const generateExercise = (
       progressionCandidates,
       request.harmony.chordVocabulary,
       rng,
-      request.leftHand.templateId
+      request.leftHand.templateId,
+      phrasePlanResult.sections,
+      cadencePlan
+    );
+    const anchors = planMelodicAnchors(
+      context,
+      meter,
+      harmonyResult.events,
+      phrasePlanResult.contourPoints,
+      request.rightHand.range,
+      cadencePlan,
+      rng
     );
 
     const base = {
       seed,
+      source: {
+        type: "generated" as const,
+        seed,
+        generatorVersion: "4",
+      },
       tonalContext: context,
       meter,
       tempoBpm: request.tempoBpm,
       totalDuration: ticksPerMeasure(meter) * request.measures,
       harmony: harmonyResult.events,
-      phrase,
-      rightHand: generateMelody(context, meter, harmonyResult.events, phrase, request, rng),
+      phrase: phrasePlanResult.sections,
+      rightHand: generateMelody(
+        context,
+        meter,
+        harmonyResult.events,
+        phrasePlanResult.sections,
+        request,
+        rng,
+        {
+          phrasePlan: phrasePlanResult,
+          cadencePlan,
+          anchors,
+          harmonicRhythmId: harmonyResult.harmonicRhythmId,
+        }
+      ),
       leftHand: generateBass(context, meter, harmonyResult.events, request),
       metadata: {
         emphasis: request.emphasis,
@@ -93,6 +129,7 @@ export const generateExercise = (
     lastRejection = [...validation.errors, ...manualViolations];
 
     if (validation.valid && !manualViolations.length) {
+      antiRepetition?.record(computeStructuralSignature(exercise));
       return exercise;
     }
   }

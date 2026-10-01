@@ -74,6 +74,8 @@ export class PracticeSession {
     const isPaused = this.timing.followAfterPause && (waiting || event.timestampMs - this.lastProgressMs > pauseThreshold);
 
     let didResume = false;
+    let didRestart = false;
+    let resume: TimedExpectedEvent | undefined;
 
     if (this.startMs === undefined) {
       // The triggering attack represents the first sounding onset, including a
@@ -87,8 +89,8 @@ export class PracticeSession {
       const isInitialAttack = initialTargets.some(e => (!event.hand || e.hand === event.hand) && e.pitches.some(p => pitchMatches(e, p.midi, event.midiNote)));
 
       const pending = this.pending();
-      const nextOnsets = [...new Set(pending.map(e => e.onset))].slice(0, 4);
-      const resume = pending.find(e => nextOnsets.includes(e.onset) && (!event.hand || e.hand === event.hand) && e.pitches.some(p => pitchMatches(e, p.midi, event.midiNote)));
+      const currentPendingOnset = pending[0]?.onset;
+      resume = pending.find(e => e.onset === currentPendingOnset && (!event.hand || e.hand === event.hand) && e.pitches.some(p => pitchMatches(e, p.midi, event.midiNote)));
 
       // If the user plays the first sounding note of the exercise while paused after already advancing, restart from onset 0.
       if (this.frontier >= initialOnset && isInitialAttack && (!resume || resume.onset !== initialOnset)) {
@@ -104,6 +106,7 @@ export class PracticeSession {
         this.hesitationMs = 0;
         this.recoveryCount = 0;
         didResume = true;
+        didRestart = true;
       } else if (resume) {
         if (event.timestampMs > resume.expectedMs + this.options.lateToleranceMs) {
           const delay = event.timestampMs - resume.expectedMs;
@@ -119,11 +122,17 @@ export class PracticeSession {
     this.performed.push(event);
     // Advance the recovery frontier only after a complete, pitch-correct attack.
     // Suppress phantom matches against future un-shifted targets when paused without a valid resume.
+    // When resuming from a pause, only match targets at the resumed onset and do not retroactively match future targets with pre-resume notes.
     const horizon = this.options.earlyToleranceMs + this.options.lateToleranceMs + this.options.simultaneityWindowMs;
-    const recent = this.performed.filter(e => e.type === "noteOn" && e.timestampMs >= event.timestampMs - horizon);
+    const resumeOnset = didRestart ? this.expected[0]!.onset : resume?.onset;
+    const recent = isPaused && didResume
+      ? this.performed.filter(e => e.type === "noteOn" && e.timestampMs >= event.timestampMs - this.options.simultaneityWindowMs)
+      : this.performed.filter(e => e.type === "noteOn" && e.timestampMs >= event.timestampMs - horizon);
     const nearby = (isPaused && !didResume)
       ? []
-      : this.expected.filter(e => e.expectedMs >= event.timestampMs - horizon - this.options.lateToleranceMs && e.expectedMs <= event.timestampMs + this.options.earlyToleranceMs);
+      : isPaused && didResume && resumeOnset !== undefined
+        ? this.expected.filter(e => e.onset === resumeOnset)
+        : this.expected.filter(e => e.expectedMs >= event.timestampMs - horizon - this.options.lateToleranceMs && e.expectedMs <= event.timestampMs + this.options.earlyToleranceMs);
     for (const match of matchEvents(nearby, recent, this.options)) {
       if (match.expected && ["correct", "early", "late"].includes(match.classification)) {
         this.lastProgressMs = Math.max(this.lastProgressMs,...match.performed.map(note=>note.timestampMs));

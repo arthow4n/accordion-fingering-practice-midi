@@ -169,4 +169,48 @@ describe("pause / resume / restart edge cases", () => {
     expect(coordinator.status).toBe("playing");
     expect(coordinator.session.started).toBe(true);
   });
+
+  it("case 7: does not jump several steps ahead when pushing a future key while paused at note 2", () => {
+    // Arpeggio: Am (A4, E5, C5, E5, A4, C5)
+    // Onsets: 0 (69), 240 (76), 480 (72), 720 (76), 960 (69), 1200 (72)
+    const ex = {
+      ...generateExercise(defaultTrainingRequest(), 0),
+      tempoBpm: 72,
+      totalDuration: 1920,
+      rightHand: [
+        { id: "rh-1", onset: 0, duration: 240, pitches: [{ midi: 69, name: "A4" }], hand: "right" as const, metadata: { challengeTags: [] } },
+        { id: "rh-2", onset: 240, duration: 240, pitches: [{ midi: 76, name: "E5" }], hand: "right" as const, metadata: { challengeTags: [] } },
+        { id: "rh-3", onset: 480, duration: 240, pitches: [{ midi: 72, name: "C5" }], hand: "right" as const, metadata: { challengeTags: [] } },
+        { id: "rh-4", onset: 720, duration: 240, pitches: [{ midi: 76, name: "E5" }], hand: "right" as const, metadata: { challengeTags: [] } },
+        { id: "rh-5", onset: 960, duration: 240, pitches: [{ midi: 69, name: "A4" }], hand: "right" as const, metadata: { challengeTags: [] } },
+        { id: "rh-6", onset: 1200, duration: 240, pitches: [{ midi: 72, name: "C5" }], hand: "right" as const, metadata: { challengeTags: [] } },
+      ],
+      leftHand: [],
+    };
+    const session = new PracticeSession(ex, "right", "sightReading", defaultTimingSettings());
+
+    // Play note 1 at 1000ms
+    session.accept(midi(69, 1000));
+    expect(session.completedIds.has("rh-1")).toBe(true);
+
+    // Pause on note 2 (onset 240, pitch 76)
+    expect(session.isWaiting(4000)).toBe(true);
+
+    // User pushes pitch 72 (C5, which is note 3 at onset 480) at 4500ms
+    session.accept(midi(72, 4500));
+
+    // It must NOT jump ahead to note 3! Note 2 must still be pending.
+    expect(session.completedIds.has("rh-3")).toBe(false);
+    expect(session.completedIds.has("rh-2")).toBe(false);
+    expect(session.isWaiting(4500)).toBe(true);
+
+    // Now user plays the correct note 2 (pitch 76, E5) at 4700ms
+    session.accept(midi(76, 4700));
+
+    // It resumes cleanly AT NOTE 2 (the right place) without skipping ahead
+    expect(session.completedIds.has("rh-2")).toBe(true);
+    expect(session.completedIds.has("rh-3")).toBe(false);
+    expect(session.isWaiting(4700)).toBe(false);
+    expect(session.currentExpected("right")?.id).toBe("rh-3");
+  });
 });

@@ -92,8 +92,9 @@ export class SightReadingCoordinator {
       this.session.accept(event);
       if (this.session.started) {
         this.status = "playing";
+        return { action: "started" };
       }
-      return { action: "started" };
+      return { action: "consumed" };
     }
 
     // status === "playing"

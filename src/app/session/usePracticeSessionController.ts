@@ -53,7 +53,7 @@ const sequentialSeeds = (first: number) =>
   Array.from({ length: 8 }, (_, i) => first + i);
 
 export function usePracticeSessionController() {
-  const frameRef = useRef<number>();
+  const frameRef = useRef<number | undefined>(undefined);
   const midiListenerRef = useRef<MidiListener>(() => {});
 
   const [initial] = useState(() => {
@@ -365,6 +365,13 @@ export function usePracticeSessionController() {
             frameRef.current = requestAnimationFrame(tick);
           };
           frameRef.current = requestAnimationFrame(tick);
+          return;
+        }
+        if (res.action === "played") {
+          const session = coordinator.session;
+          const now = performance.now();
+          setPositionMs(session.positionMs(now));
+          setWaiting(session.isWaiting(now));
           return;
         }
         return;

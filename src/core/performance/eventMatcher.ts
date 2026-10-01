@@ -34,6 +34,16 @@ export const matchEvents = (expected: TimedExpectedEvent[], performed: Performed
     const group = assigned[ti]!;
     const times = [...group, ni].map(i => notes[i]!.timestampMs);
     if (Math.max(...times) - Math.min(...times) > options.simultaneityWindowMs) continue;
+    const target = expected[ti]!;
+    const noteTime = notes[ni]!.timestampMs;
+    const crosses = expected.some((other, oi) => {
+      if (oi === ti || !assigned[oi]!.length || (other.hand && target.hand && other.hand !== target.hand)) return false;
+      const otherTimes = assigned[oi]!.map(i => notes[i]!.timestampMs);
+      if (other.expectedMs < target.expectedMs) return noteTime < Math.min(...otherTimes);
+      if (other.expectedMs > target.expectedMs) return noteTime > Math.max(...otherTimes);
+      return false;
+    });
+    if (crosses) continue;
     group.push(ni); covered[ti]!.add(pi); used.add(ni);
   }
   // Fold redundant octave/register voices of the same left-hand button into its
@@ -47,11 +57,22 @@ export const matchEvents = (expected: TimedExpectedEvent[], performed: Performed
       }
     });
   });
-  // Only unmatched notes may be assigned as wrong pitches, again by proximity.
+  // Only unmatched notes may be assigned as wrong pitches, in chronological priority.
   const wrongEdges = expected.flatMap((target, ti) => assigned[ti]!.length ? [] : notes.flatMap((note, ni) =>
     !used.has(ni) && eligible(target, note) ? [{ ti, ni, distance: Math.abs(note.timestampMs - target.expectedMs) }] : []));
-  wrongEdges.sort((a, b) => a.distance - b.distance || a.ti - b.ti);
-  for (const { ti, ni } of wrongEdges) if (!used.has(ni) && !assigned[ti]!.length) {
+  wrongEdges.sort((a, b) => a.ti - b.ti || a.distance - b.distance);
+  for (const { ti, ni } of wrongEdges) {
+    if (used.has(ni) || assigned[ti]!.length) continue;
+    const target = expected[ti]!;
+    const noteTime = notes[ni]!.timestampMs;
+    const crosses = expected.some((other, oi) => {
+      if (oi === ti || !assigned[oi]!.length || (other.hand && target.hand && other.hand !== target.hand)) return false;
+      const otherTimes = assigned[oi]!.map(i => notes[i]!.timestampMs);
+      if (other.expectedMs < target.expectedMs) return noteTime < Math.min(...otherTimes);
+      if (other.expectedMs > target.expectedMs) return noteTime > Math.max(...otherTimes);
+      return false;
+    });
+    if (crosses) continue;
     assigned[ti]!.push(ni); used.add(ni);
   }
 

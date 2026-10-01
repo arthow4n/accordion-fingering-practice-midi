@@ -55,7 +55,7 @@ describe("synchronous practice sessions",()=>{
  it("waits for the late tolerance at the end instead of discarding a final attack",()=>{
   const e=exercise([note(1800,[60],"right",120)]);
   const s=new PracticeSession(e,"right","sightReading",timing());s.accept(midi(60,2000));
-  expect(s.shouldFinish(2125)).toBe(false);expect(s.shouldFinish(2500)).toBe(true);
+  expect(s.shouldFinish(2125)).toBe(false);expect(s.shouldFinish(2650)).toBe(true);
  });
  it("uses loose tempo-relative defaults and honors custom tolerances",()=>{
   expect(timingOptions(defaultTimingSettings(),60).correctLateMs).toBe(500);
@@ -106,3 +106,13 @@ it("recovers when a wrong restart note is followed by the correct note",()=>{
  expect(s.recoveryCount).toBe(1);expect(s.expected[1]!.expectedMs).toBe(3100);
  expect(s.finish().metrics.pitchAccuracy).toBe(1);
 });
+
+it("does not trigger hesitation pause while the user is actively playing notes slightly behind beat",()=>{
+ const s=new PracticeSession(exercise([note(0,[60]),note(240,[62]),note(480,[64])]),"right","sightReading",defaultTimingSettings());
+ s.accept(midi(60,1000));
+ s.accept(midi(62,1300));
+ expect(s.isWaiting(1305)).toBe(false);
+ s.accept(midi(64,1600));
+ expect(s.finish().metrics.pitchAccuracy).toBe(1);
+});
+

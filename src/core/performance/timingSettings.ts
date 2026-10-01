@@ -17,8 +17,9 @@ export const timingOptions = (settings: TimingSettings, tempoBpm: number): Match
     : settings.strictness === "veryForgiving" ? [beat * .5, beat * .5, Math.min(180, beat * .2)]
     : settings.strictness === "balanced" ? [beat * .2, beat * .25, 100]
     : [beat * .1, beat * .125, 60];
+  const lateTol = settings.strictness === "veryForgiving" ? Math.max(late * 2, beat, 500) : late * 1.5;
   return {
-    earlyToleranceMs: early * 1.5, lateToleranceMs: late * 1.5,
+    earlyToleranceMs: early * 1.5, lateToleranceMs: lateTol,
     correctEarlyMs: early, correctLateMs: late, simultaneityWindowMs: chord,
   };
 };

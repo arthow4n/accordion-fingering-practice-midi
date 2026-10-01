@@ -147,14 +147,18 @@ export class PracticeSession {
     if (this.startMs === undefined) return 0;
     const position = Math.max(0, nowMs - this.startMs - this.shiftMs);
     const next = this.pending()[0];
-    if (this.timing.followAfterPause && next && nowMs > next.expectedMs + this.options.lateToleranceMs) {
+    if (this.isWaiting(nowMs) && next) {
       return Math.min(position, ticksToMs(next.onset, this.exercise.tempoBpm));
     }
     return position;
   }
   isWaiting(nowMs: number) {
     const next = this.pending()[0];
-    return this.started && this.timing.followAfterPause && !!next && nowMs > next.expectedMs + this.options.lateToleranceMs;
+    const activeGap = this.lastProgressMs !== -Infinity ? nowMs - this.lastProgressMs : Infinity;
+    const minGap = (60_000 / this.exercise.tempoBpm) * 0.75;
+    return this.started && this.timing.followAfterPause && !!next &&
+      nowMs > next.expectedMs + this.options.lateToleranceMs &&
+      activeGap > minGap;
   }
   shouldFinish(nowMs: number) {
     if (!this.started || this.ended) return false;

@@ -57,3 +57,28 @@ it("does not mistake a duplicated bass/chord root for an extra note",()=>{
  const notes=[48,48,52,55].map(midiNote=>({midiNote,type:"noteOn" as const,timestampMs:1000,velocity:100,hand:"left" as const}));
  expect(matchEvents([target],notes).map(m=>m.classification)).toEqual(["correct"]);
 });
+
+it("preserves chronological order for consecutive repeated pitches without crossing assignments",()=>{
+ const first=event([60]),second={...event([60]),id:"second",expectedMs:1250};
+ const notes=[
+   {midiNote:60,type:"noteOn" as const,timestampMs:1140,velocity:100,hand:"right" as const},
+   {midiNote:60,type:"noteOn" as const,timestampMs:1260,velocity:100,hand:"right" as const}
+ ];
+ const matches=matchEvents([first,second],notes);
+ expect(matches.map(m=>m.expected?.id)).toEqual(["e","second"]);
+ expect(matches[0]?.performed[0]?.timestampMs).toBe(1140);
+ expect(matches[1]?.performed[0]?.timestampMs).toBe(1260);
+});
+
+it("attributes an unmatched wrong note between targets to the earlier target",()=>{
+ const first=event([60]),second={...event([62]),id:"second",expectedMs:1250};
+ const notes=[
+   {midiNote:61,type:"noteOn" as const,timestampMs:1140,velocity:100,hand:"right" as const}
+ ];
+ const matches=matchEvents([first,second],notes);
+ expect(matches[0]?.expected?.id).toBe("e");
+ expect(matches[0]?.classification).toBe("wrongPitch");
+ expect(matches[1]?.expected?.id).toBe("second");
+ expect(matches[1]?.classification).toBe("missed");
+});
+

@@ -6,14 +6,14 @@ The main concern is consistency between the harmonic plan, melodic realization, 
 
 **Validation:** A clean, isolated copy of the working tree installed successfully using `npm ci --offline` on Node **24.21.0**, the installed current LTS line. The original full `npm run check` passed with **177 tests in 24 files**. After the notation fix, full validation passed again: ESLint, **178 tests in 24 files**, TypeScript, Vite, and PWA generation. Existing changes to `package.json` and `package-lock.json` were preserved.
 
-**Completed small fix:** Missing harmonic changes are now merged into the lead-sheet labels, with explicit accompaniment/slash-bass labels taking precedence. A regression parses ABCJS output and checks the actual label positions at three previously missing changes, including preservation of total musical duration. Other recommendations remain unimplemented.
+**Fix progress:** Missing harmonic changes are now merged into the lead-sheet labels, with explicit accompaniment/slash-bass labels taking precedence. Focused drills now select harmony by event onset and replan patterns at mid-bar chord changes. Remaining findings are tracked below.
 
 Priorities: **P1** affects normal practice or musical correctness; **P2** affects feedback, controls, or a narrower musical case; **P3** is an edge case or improvement.
 
 | Priority | Finding | Status |
 | --- | --- | --- |
 | P1 | Mid-bar chord changes hidden while MIDI expects them | Fixed in this review |
-| P1 | Focused drills use the wrong active harmony | Open |
+| P1 | Focused drills use the wrong active harmony | Fixed |
 | P1 | Split final cadence targets the earlier dominant anchor | Open |
 | P1 | Minor leading-tone diminished chord has an unraised root | Open |
 | P1 | Correct repeated notes can restart timed practice | Open |
@@ -36,13 +36,15 @@ Reproduction before the fix: `generateExercise(defaultTrainingRequest(), 4)` has
 
 The fix merges changed harmony labels into accompaniment annotations, preserves curated labels, and uses the existing held-note splitting. The new regression checks those three labels at their musical onsets through ABCJS, rather than merely checking for text presence. Existing curated slash-bass tests also remain in the suite.
 
-**2. Focused drills use the wrong active harmony — P1**
+**2. Focused drills use the wrong active harmony — P1, fixed**
 
 [generateMelody.ts:126](src/core/generation/generateMelody.ts#L126) selects `harmony[measure]` in the targeted branch and records that ID throughout the measure at line 306. This assumes exactly one chord per bar, although the harmonic grammar can emit two.
 
 Reproduce with C major, emphasis `melodicPatterns`, steady eighth notes, ties/rests disabled, seed **4**. At tick **4800**, A4 is tagged as a chord tone of ii, while the actual active chord is V. The next measure still uses V after the accompaniment reaches I. Incorrect IDs were also reproduced for intervals, arpeggios, rhythm, and cadence approaches.
 
 **Suggestion:** Look up harmony by each event's onset and split/replan patterns at harmonic boundaries. Test all focused modes with an independent onset-based oracle; comparing a note to its own recorded harmony ID misses this defect.
+
+Implemented onset-based harmony lookup for both measure starts and individual events, with pattern replanning when an event enters a new harmony. Regression tests cover all five focused modes at seed 4; a property checks active-harmony metadata, stable attacks, and determinism across the nine UI keys and three rhythm styles.
 
 **3. Split final cadences target the wrong anchor — P1**
 

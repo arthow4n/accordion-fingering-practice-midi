@@ -123,7 +123,8 @@ const generateTargetedMelody = (
   return phrase.flatMap((section, measure) => {
     const isCadence = section.label === "cadence";
     const isRelated = section.label === "A'" || section.label === "A''";
-    const activeHarmony = harmony[measure] ?? harmony[harmony.length - 1]!;
+    const measureOnset = measure * measureTicks;
+    const measureHarmony = harmony.find((h) => h.onset <= measureOnset && measureOnset < h.onset + h.duration) ?? harmony[harmony.length - 1]!;
     const cell = isRelated && baseMotif && rng.next() >= (request.patterns?.variation ?? 0.35)
       ? baseMotif.cell
       : chooseCell();
@@ -140,7 +141,7 @@ const generateTargetedMelody = (
       notes = generateNotesForPattern(
         pattern,
         context,
-        activeHarmony,
+        measureHarmony,
         count,
         request.rightHand.range,
         rng,
@@ -163,7 +164,7 @@ const generateTargetedMelody = (
         notes = generateNotesForPattern(
           pattern,
           context,
-          activeHarmony,
+          measureHarmony,
           count,
           request.rightHand.range,
           rng,
@@ -179,7 +180,7 @@ const generateTargetedMelody = (
       notes = generateNotesForPattern(
         pattern,
         context,
-        activeHarmony,
+        measureHarmony,
         count,
         request.rightHand.range,
         rng,
@@ -192,13 +193,32 @@ const generateTargetedMelody = (
     const motif: LegacyMotifPlan = { pattern, notes, cell, instanceId };
     if (measure === 0) baseMotif = motif;
 
-    let onset = measure * measureTicks;
+    let onset = measureOnset;
+    let patternHarmony = measureHarmony;
+    let patternStartIndex = 0;
     const exactRhythm = request.rhythm.style === "steady";
 
     return cell.atoms.map((atom, index) => {
+      const activeHarmony = harmony.find((h) => h.onset <= onset && onset < h.onset + h.duration) ?? measureHarmony;
+      if (activeHarmony.id !== patternHarmony.id) {
+        let segmentEnd = onset;
+        let segmentCount = 0;
+        for (const remainingAtom of cell.atoms.slice(index)) {
+          if (segmentEnd >= activeHarmony.onset + activeHarmony.duration) break;
+          segmentEnd += remainingAtom.duration;
+          segmentCount++;
+        }
+        notes = generateNotesForPattern(
+          pattern, context, activeHarmony, segmentCount,
+          request.rightHand.range, rng, previousPitch, accidentalsRemaining,
+          isCadence && segmentEnd >= measureOnset + measureTicks && !request.leftHand.templateId,
+        );
+        patternHarmony = activeHarmony;
+        patternStartIndex = index;
+      }
       const finalCadence = isCadence && index === cell.atoms.length - 1;
       const strength = metricStrength(onset % measureTicks, meter);
-      const generatedNote = notes[index] ?? notes[notes.length - 1]!;
+      const generatedNote = notes[index - patternStartIndex] ?? notes[notes.length - 1]!;
 
       let degree = { ...generatedNote.degree };
       let pitch = { ...generatedNote.pitch };

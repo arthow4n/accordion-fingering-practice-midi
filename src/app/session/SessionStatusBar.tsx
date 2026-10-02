@@ -65,13 +65,11 @@ export function SessionStatusBar({
         </p>
       )}
 
-      {mode === "sightReading" && (
+      {mode === "sightReading" && status !== "playing" && (
         <p>
-          {status === "playing"
-            ? "Sight-reading—keep the pulse"
-            : status === "review"
-              ? "Review — press any accordion key to continue"
-              : "Ready — play the first note on the accordion to begin"}
+          {status === "review"
+            ? "Review — press any accordion key to continue"
+            : "Ready — play the first note on the accordion to begin"}
         </p>
       )}
 

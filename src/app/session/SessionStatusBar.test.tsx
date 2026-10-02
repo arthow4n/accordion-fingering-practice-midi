@@ -43,7 +43,7 @@ describe("SessionStatusBar", () => {
     expect(text).toContain("extra 0");
   });
 
-  it("shows continuous pulse message during sight reading playing", () => {
+  it("does not render any filler prompt during sight reading playing", () => {
     const text = renderClean(
       <SessionStatusBar
         exercise={exercise}
@@ -58,7 +58,9 @@ describe("SessionStatusBar", () => {
       />,
     );
 
-    expect(text).toContain("Sight-reading—keep the pulse");
+    expect(text).not.toContain("keep the pulse");
+    expect(text).not.toContain("Ready —");
+    expect(text).not.toContain("Review —");
   });
 
   it("shows accompaniment instruction when hasLeft is true", () => {

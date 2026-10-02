@@ -213,28 +213,8 @@ export function useAccordionBridge({
         finish();
       },
       simulatePause: () => {
-        if (mode !== "sightReading") {
-          changeMode("sightReading");
-        }
-        resetSession(exercise, settings, "sightReading");
-        const session = coordinatorRef.current.session;
-        const target = session.expected[0];
-        if (!target || !target.pitches[0]) return;
-        const past = performance.now() - 5000;
-        acceptMidi({
-          midiNote: target.pitches[0].midi,
-          type: "noteOn",
-          timestampMs: past,
-          velocity: 80,
-          hand: target.hand,
-        });
-        acceptMidi({
-          midiNote: target.pitches[0].midi,
-          type: "noteOff",
-          timestampMs: past + 100,
-          velocity: 0,
-          hand: target.hand,
-        });
+        // Sight-reading mode preserves a continuous pulse without pausing.
+        // Retained as a safe compatibility no-op for external bridge clients.
       },
     };
 

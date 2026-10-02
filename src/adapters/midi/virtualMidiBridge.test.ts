@@ -150,7 +150,7 @@ describe("virtualMidiBridge", () => {
     expect(coordinator.status).toBe("ready");
   });
 
-  it("triggers hesitation / waiting state in SightReadingCoordinator", () => {
+  it("maintains continuous pulse without hesitation waiting in SightReadingCoordinator", () => {
     const settings = defaultTrainingRequest();
     const exercise = generateExercise(settings, 12);
     const coordinator = new SightReadingCoordinator({
@@ -173,8 +173,8 @@ describe("virtualMidiBridge", () => {
     expect(coordinator.status).toBe("playing");
     expect(coordinator.session.started).toBe(true);
 
-    // After waiting 5 seconds past late tolerance
+    // After 5 seconds, clock continues and session does not pause/wait
     const later = past + 5000;
-    expect(coordinator.session.isWaiting(later)).toBe(true);
+    expect(coordinator.session.isWaiting(later)).toBe(false);
   });
 });

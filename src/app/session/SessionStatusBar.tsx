@@ -33,7 +33,6 @@ export function SessionStatusBar({
   settings,
   mode,
   status,
-  waiting,
   hasLeft,
   sessionStats,
   metrics,
@@ -69,9 +68,7 @@ export function SessionStatusBar({
       {mode === "sightReading" && (
         <p>
           {status === "playing"
-            ? waiting
-              ? "Paused — resume playing, or finish this exercise"
-              : "Sight-reading—keep the pulse"
+            ? "Sight-reading—keep the pulse"
             : status === "review"
               ? "Review — press any accordion key to continue"
               : "Ready — play the first note on the accordion to begin"}

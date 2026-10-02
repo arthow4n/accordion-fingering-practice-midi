@@ -43,14 +43,14 @@ describe("SessionStatusBar", () => {
     expect(text).toContain("extra 0");
   });
 
-  it("shows sight-reading paused message when waiting", () => {
+  it("shows continuous pulse message during sight reading playing", () => {
     const text = renderClean(
       <SessionStatusBar
         exercise={exercise}
         settings={baseSettings}
         mode="sightReading"
         status="playing"
-        waiting={true}
+        waiting={false}
         hasLeft={false}
         sessionStats={emptyStats}
         generationError=""
@@ -58,7 +58,7 @@ describe("SessionStatusBar", () => {
       />,
     );
 
-    expect(text).toContain("Paused — resume playing, or finish this exercise");
+    expect(text).toContain("Sight-reading—keep the pulse");
   });
 
   it("shows accompaniment instruction when hasLeft is true", () => {

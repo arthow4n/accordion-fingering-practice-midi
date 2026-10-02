@@ -18,12 +18,9 @@ export class PracticeSession {
   private correctionHeld = new Set<string>();
   private correctionCompletedAt = new Map<string, number>();
   private startMs: number | undefined;
-  private shiftMs = 0;
-  private lastProgressMs = -Infinity;
-  private frontier = -1;
   private ended = false;
-  recoveryCount = 0;
-  hesitationMs = 0;
+  readonly recoveryCount = 0;
+  readonly hesitationMs = 0;
 
   constructor(readonly exercise: Exercise, readonly hands: "both" | Hand, readonly mode: PracticeMode, readonly timing: TimingSettings) {
     this.expected = createExpectedTimeline({ ...exercise,
@@ -38,7 +35,6 @@ export class PracticeSession {
   completed(hand: Hand) { return this.expected.filter(e => e.hand === hand && this.completedIds.has(e.id)).length; }
   get correctionOnset() { return this.expected.find(e => !this.completedIds.has(e.id))?.onset; }
   currentExpected(hand?: Hand) { return this.expected.find(e => (!hand || e.hand === hand) && !this.completedIds.has(e.id)); }
-  private pending() { return this.expected.filter(e => !this.completedIds.has(e.id) && e.onset >= this.frontier); }
 
   accept(event: PerformedMidiEvent): SessionUpdate {
     const update = { accepted: 0, wrong: 0, completed: false };
@@ -69,73 +65,20 @@ export class PracticeSession {
     }
     if (event.type === "noteOff") { if (this.started) this.performed.push(event); return update; }
 
-    const isPaused = this.isWaiting(event.timestampMs);
-
-    let didResume = false;
-    let didRestart = false;
-    let resume: TimedExpectedEvent | undefined;
-
     if (this.startMs === undefined) {
       // The triggering attack represents the first sounding onset, including a
       // leading rest when only one hand is selected.
       this.startMs = event.timestampMs - this.expected[0]!.expectedMs;
       for (const target of this.expected) target.expectedMs += this.startMs;
-      didResume = true;
-    } else if (isPaused) {
-      const initialOnset = this.expected[0]!.onset;
-      const initialTargets = this.expected.filter(e => e.onset === initialOnset);
-      const isInitialAttack = initialTargets.some(e => (!event.hand || e.hand === event.hand) && e.pitches.some(p => pitchMatches(e, p.midi, event.midiNote)));
-
-      const pending = this.pending();
-      const currentPendingOnset = pending[0]?.onset;
-      resume = pending.find(e => e.onset === currentPendingOnset && (!event.hand || e.hand === event.hand) && e.pitches.some(p => pitchMatches(e, p.midi, event.midiNote)));
-
-      // A valid pending continuation takes priority over an ambiguous first-pitch restart.
-      if (this.frontier >= initialOnset && isInitialAttack && !resume) {
-        this.completedIds.clear();
-        this.frontier = -1;
-        this.shiftMs = 0;
-        const firstSoundingOnsetMs = ticksToMs(initialOnset, this.exercise.tempoBpm);
-        this.startMs = event.timestampMs - firstSoundingOnsetMs;
-        for (const target of this.expected) {
-          target.expectedMs = ticksToMs(target.onset, this.exercise.tempoBpm) + this.startMs;
-        }
-        this.lastProgressMs = -Infinity;
-        this.hesitationMs = 0;
-        this.recoveryCount = 0;
-        didResume = true;
-        didRestart = true;
-      } else if (resume) {
-        if (event.timestampMs > resume.expectedMs + this.options.lateToleranceMs) {
-          const delay = event.timestampMs - resume.expectedMs;
-          for (const target of this.expected) if (target.onset >= resume.onset) target.expectedMs += delay;
-          this.shiftMs += delay;
-          this.hesitationMs = Math.max(this.hesitationMs, delay);
-          this.recoveryCount++;
-        }
-        didResume = true;
-      }
     }
 
     this.performed.push(event);
-    // Advance the recovery frontier only after a complete, pitch-correct attack.
-    // Suppress phantom matches against future un-shifted targets when paused without a valid resume.
-    // When resuming from a pause, only match targets at the resumed onset and do not retroactively match future targets with pre-resume notes.
     const horizon = this.options.earlyToleranceMs + this.options.lateToleranceMs + this.options.simultaneityWindowMs;
-    const resumeOnset = didRestart ? this.expected[0]!.onset : resume?.onset;
-    const recent = isPaused && didResume
-      ? this.performed.filter(e => e.type === "noteOn" && e.timestampMs >= event.timestampMs - this.options.simultaneityWindowMs)
-      : this.performed.filter(e => e.type === "noteOn" && e.timestampMs >= event.timestampMs - horizon);
-    const nearby = (isPaused && !didResume)
-      ? []
-      : isPaused && didResume && resumeOnset !== undefined
-        ? this.expected.filter(e => e.onset === resumeOnset)
-        : this.expected.filter(e => e.expectedMs >= event.timestampMs - horizon - this.options.lateToleranceMs && e.expectedMs <= event.timestampMs + this.options.earlyToleranceMs);
+    const recent = this.performed.filter(e => e.type === "noteOn" && e.timestampMs >= event.timestampMs - horizon);
+    const nearby = this.expected.filter(e => e.expectedMs >= event.timestampMs - horizon - this.options.lateToleranceMs && e.expectedMs <= event.timestampMs + this.options.earlyToleranceMs);
     for (const match of matchEvents(nearby, recent, this.options)) {
       if (match.expected && ["correct", "early", "late"].includes(match.classification)) {
-        this.lastProgressMs = Math.max(this.lastProgressMs,...match.performed.map(note=>note.timestampMs));
         this.completedIds.add(match.expected.id);
-        this.frontier = Math.max(this.frontier, match.expected.onset);
       }
     }
     return update;
@@ -143,33 +86,21 @@ export class PracticeSession {
 
   positionMs(nowMs: number) {
     if (this.startMs === undefined) return 0;
-    const position = Math.max(0, nowMs - this.startMs - this.shiftMs);
-    const next = this.pending()[0];
-    if (this.isWaiting(nowMs) && next) {
-      return Math.min(position, ticksToMs(next.onset, this.exercise.tempoBpm));
-    }
-    return position;
+    return Math.max(0, nowMs - this.startMs);
   }
-  isWaiting(nowMs: number) {
-    const next = this.pending()[0];
-    const activeGap = this.lastProgressMs !== -Infinity ? nowMs - this.lastProgressMs : Infinity;
-    const minGap = (60_000 / this.exercise.tempoBpm) * 0.75;
-    return this.started && this.timing.followAfterPause && !!next &&
-      nowMs > next.expectedMs + this.options.lateToleranceMs &&
-      activeGap > minGap;
+  isWaiting(nowMs?: number) {
+    void nowMs;
+    return false;
   }
   shouldFinish(nowMs: number) {
     if (!this.started || this.ended) return false;
-    if (this.timing.followAfterPause && this.pending().length) return false;
-    const end = this.startMs! + this.shiftMs + ticksToMs(this.exercise.totalDuration, this.exercise.tempoBpm);
+    const end = this.startMs! + ticksToMs(this.exercise.totalDuration, this.exercise.tempoBpm);
     return nowMs >= end + this.options.lateToleranceMs;
   }
   finish(): PerformanceReport {
     this.ended = true;
     const matches = matchEvents(this.expected, this.performed, this.options);
     const metrics = computeMetrics(matches, 60_000 / this.exercise.tempoBpm);
-    metrics.longestHesitationMs = Math.max(metrics.longestHesitationMs, this.hesitationMs);
-    if (this.recoveryCount) metrics.continuity *= Math.max(0, 1 - this.recoveryCount / Math.max(1, this.expected.length));
     return { metrics, matches };
   }
 }

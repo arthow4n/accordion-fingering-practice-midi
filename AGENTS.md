@@ -84,7 +84,7 @@ To review UI states programmatically (in browser agents, Playwright, or browser 
 - `window.accordionBridge.sendEvent(performedEvent)`: Sends any raw `PerformedMidiEvent`.
 - `window.accordionBridge.playNextNote({ mistake?, hand? })`: Advances to the next expected note (with correct or incorrect pitch).
 - `window.accordionBridge.fastForwardToReview({ mistakeCount?: number })`: Simulates completing an exercise (default 2 mistakes) and immediately transitions to the `"review"` status, rendering colored score annotations and performance metrics.
-- `window.accordionBridge.simulatePause()`: Enters the timed sight-reading session with an onset in the past, triggering hesitation detection to display the `"Paused — resume playing..."` alert.
+- `window.accordionBridge.simulatePause()`: Compatibility no-op (timed sight-reading maintains a continuous pulse without pausing).
 - `window.accordionBridge.dismissReview()`: Sends a note to dismiss the review screen and advance to the next exercise.
 - `window.accordionBridge.sendDeviceNames(["Device 1", "Device 2"])`: Updates detected MIDI device list.
 - `window.accordionBridge.setMode("sightReading" | "correction")`: Changes practice mode.
@@ -100,12 +100,12 @@ console.log(state.status); // "review"
 console.log(state.reviewAnnotations); // note error highlights on the ABC score
 ```
 
-#### 2. Jump to Paused / Hesitation State
+#### 2. Sight-Reading Playing State
 ```js
-window.accordionBridge.simulatePause();
+window.accordionBridge.playNextNote();
 const state = window.accordionBridge.getState();
 console.log(state.status); // "playing"
-console.log(state.waiting); // true ("Paused — resume playing..." banner visible)
+console.log(state.waiting); // false (continuous pulse)
 ```
 
 #### 3. Step Through Notes One-by-One

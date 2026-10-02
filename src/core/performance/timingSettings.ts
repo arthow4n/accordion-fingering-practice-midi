@@ -3,7 +3,7 @@ import type { MatchOptions } from "./eventMatcher";
 
 export const timingSettingsSchema = z.object({
   strictness: z.enum(["veryForgiving", "balanced", "strict", "custom"]).default("veryForgiving"),
-  followAfterPause: z.boolean().default(true),
+  followAfterPause: z.boolean().default(false),
   earlyMs: z.number().int().min(30).max(2000).default(400),
   lateMs: z.number().int().min(30).max(2000).default(600),
   chordMs: z.number().int().min(20).max(500).default(150),

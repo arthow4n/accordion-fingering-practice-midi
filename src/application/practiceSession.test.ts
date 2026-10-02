@@ -39,15 +39,12 @@ describe("synchronous practice sessions",()=>{
   expect(s.done).toBe(false);expect(s.accept(midi(48,2040,"left")).completed).toBe(true);
   expect(s.currentExpected("left")).toBeUndefined();
  });
- it("recovers after a hesitation, shifts later targets, and records the pause",()=>{
+ it("maintains a continuous pulse through hesitations without shifting targets",()=>{
   const s=new PracticeSession(exercise([note(0,[60]),note(480,[62]),note(960,[64])]),"right","sightReading",defaultTimingSettings());
-  s.accept(midi(60,1000));expect(s.isWaiting(2500)).toBe(true);expect(s.shouldFinish(5000)).toBe(false);
-  s.accept(midi(62,3000));expect(s.expected.map(e=>e.expectedMs)).toEqual([1000,3000,3500]);
-  s.accept(midi(64,3500));const { metrics, matches }=s.finish();
-  expect(matches.length).toBeGreaterThan(0);
-  expect(metrics.pitchAccuracy).toBe(1);expect(metrics.longestHesitationMs).toBe(1500);expect(metrics.continuity).toBeLessThan(1);
+  s.accept(midi(60,1000));expect(s.isWaiting(2500)).toBe(false);expect(s.shouldFinish(5000)).toBe(true);
+  expect(s.expected.map(e=>e.expectedMs)).toEqual([1000,1500,2000]);
  });
- it("keeps the absolute pulse when recovery assistance is disabled",()=>{
+ it("keeps the absolute pulse when notes are played late",()=>{
   const s=new PracticeSession(exercise([note(0,[60]),note(480,[62])]),"right","sightReading",timing());
   s.accept(midi(60,1000));s.accept(midi(62,3000));
   expect(s.expected[1]!.expectedMs).toBe(1500);expect(s.finish().metrics.pitchAccuracy).toBe(.5);
@@ -83,9 +80,9 @@ it("does not let duplicate bass voices consume the next repeated correction targ
  s.accept(midi(48,1000,"left"));expect(s.accept(midi(48,1001,"left")).accepted).toBe(0);
  s.accept(midi(48,1100,"left","noteOff"));expect(s.accept(midi(48,1500,"left")).completed).toBe(true);
 });
-it("leaves a silent final passage waiting in follow mode until finished explicitly",()=>{
+it("automatically finishes silent final passage when duration has elapsed",()=>{
  const s=new PracticeSession(exercise([note(0,[60]),note(480,[62])]),"right","sightReading",defaultTimingSettings());
- s.accept(midi(60,1000));expect(s.shouldFinish(10000)).toBe(false);
+ s.accept(midi(60,1000));expect(s.shouldFinish(10000)).toBe(true);
  const { metrics }=s.finish();expect(metrics.missedNotes).toBe(1);expect(s.done).toBe(true);
 });
 it("does not stretch the clock for an intentional rest",()=>{
@@ -100,10 +97,10 @@ it("allows overlapping bass and chord roots at distinct correction onsets",()=>{
  expect(s.accept(midi(55,1502,"left")).completed).toBe(true);
 });
 
-it("recovers when a wrong restart note is followed by the correct note",()=>{
+it("records wrong notes without shifting future target expectations",()=>{
  const s=new PracticeSession(exercise([note(0,[60]),note(480,[62])]),"right","sightReading",defaultTimingSettings());
- s.accept(midi(60,1000));s.accept(midi(70,3000));s.accept(midi(62,3100));
- expect(s.recoveryCount).toBe(1);expect(s.expected[1]!.expectedMs).toBe(3100);
+ s.accept(midi(60,1000));s.accept(midi(70,1200));s.accept(midi(62,1500));
+ expect(s.expected[1]!.expectedMs).toBe(1500);
  expect(s.finish().metrics.pitchAccuracy).toBe(1);
 });
 
@@ -147,25 +144,13 @@ describe("repeated pitches in timed follow practice", () => {
   expect(session.recoveryCount).toBe(0);
  });
 
- it("resumes a paused final tonic without erasing the completed phrase", () => {
-  const session = new PracticeSession(exercise([note(0, [60]), note(480, [62]), note(960, [60])]), "right", "sightReading", defaultTimingSettings());
-  session.accept(midi(60, 1000));
-  session.accept(midi(62, 1500));
-  expect(session.isWaiting(5000)).toBe(true);
-  session.accept(midi(60, 5000));
-  expect(session.expected.map((event) => event.expectedMs)).toEqual([1000, 1500, 5000]);
-  expect(session.completed("right")).toBe(3);
-  expect(session.recoveryCount).toBe(1);
-  expect(session.finish().metrics.pitchAccuracy).toBe(1);
- });
-
- it("still restarts when a paused first-pitch attack cannot continue the pending onset", () => {
+ it("does not restart the piece or clear completed notes when the first pitch is played later", () => {
   const session = new PracticeSession(exercise([note(0, [60]), note(480, [62]), note(960, [64])]), "right", "sightReading", defaultTimingSettings());
   session.accept(midi(60, 1000));
   session.accept(midi(62, 1500));
-  session.accept(midi(60, 5000));
-  expect(session.expected.map((event) => event.expectedMs)).toEqual([5000, 5500, 6000]);
-  expect(session.completed("right")).toBe(1);
-  expect(session.currentExpected("right")?.pitches[0]!.midi).toBe(62);
+  session.accept(midi(60, 2000));
+  expect(session.expected.map((event) => event.expectedMs)).toEqual([1000, 1500, 2000]);
+  expect(session.completedIds.has("right-0")).toBe(true);
+  expect(session.completedIds.has("right-480")).toBe(true);
  });
 });

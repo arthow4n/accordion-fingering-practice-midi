@@ -409,26 +409,11 @@ export function PracticeSettingsForm({
           ))}
         </>
       )}
-      <label>
-        <input
-          type="checkbox"
-          checked={settings.timing.followAfterPause}
-          onChange={(e) =>
-            onUpdateTiming({
-              ...settings.timing,
-              followAfterPause: e.target.checked,
-            })
-          }
-        />{" "}
-        Follow me after a pause
-      </label>
       <p>
         Timed practice accepts up to {Math.round(tolerance.correctEarlyMs!)} ms
         early or {Math.round(tolerance.correctLateMs!)} ms late as on time.
-        Chord spread: {Math.round(tolerance.simultaneityWindowMs)} ms.{" "}
-        {settings.timing.followAfterPause
-          ? "The score waits after a hesitation and realigns when you resume; the pause is still recorded."
-          : "The clock keeps its original pulse through mistakes and pauses."}
+        Chord spread: {Math.round(tolerance.simultaneityWindowMs)} ms. The
+        clock keeps its continuous pulse through mistakes and pauses.
       </p>
       <IntegerInput
         label="Measures"

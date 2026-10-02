@@ -14,8 +14,8 @@ const midi = (midiNote: number, timestampMs: number, hand: "right" | "left" = "r
   velocity: 100,
 });
 
-describe("pause / resume / restart edge cases", () => {
-  it("case 1: user starts with a wrong note, pauses, then plays the correct first note", () => {
+describe("continuous pulse sight reading (no pause or jumping progress)", () => {
+  it("case 1: positionMs advances smoothly and monotonically without jumping backward or freezing", () => {
     const req = parseTrainingRequest({
       ...defaultTrainingRequest(),
       hands: "right",
@@ -26,20 +26,29 @@ describe("pause / resume / restart edge cases", () => {
     const firstPitch = firstNote.pitches[0]!.midi;
 
     const session = new PracticeSession(exercise, "right", "sightReading", defaultTimingSettings());
-    // Start with a wrong note at t=1000
-    session.accept(midi(firstPitch + 1, 1000));
+    expect(session.positionMs(500)).toBe(0);
+
+    // Start with note 1 at t=1000
+    session.accept(midi(firstPitch, 1000));
     expect(session.started).toBe(true);
-    // User hesitates for 3 seconds -> waiting state
-    expect(session.isWaiting(4000)).toBe(true);
-    expect(session.positionMs(4000)).toBe(0);
 
-    // Now user plays the correct first note at t=4500
-    session.accept(midi(firstPitch, 4500));
-    expect(session.completedIds.has(firstNote.id)).toBe(true);
-    expect(session.isWaiting(4500)).toBe(false);
+    // Position advances continuously
+    const p1 = session.positionMs(1500);
+    const p2 = session.positionMs(2000);
+    const p3 = session.positionMs(3000);
+    expect(p1).toBe(500);
+    expect(p2).toBe(1000);
+    expect(p3).toBe(2000);
+    expect(p2).toBeGreaterThan(p1);
+    expect(p3).toBeGreaterThan(p2);
+
+    // User plays a wrong note at t=2500 - position continues steadily and does not jump or freeze
+    session.accept(midi(firstPitch + 3, 2500));
+    expect(session.positionMs(2600)).toBe(1600);
+    expect(session.isWaiting(2600)).toBe(false);
   });
 
-  it("case 2: user starts with wrong note, then while paused plays another wrong note, then the correct note", () => {
+  it("case 2: playing wrong notes does not reset the session or clear completed notes", () => {
     const req = parseTrainingRequest({
       ...defaultTrainingRequest(),
       hands: "right",
@@ -49,76 +58,67 @@ describe("pause / resume / restart edge cases", () => {
     const firstPitch = exercise.rightHand[0]!.pitches[0]!.midi;
 
     const session = new PracticeSession(exercise, "right", "sightReading", defaultTimingSettings());
-    session.accept(midi(firstPitch + 1, 1000));
-    expect(session.isWaiting(4000)).toBe(true);
-
-    // Plays wrong note while paused
-    session.accept(midi(firstPitch + 2, 4500));
-    expect(session.completedIds.size).toBe(0);
-    // Plays correct note 200ms later
-    session.accept(midi(firstPitch, 4700));
-    expect(session.completedIds.has(exercise.rightHand[0]!.id)).toBe(true);
-    expect(session.isWaiting(4700)).toBe(false);
-  });
-
-  it("case 3: user plays note 1, hesitates on note 2, it backs off, then user plays note 1 to start exercise again", () => {
-    const req = parseTrainingRequest({
-      ...defaultTrainingRequest(),
-      hands: "right",
-      rhythm: { ...defaultTrainingRequest().rhythm, meters: [{ beats: 3, beatUnit: 4 }] },
-    });
-    const exercise = generateExercise(req, 208098320);
-    const firstPitch = exercise.rightHand[0]!.pitches[0]!.midi;
-    const session = new PracticeSession(exercise, "right", "sightReading", defaultTimingSettings());
-
     // Play first note correctly at t=1000
     session.accept(midi(firstPitch, 1000));
     expect(session.completedIds.has(exercise.rightHand[0]!.id)).toBe(true);
 
-    // Hesitate on note 2 for 3 seconds -> it backs off
-    expect(session.isWaiting(4000)).toBe(true);
-
-    // User wants to start the exercise again from the accordion: plays note 1 at t=4500!
-    session.accept(midi(firstPitch, 4500));
+    // Later, player makes a mistake and plays the first pitch again (or wrong note)
+    session.accept(midi(firstPitch, 2500));
+    // The first note remains completed and timeline is NOT reset to 2500
     expect(session.completedIds.has(exercise.rightHand[0]!.id)).toBe(true);
-    expect(session.isWaiting(4500)).toBe(false);
+    expect(session.positionMs(2500)).toBe(1500);
   });
 
-  it("case 4: arpeggio exercise with distinct pitches - user hesitates on note 2 and plays note 1 again", () => {
-    // Note 1: 69 (A4), Note 2: 76 (E5), Note 3: 72 (C5)
+  it("case 3: does not pause or wait when the user hesitates", () => {
+    const req = parseTrainingRequest({
+      ...defaultTrainingRequest(),
+      hands: "right",
+      rhythm: { ...defaultTrainingRequest().rhythm, meters: [{ beats: 3, beatUnit: 4 }] },
+    });
+    const exercise = generateExercise(req, 208098320);
+    const firstPitch = exercise.rightHand[0]!.pitches[0]!.midi;
+    const session = new PracticeSession(exercise, "right", "sightReading", defaultTimingSettings());
+
+    session.accept(midi(firstPitch, 1000));
+    // Even after several seconds of silence, isWaiting is always false
+    expect(session.isWaiting(5000)).toBe(false);
+    expect(session.positionMs(5000)).toBe(4000);
+  });
+
+  it("case 4: automatically finishes when the exercise duration has elapsed", () => {
     const ex = {
       ...generateExercise(defaultTrainingRequest(), 0),
-      tempoBpm: 72,
-      totalDuration: 1920,
+      tempoBpm: 120, // 500ms per beat
+      totalDuration: 960, // 2 beats = 1000ms
       rightHand: [
-        { id: "rh-1", onset: 0, duration: 240, pitches: [{ midi: 69, name: "A4" }], hand: "right" as const, metadata: { challengeTags: [] } },
-        { id: "rh-2", onset: 240, duration: 240, pitches: [{ midi: 76, name: "E5" }], hand: "right" as const, metadata: { challengeTags: [] } },
-        { id: "rh-3", onset: 480, duration: 240, pitches: [{ midi: 72, name: "C5" }], hand: "right" as const, metadata: { challengeTags: [] } },
+        { id: "rh-1", onset: 0, duration: 480, pitches: [{ midi: 69, name: "A4" }], hand: "right" as const, metadata: { challengeTags: [] } },
+        { id: "rh-2", onset: 480, duration: 480, pitches: [{ midi: 72, name: "C5" }], hand: "right" as const, metadata: { challengeTags: [] } },
       ],
       leftHand: [],
     };
     const session = new PracticeSession(ex, "right", "sightReading", defaultTimingSettings());
-    // User plays note 1 correctly at 1000
     session.accept(midi(69, 1000));
-    expect(session.completedIds.has("rh-1")).toBe(true);
-    // User hesitates on note 2 -> paused at t=4000
-    expect(session.isWaiting(4000)).toBe(true);
 
-    // User plays note 1 (69) to start exercise again!
-    session.accept(midi(69, 4500));
-    expect(session.completedIds.has("rh-1")).toBe(true);
-    expect(session.completedIds.has("rh-2")).toBe(false);
-    expect(session.isWaiting(4500)).toBe(false);
+    // At t=1500 (halfway), not finished
+    expect(session.shouldFinish(1500)).toBe(false);
+
+    // Total duration is 1000ms from start (t=2000), plus late tolerance (500ms at 120BPM veryForgiving) = t=2500
+    expect(session.shouldFinish(2400)).toBe(false);
+    expect(session.shouldFinish(2600)).toBe(true);
+
+    const report = session.finish();
+    expect(report.metrics.missedNotes).toBe(1); // second note was not played
+    expect(session.done).toBe(true);
   });
 
-  it("case 5: hands=both, paused at onset 0, user plays LH then RH", () => {
+  it("case 5: hands=both records both hands continuously", () => {
     const ex = {
       ...generateExercise(defaultTrainingRequest(), 0),
-      tempoBpm: 72,
+      tempoBpm: 120,
       totalDuration: 1920,
       rightHand: [
-        { id: "rh-1", onset: 0, duration: 240, pitches: [{ midi: 69, name: "A4" }], hand: "right" as const, metadata: { challengeTags: [] } },
-        { id: "rh-2", onset: 240, duration: 240, pitches: [{ midi: 76, name: "E5" }], hand: "right" as const, metadata: { challengeTags: [] } },
+        { id: "rh-1", onset: 0, duration: 480, pitches: [{ midi: 69, name: "A4" }], hand: "right" as const, metadata: { challengeTags: [] } },
+        { id: "rh-2", onset: 480, duration: 480, pitches: [{ midi: 76, name: "E5" }], hand: "right" as const, metadata: { challengeTags: [] } },
       ],
       leftHand: [
         { id: "lh-1", onset: 0, duration: 480, pitches: [{ midi: 57, name: "A3" }], hand: "left" as const, metadata: { challengeTags: [] } },
@@ -126,17 +126,14 @@ describe("pause / resume / restart edge cases", () => {
       ],
     };
     const session = new PracticeSession(ex, "both", "sightReading", defaultTimingSettings());
-    // Start with wrong note
-    session.accept(midi(60, 1000));
-    expect(session.isWaiting(4000)).toBe(true);
-
-    // Play LH at 4500
-    session.accept(midi(57, 4500, "left"));
+    // Start with LH at 1000
+    session.accept(midi(57, 1000, "left"));
+    expect(session.started).toBe(true);
+    // Play RH at 1020
+    session.accept(midi(69, 1020, "right"));
     expect(session.completedIds.has("lh-1")).toBe(true);
-    // Play RH at 4550
-    session.accept(midi(69, 4550, "right"));
     expect(session.completedIds.has("rh-1")).toBe(true);
-    expect(session.completedIds.has("lh-1")).toBe(true);
+    expect(session.isWaiting(1500)).toBe(false);
   });
 
   it("case 6: SightReadingCoordinator ignores unselected hand in ready state without starting", () => {
@@ -170,9 +167,7 @@ describe("pause / resume / restart edge cases", () => {
     expect(coordinator.session.started).toBe(true);
   });
 
-  it("case 7: does not jump several steps ahead when pushing a future key while paused at note 2", () => {
-    // Arpeggio: Am (A4, E5, C5, E5, A4, C5)
-    // Onsets: 0 (69), 240 (76), 480 (72), 720 (76), 960 (69), 1200 (72)
+  it("case 7: playing a wrong key does not skip future notes or jump the progress", () => {
     const ex = {
       ...generateExercise(defaultTrainingRequest(), 0),
       tempoBpm: 72,
@@ -181,9 +176,6 @@ describe("pause / resume / restart edge cases", () => {
         { id: "rh-1", onset: 0, duration: 240, pitches: [{ midi: 69, name: "A4" }], hand: "right" as const, metadata: { challengeTags: [] } },
         { id: "rh-2", onset: 240, duration: 240, pitches: [{ midi: 76, name: "E5" }], hand: "right" as const, metadata: { challengeTags: [] } },
         { id: "rh-3", onset: 480, duration: 240, pitches: [{ midi: 72, name: "C5" }], hand: "right" as const, metadata: { challengeTags: [] } },
-        { id: "rh-4", onset: 720, duration: 240, pitches: [{ midi: 76, name: "E5" }], hand: "right" as const, metadata: { challengeTags: [] } },
-        { id: "rh-5", onset: 960, duration: 240, pitches: [{ midi: 69, name: "A4" }], hand: "right" as const, metadata: { challengeTags: [] } },
-        { id: "rh-6", onset: 1200, duration: 240, pitches: [{ midi: 72, name: "C5" }], hand: "right" as const, metadata: { challengeTags: [] } },
       ],
       leftHand: [],
     };
@@ -193,24 +185,12 @@ describe("pause / resume / restart edge cases", () => {
     session.accept(midi(69, 1000));
     expect(session.completedIds.has("rh-1")).toBe(true);
 
-    // Pause on note 2 (onset 240, pitch 76)
-    expect(session.isWaiting(4000)).toBe(true);
+    // At onset 240 (~1200ms), user accidentally plays wrong note (midi 72)
+    session.accept(midi(72, 1200));
 
-    // User pushes pitch 72 (C5, which is note 3 at onset 480) at 4500ms
-    session.accept(midi(72, 4500));
-
-    // It must NOT jump ahead to note 3! Note 2 must still be pending.
-    expect(session.completedIds.has("rh-3")).toBe(false);
+    // Progress continues smoothly forward
+    expect(session.positionMs(1200)).toBe(200);
+    expect(session.isWaiting(1200)).toBe(false);
     expect(session.completedIds.has("rh-2")).toBe(false);
-    expect(session.isWaiting(4500)).toBe(true);
-
-    // Now user plays the correct note 2 (pitch 76, E5) at 4700ms
-    session.accept(midi(76, 4700));
-
-    // It resumes cleanly AT NOTE 2 (the right place) without skipping ahead
-    expect(session.completedIds.has("rh-2")).toBe(true);
-    expect(session.completedIds.has("rh-3")).toBe(false);
-    expect(session.isWaiting(4700)).toBe(false);
-    expect(session.currentExpected("right")?.id).toBe("rh-3");
   });
 });

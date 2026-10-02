@@ -42,13 +42,13 @@ const accompanimentLabels = (exercise: Exercise) => {
     if (!annotation) continue;
     labels.set(event.onset, `${annotation.chordRoot}${chordSuffix(annotation.quality)}${annotation.bass ? `/${annotation.bass}` : ""}`);
   }
-  if (!labels.size) {
-    let previous = "";
-    for (const harmony of exercise.harmony) {
-      const chord = chordName(harmony, exercise.tonalContext);
-      if (chord !== previous) labels.set(harmony.onset, chord);
-      previous = chord;
+  let previous = "";
+  for (const harmony of exercise.harmony) {
+    const chord = chordName(harmony, exercise.tonalContext);
+    if (chord !== previous && !labels.has(harmony.onset)) {
+      labels.set(harmony.onset, chord);
     }
+    previous = chord;
   }
   return labels;
 };

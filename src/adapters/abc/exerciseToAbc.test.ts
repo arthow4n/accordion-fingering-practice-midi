@@ -6,6 +6,21 @@ it("renders arbitrary key signatures",()=>{for(const key of ["D major","Eb major
 it("renders a single lead-sheet staff without title or tempo",()=>{const abc=exerciseToAbc(generateExercise(defaultTrainingRequest(),10));expect(abc).not.toContain("T:");expect(abc).not.toContain("Q:");expect(abc).not.toContain("V:");expect(abc).not.toContain("%%score");expect(abc).toMatch(/"[A-G][b#]?(?:m|7|dim)?(?:\/[A-G][b#]?)?"/);});
 it("marks the score event containing the current position",()=>{const exercise=generateExercise(defaultTrainingRequest(),10);expect(exerciseToAbc(exercise,exercise.rightHand[1]!.onset)).toContain("!mark!");});
 it("renders chords above the staff even when left hand is disabled",()=>{const r=defaultTrainingRequest();r.leftHand.enabled=false;const abc=exerciseToAbc(generateExercise(r,10));expect(abc).toMatch(/"[A-G][b#]?(?:m|7|dim)?"/);});
+it("shows mid-measure harmonic changes at their sounding onsets",async()=>{
+ const {parseOnly}=await import("abcjs");
+ for(const [seed,onset,label] of [[4,4800,"G"],[5,2880,"G7"],[5,6720,"C"]] as const){
+  const exercise=generateExercise(defaultTrainingRequest(),seed);
+  const notes=parseOnly(exerciseToAbc(exercise))[0].lines.flatMap(line=>line.staff??[]).flatMap(staff=>staff.voices??[]).flat().filter(e=>e.el_type==="note");
+  let cursor=0;
+  const labels=new Map<number,string[]>();
+  for(const note of notes){
+   if(note.chord)labels.set(cursor,note.chord.map((chord:{name:string})=>chord.name));
+   cursor+=note.duration*1920;
+  }
+  expect(labels.get(onset)).toContain(label);
+  expect(cursor).toBe(exercise.totalDuration);
+ }
+});
 it("preserves explicit root slash labels from a curated bass line",()=>{const r=defaultTrainingRequest();r.leftHand.templateId="legacy-tonic-pedal-descending";r.tonal.keys=["C major"];r.tonal.selection="fixed";r.rhythm.meters=[{beats:3,beatUnit:4}];r.measures=4;const abc=exerciseToAbc(generateExercise(r,10));for(const label of ["C/C","C/B","C/A","C/G"])expect(abc).toContain(`"${label}"`);});
 it("preserves repeated curated labels instead of deduplicating them",()=>{const r=defaultTrainingRequest();r.leftHand.templateId="legacy-bb-fdim-line";r.tonal.keys=["Bb major"];r.tonal.selection="fixed";r.rhythm.meters=[{beats:3,beatUnit:4}];r.measures=6;const abc=exerciseToAbc(generateExercise(r,10));expect(abc.match(/"Fdim\/G"/g)).toHaveLength(2);expect(abc).toContain('"Bb"');expect(abc).toContain('"F/C"');expect(abc).toContain('"D7"');});
 
@@ -124,4 +139,3 @@ it("does not duplicate review annotations across split tied segments",()=>{
  const matches=abc.match(/_wrong/g);
  expect(matches).toHaveLength(1);
 });
-

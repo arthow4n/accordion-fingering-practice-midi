@@ -411,6 +411,8 @@ export const generateMelody = (
 
     const measureAnchor = anchors.find((a) => a.measure === m) ?? anchors[anchors.length - 1]!;
     const nextAnchor = anchors.find((a) => a.measure === m + 1) ?? measureAnchor;
+    const cadenceAnchor = anchors.find((a) => a.measure === m && a.role === "cadence") ?? measureAnchor;
+    let cadenceArrivalIndex: number | undefined;
 
     // Rhythmic plan for this measure
     let measureRhythm: { atoms: RhythmAtom[]; rhythmCellId: string };
@@ -433,6 +435,18 @@ export const generateMelody = (
 
     if (isCadence) {
       const shape = cadencePlan.melodicShape;
+      let rhythmOnset = measureOnset;
+      measureRhythm.atoms = measureRhythm.atoms.flatMap((atom) => {
+        const start = rhythmOnset;
+        rhythmOnset += atom.duration;
+        if (start < cadenceAnchor.onset && cadenceAnchor.onset < rhythmOnset) {
+          return [
+            { ...atom, duration: cadenceAnchor.onset - start, tie: false },
+            { ...atom, duration: rhythmOnset - cadenceAnchor.onset },
+          ];
+        }
+        return [atom];
+      });
       const count = measureRhythm.atoms.length;
       activeGestureType = shape.direction === "ascending"
         ? "stepUpward"
@@ -442,7 +456,7 @@ export const generateMelody = (
         ? "leapAndStepwiseRecovery"
         : "approachTargetFromAbove";
 
-      const targetArrivalTone = measureAnchor;
+      const targetArrivalTone = cadenceAnchor;
       const arrivalDegreeNum = cadencePlan.arrivalDegree;
       const targetStep = (targetArrivalTone.degree.degree - 1) + (targetArrivalTone.degree.octaveOffset * 7);
 
@@ -454,6 +468,14 @@ export const generateMelody = (
       } else if (cadencePlan.arrivalMetric === "earlyWithRepetition" && count >= 2) {
         arrivalIndex = Math.max(0, count - 2);
       }
+      let atomOnset = measureOnset;
+      const finalHarmonyIndex = measureRhythm.atoms.findIndex((atom) => {
+        const atFinalHarmony = atomOnset >= cadenceAnchor.onset;
+        atomOnset += atom.duration;
+        return atFinalHarmony;
+      });
+      arrivalIndex = Math.max(arrivalIndex, finalHarmonyIndex);
+      cadenceArrivalIndex = arrivalIndex;
 
       measureNotes = measureRhythm.atoms.map((_, idx) => {
         if (idx >= arrivalIndex) {
@@ -551,6 +573,7 @@ export const generateMelody = (
 
       const strength = metricStrength(onset % measureTicks, meter);
       const isFinalNote = isCadence && index === measureRhythm.atoms.length - 1;
+      const isCadenceArrival = index === cadenceArrivalIndex;
 
       // Strong / medium beats must agree with active harmony
       if (strength !== "weak" && !chromatic && !tieIntoNext) {
@@ -600,7 +623,7 @@ export const generateMelody = (
         }
 
         const maxUnisons = (request.emphasis === "rhythm" || activeGestureType === "repeatNote") ? 3 : 2;
-        if (consecutiveUnisons >= maxUnisons) {
+        if (consecutiveUnisons >= maxUnisons && !isCadenceArrival) {
           const chordTones = findChordTonesInRange(context, activeHarmonyForEvent, request.rightHand.range)
             .filter((ct) => ct.pitch.midi !== pitch.midi);
           if (chordTones.length && strength !== "weak") {
@@ -625,7 +648,9 @@ export const generateMelody = (
       }
 
       const nextAtom = measureRhythm.atoms[index + 1];
-      const tieToNext = !isSteady && !isFinalNote && Boolean(nextAtom && !nextAtom.rest) && (atom.tie || rng.next() < (request.rhythm.tieDensity ?? 0.05));
+      const nextIsFinalNote = isCadence && index + 1 === measureRhythm.atoms.length - 1;
+      const preservesCadence = index + 1 !== cadenceArrivalIndex && (!nextIsFinalNote || pitch.midi === cadenceAnchor.pitch.midi);
+      const tieToNext = !isSteady && !isFinalNote && preservesCadence && Boolean(nextAtom && !nextAtom.rest) && (atom.tie || rng.next() < (request.rhythm.tieDensity ?? 0.05));
 
       const challengeTags: ChallengeType[] = [];
       if (chromatic) challengeTags.push("chromatic");
@@ -649,7 +674,7 @@ export const generateMelody = (
           harmonicRhythmId: options?.harmonicRhythmId ?? "1/bar",
           cadenceType: isCadence ? cadencePlan.cadenceType : undefined,
           cadenceInstanceId: isCadence ? cadencePlan.id : undefined,
-          anchorId: measureAnchor.id,
+          anchorId: cadenceArrivalIndex !== undefined && index >= cadenceArrivalIndex ? cadenceAnchor.id : measureAnchor.id,
           motifId: section.label,
           motifTransformation: section.transformation,
           gestureType: activeGestureType,

@@ -6,7 +6,7 @@ The main concern is consistency between the harmonic plan, melodic realization, 
 
 **Validation:** A clean, isolated copy of the working tree installed successfully using `npm ci --offline` on Node **24.21.0**, the installed current LTS line. The original full `npm run check` passed with **177 tests in 24 files**. After the notation fix, full validation passed again: ESLint, **178 tests in 24 files**, TypeScript, Vite, and PWA generation. Existing changes to `package.json` and `package-lock.json` were preserved.
 
-**Fix progress:** Missing harmonic changes are now merged into the lead-sheet labels, with explicit accompaniment/slash-bass labels taking precedence. Focused drills now select harmony by event onset and replan patterns at mid-bar chord changes. Remaining findings are tracked below.
+**Fix progress:** Lead-sheet labels and focused drills now follow the active harmony. General practice uses the final cadence anchor, articulates its arrival beneath long notes, and protects it from inappropriate ties. Remaining findings are tracked below.
 
 Priorities: **P1** affects normal practice or musical correctness; **P2** affects feedback, controls, or a narrower musical case; **P3** is an edge case or improvement.
 
@@ -14,7 +14,7 @@ Priorities: **P1** affects normal practice or musical correctness; **P2** affect
 | --- | --- | --- |
 | P1 | Mid-bar chord changes hidden while MIDI expects them | Fixed in this review |
 | P1 | Focused drills use the wrong active harmony | Fixed |
-| P1 | Split final cadence targets the earlier dominant anchor | Open |
+| P1 | Split final cadence targets the earlier dominant anchor | Fixed |
 | P1 | Minor leading-tone diminished chord has an unraised root | Open |
 | P1 | Correct repeated notes can restart timed practice | Open |
 | P2 | Independent random key pool stays on its first key | Open |
@@ -46,13 +46,15 @@ Reproduce with C major, emphasis `melodicPatterns`, steady eighth notes, ties/re
 
 Implemented onset-based harmony lookup for both measure starts and individual events, with pattern replanning when an event enters a new harmony. Regression tests cover all five focused modes at seed 4; a property checks active-harmony metadata, stable attacks, and determinism across the nine UI keys and three rhythm styles.
 
-**3. Split final cadences target the wrong anchor — P1**
+**3. Split final cadences target the wrong anchor — P1, fixed**
 
 [generateMelody.ts:392](src/core/generation/generateMelody.ts#L392) picks the first anchor in a bar and uses it as cadence arrival at line 425. [melodicAnchors.ts:62](src/core/generation/melodicAnchors.ts#L62) correctly creates a separate cadence anchor for the final harmony, but that anchor is overlooked.
 
 Reproduce with C major, general emphasis, steady eighths, ties/rests disabled, seed **5**. The final bar changes V to I at tick **6720**, but the last note at **7440** is **D6**, degree 2, tagged `strongTonic`. D minor under the same settings ends **C#6** over D minor.
 
 **Suggestion:** Select the final `cadence` anchor for arrival, use onset-aware intermediate anchors, and protect the arrival through subsequent pitch repairs. Test planned arrival against realized final harmony in major and minor, including split cadences.
+
+Implemented final-anchor selection, rhythm splitting at harmonic arrival, and tie guards that preserve the closing pitch while allowing intervening melodic variation. Deterministic regressions cover steady and mixed seed 5 in C major/D minor, dense ties, and sustained-note seeds 109/136. A property checks closing harmony, strong tonic arrival, tie consistency, complete timelines, and determinism across the nine UI keys.
 
 **4. Minor vii° has the wrong root — P1**
 

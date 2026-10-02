@@ -69,9 +69,7 @@ export class PracticeSession {
     }
     if (event.type === "noteOff") { if (this.started) this.performed.push(event); return update; }
 
-    const pauseThreshold = Math.max(this.options.lateToleranceMs, (60_000 / this.exercise.tempoBpm) * 0.75);
-    const waiting = this.isWaiting(event.timestampMs);
-    const isPaused = this.timing.followAfterPause && (waiting || event.timestampMs - this.lastProgressMs > pauseThreshold);
+    const isPaused = this.isWaiting(event.timestampMs);
 
     let didResume = false;
     let didRestart = false;
@@ -92,8 +90,8 @@ export class PracticeSession {
       const currentPendingOnset = pending[0]?.onset;
       resume = pending.find(e => e.onset === currentPendingOnset && (!event.hand || e.hand === event.hand) && e.pitches.some(p => pitchMatches(e, p.midi, event.midiNote)));
 
-      // If the user plays the first sounding note of the exercise while paused after already advancing, restart from onset 0.
-      if (this.frontier >= initialOnset && isInitialAttack && (!resume || resume.onset !== initialOnset)) {
+      // A valid pending continuation takes priority over an ambiguous first-pitch restart.
+      if (this.frontier >= initialOnset && isInitialAttack && !resume) {
         this.completedIds.clear();
         this.frontier = -1;
         this.shiftMs = 0;

@@ -6,7 +6,9 @@ The main concern is consistency between the harmonic plan, melodic realization, 
 
 **Validation:** A clean, isolated copy of the working tree installed successfully using `npm ci --offline` on Node **24.21.0**, the installed current LTS line. The original full `npm run check` passed with **177 tests in 24 files**. After the notation fix, full validation passed again: ESLint, **178 tests in 24 files**, TypeScript, Vite, and PWA generation. Existing changes to `package.json` and `package-lock.json` were preserved.
 
-**Fix progress:** Lead-sheet labels and both melody paths now follow the active harmony and cadence arrival. Minor-key vii° now has a raised leading-tone root shared by melody, bass, and notation. Remaining findings are tracked below.
+**Fix progress:** All five P1 findings are resolved. Lead-sheet labels and both melody paths now follow the active harmony and cadence arrival. Minor-key vii° has a raised leading-tone root shared by melody, bass, and notation. Timed practice preserves valid repeated-pitch continuations and written rests. Remaining P2/P3 findings are tracked below.
+
+Each subsequent P1 fix passed the full `npm run check` before its separate commit and push. The final check passed **205 tests in 27 files**, ESLint, TypeScript, Vite, and PWA generation on Node 24.21.0.
 
 Priorities: **P1** affects normal practice or musical correctness; **P2** affects feedback, controls, or a narrower musical case; **P3** is an edge case or improvement.
 
@@ -16,7 +18,7 @@ Priorities: **P1** affects normal practice or musical correctness; **P2** affect
 | P1 | Focused drills use the wrong active harmony | Fixed |
 | P1 | Split final cadence targets the earlier dominant anchor | Fixed |
 | P1 | Minor leading-tone diminished chord has an unraised root | Fixed |
-| P1 | Correct repeated notes can restart timed practice | Open |
+| P1 | Correct repeated notes can restart timed practice | Fixed |
 | P2 | Independent random key pool stays on its first key | Open |
 | P2 | General melody converts planned rests to notes | Open |
 | P2 | Review ghost accidentals alter expected score pitches | Open |
@@ -66,13 +68,15 @@ Reproduce A minor, steady eighths, ties/rests disabled, seed **3**. At tick **38
 
 Implemented a shared harmonic-root rule across all grammar construction paths, lowercase diminished Roman numerals, and matching melodic degree realization. Targeted endings retain the root's alteration. Tests cover A/D/E minor melody, physical chord buttons, lead-sheet roots, explicit jump progressions, zero ornamental-accidental budgets, pitch/degree roundtrips, generation invariants, and unchanged curated voicings.
 
-**5. Correct repeated attacks restart timed practice — P1**
+**5. Correct repeated attacks restart timed practice — P1, fixed**
 
 [practiceSession.ts:74](src/application/practiceSession.ts#L74) infers a pause from time since the last successful attack, even during a written held note. The restart condition at line 96 then overrides a valid pending note when it shares the initial pitch.
 
 Reproduce two C4 half notes at ticks 0 and 960, 120 BPM, default timing. Send C4 at **1000 ms** and **2000 ms**: both attacks are on time and the session is not waiting. The second attack still resets expected times from `[1000, 2000]` to `[2000, 3000]`; only the first target remains completed.
 
 **Suggestion:** Prefer a valid pending-target match before inferring a restart. Detect hesitation relative to the next expected onset, including written duration/rests. Test repeated half notes, repeated tonic after a rest, and genuine paused continuation on the initial pitch.
+
+Implemented pause detection through the existing overdue-pending-onset check and prioritized a valid pending continuation over an ambiguous first-pitch restart. Regressions cover repeated attacks in both hands at 30–240 BPM with quarter, half, and whole notes; a repeated tonic after a written rest; paused tonic continuation; and an unambiguous restart. README now describes the next-pending-onset resume policy and explicit replay control.
 
 **6. Independent random key selection ignores the pool — P2**
 
@@ -166,4 +170,4 @@ C-major degree 1 with alteration **+2** returns D#4/MIDI **63**, rather than C d
 
 **Recommended next work**
 
-First align both melody branches, bass realization, and cadence anchors to the same onset-based harmony. Then fix minor vii°, timed restart interpretation, and correction attack grouping. Follow with accidental/spelling correctness and rhythm controls. Add properties using independent musical oracles: active harmony by onset, named pitch versus scale-degree MIDI, planned versus realized cadence, and ABCJS-parsed pitch/duration versus the exercise timeline. Existing properties are useful but often assert validity using the generator's own metadata.
+With the P1 findings resolved, prioritize correction attack grouping, restart-history isolation, and accidental/spelling correctness. Follow with key selection, planned rests, cadence classification, and rhythm controls. Add properties using independent musical oracles: active harmony by onset, named pitch versus scale-degree MIDI, planned versus realized cadence, and ABCJS-parsed pitch/duration versus the exercise timeline. Existing properties are useful but often assert validity using the generator's own metadata.

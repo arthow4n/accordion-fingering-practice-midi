@@ -116,3 +116,56 @@ it("does not trigger hesitation pause while the user is actively playing notes s
  expect(s.finish().metrics.pitchAccuracy).toBe(1);
 });
 
+describe("repeated pitches in timed follow practice", () => {
+ it.each([30, 72, 120, 240])("keeps repeated written attacks on their original pulse at %i BPM", (tempoBpm) => {
+  for (const hand of ["right", "left"] as const) {
+   for (const duration of [480, 960, 1920]) {
+    const pitch = hand === "right" ? 60 : 48;
+    const notes = [note(0, [pitch], hand, duration), note(duration, [pitch], hand, duration)];
+    const passage = { ...exercise(hand === "right" ? notes : [], hand === "left" ? notes : []), tempoBpm, totalDuration: duration * 2 };
+    const session = new PracticeSession(passage, hand, "sightReading", defaultTimingSettings());
+    const secondMs = 1000 + (duration / 480) * (60000 / tempoBpm);
+    session.accept(midi(pitch, 1000, hand));
+    expect(session.isWaiting(secondMs)).toBe(false);
+    session.accept(midi(pitch, secondMs, hand));
+    expect(session.expected.map((event) => event.expectedMs)).toEqual([1000, secondMs]);
+    expect(session.completed(hand)).toBe(2);
+    expect(session.recoveryCount).toBe(0);
+    const report = session.finish();
+    expect(report.metrics.pitchAccuracy).toBe(1);
+    expect(report.metrics.extraNotes).toBe(0);
+   }
+  }
+ });
+
+ it("continues on the repeated first pitch after a written rest", () => {
+  const session = new PracticeSession(exercise([note(0, [60]), note(480, [], "right", 960), note(1440, [60])]), "right", "sightReading", defaultTimingSettings());
+  session.accept(midi(60, 1000));
+  session.accept(midi(60, 2500));
+  expect(session.expected.map((event) => event.expectedMs)).toEqual([1000, 2500]);
+  expect(session.completed("right")).toBe(2);
+  expect(session.recoveryCount).toBe(0);
+ });
+
+ it("resumes a paused final tonic without erasing the completed phrase", () => {
+  const session = new PracticeSession(exercise([note(0, [60]), note(480, [62]), note(960, [60])]), "right", "sightReading", defaultTimingSettings());
+  session.accept(midi(60, 1000));
+  session.accept(midi(62, 1500));
+  expect(session.isWaiting(5000)).toBe(true);
+  session.accept(midi(60, 5000));
+  expect(session.expected.map((event) => event.expectedMs)).toEqual([1000, 1500, 5000]);
+  expect(session.completed("right")).toBe(3);
+  expect(session.recoveryCount).toBe(1);
+  expect(session.finish().metrics.pitchAccuracy).toBe(1);
+ });
+
+ it("still restarts when a paused first-pitch attack cannot continue the pending onset", () => {
+  const session = new PracticeSession(exercise([note(0, [60]), note(480, [62]), note(960, [64])]), "right", "sightReading", defaultTimingSettings());
+  session.accept(midi(60, 1000));
+  session.accept(midi(62, 1500));
+  session.accept(midi(60, 5000));
+  expect(session.expected.map((event) => event.expectedMs)).toEqual([5000, 5500, 6000]);
+  expect(session.completed("right")).toBe(1);
+  expect(session.currentExpected("right")?.pitches[0]!.midi).toBe(62);
+ });
+});

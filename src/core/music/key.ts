@@ -1,9 +1,14 @@
 import { Note, Scale } from "tonal";
-import type { ChordQuality, Pitch, ScaleDegree, TonalContext } from "../model";
+import type { ChordQuality, Mode, Pitch, ScaleDegree, ScaleDegreeNumber, TonalContext } from "../model";
 import { pitchFromName } from "./pitch";
 
 export const keyName = (context: TonalContext) => `${context.tonic} ${context.mode}`;
 export const scaleNotes = (context: TonalContext) => Scale.get(keyName(context)).notes;
+export const harmonicRootDegree = (mode: Mode, degree: ScaleDegreeNumber, quality: ChordQuality): ScaleDegree => ({
+  degree,
+  alteration: mode === "minor" && degree === 7 && quality === "diminished" ? 1 : 0,
+  octaveOffset: 0,
+});
 export const realizeScaleDegree = (context: TonalContext, degree: ScaleDegree, baseOctave = 4): Pitch => {
   const scale = scaleNotes(context);
   if (scale.length !== 7) throw new Error(`Unsupported key ${keyName(context)}`);

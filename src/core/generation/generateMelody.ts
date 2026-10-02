@@ -238,7 +238,7 @@ const generateTargetedMelody = (
             : chordTones[0];
           if (bestRoot) {
             pitch = { ...bestRoot.pitch };
-            degree = { ...bestRoot.degree, alteration: 0 };
+            degree = { ...bestRoot.degree };
             chromatic = false;
             chromaticRole = undefined;
             role = "cadence tone";

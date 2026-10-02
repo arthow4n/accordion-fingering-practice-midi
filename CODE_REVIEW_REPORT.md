@@ -6,7 +6,7 @@ The main concern is consistency between the harmonic plan, melodic realization, 
 
 **Validation:** A clean, isolated copy of the working tree installed successfully using `npm ci --offline` on Node **24.21.0**, the installed current LTS line. The original full `npm run check` passed with **177 tests in 24 files**. After the notation fix, full validation passed again: ESLint, **178 tests in 24 files**, TypeScript, Vite, and PWA generation. Existing changes to `package.json` and `package-lock.json` were preserved.
 
-**Fix progress:** Lead-sheet labels and focused drills now follow the active harmony. General practice uses the final cadence anchor, articulates its arrival beneath long notes, and protects it from inappropriate ties. Remaining findings are tracked below.
+**Fix progress:** Lead-sheet labels and both melody paths now follow the active harmony and cadence arrival. Minor-key vii° now has a raised leading-tone root shared by melody, bass, and notation. Remaining findings are tracked below.
 
 Priorities: **P1** affects normal practice or musical correctness; **P2** affects feedback, controls, or a narrower musical case; **P3** is an edge case or improvement.
 
@@ -15,7 +15,7 @@ Priorities: **P1** affects normal practice or musical correctness; **P2** affect
 | P1 | Mid-bar chord changes hidden while MIDI expects them | Fixed in this review |
 | P1 | Focused drills use the wrong active harmony | Fixed |
 | P1 | Split final cadence targets the earlier dominant anchor | Fixed |
-| P1 | Minor leading-tone diminished chord has an unraised root | Open |
+| P1 | Minor leading-tone diminished chord has an unraised root | Fixed |
 | P1 | Correct repeated notes can restart timed practice | Open |
 | P2 | Independent random key pool stays on its first key | Open |
 | P2 | General melody converts planned rests to notes | Open |
@@ -56,13 +56,15 @@ Reproduce with C major, general emphasis, steady eighths, ties/rests disabled, s
 
 Implemented final-anchor selection, rhythm splitting at harmonic arrival, and tie guards that preserve the closing pitch while allowing intervening melodic variation. Deterministic regressions cover steady and mixed seed 5 in C major/D minor, dense ties, and sustained-note seeds 109/136. A property checks closing harmony, strong tonic arrival, tie consistency, complete timelines, and determinism across the nine UI keys.
 
-**4. Minor vii° has the wrong root — P1**
+**4. Minor vii° has the wrong root — P1, fixed**
 
 [harmonicGrammar.ts:83](src/core/generation/harmonicGrammar.ts#L83) offers degree-7 diminished as dominant harmony in minor, but realization hardcodes root alteration 0, including at line 326 and in the explicit progression path at line 163.
 
 Reproduce A minor, steady eighths, ties/rests disabled, seed **3**. At tick **3840**, degree 7, alteration 0, diminished quality, and dominant function realize **G–Bb–Db**. The stated common-practice leading-tone chord is **G#–B–D**. Its Roman symbol is also uppercase `VII°` rather than lowercase `vii°`.
 
 **Suggestion:** Encode the raised root for minor leading-tone diminished harmony in every generation path. Test root alteration, triad pitch classes, Roman symbol, and left-hand realization in A, D, and E minor.
+
+Implemented a shared harmonic-root rule across all grammar construction paths, lowercase diminished Roman numerals, and matching melodic degree realization. Targeted endings retain the root's alteration. Tests cover A/D/E minor melody, physical chord buttons, lead-sheet roots, explicit jump progressions, zero ornamental-accidental budgets, pitch/degree roundtrips, generation invariants, and unchanged curated voicings.
 
 **5. Correct repeated attacks restart timed practice — P1**
 

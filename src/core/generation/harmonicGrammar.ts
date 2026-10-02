@@ -1,6 +1,6 @@
 import type { ChordQuality, HarmonyEvent, Meter, Mode, ScaleDegreeNumber, TonalContext } from "../model";
 import type { Rng } from "../random/rng";
-import { qualityForDegree } from "../music/key";
+import { harmonicRootDegree, qualityForDegree } from "../music/key";
 import { ticksPerMeasure } from "../music/meter";
 import { PROGRESSIONS } from "../patterns/progressionTemplates";
 import { legacyBassLineById } from "../patterns/accompanimentTemplates";
@@ -20,7 +20,7 @@ export type HarmonicRhythmPattern =
 
 const romanFor = (degree: number, quality: ChordQuality, seventh: boolean): string => {
   const numeral = ["", "I", "II", "III", "IV", "V", "VI", "VII"][degree]!;
-  const cased = quality === "minor" ? numeral.toLowerCase() : numeral;
+  const cased = quality === "minor" || quality === "diminished" ? numeral.toLowerCase() : numeral;
   return `${cased}${quality === "diminished" ? "°" : ""}${seventh ? "7" : ""}`;
 };
 
@@ -131,7 +131,7 @@ export const generateHarmonyWithGrammar = (
         id: `harmony-${index}`,
         onset: index * duration,
         duration,
-        rootDegree: { degree: step.degree, alteration: 0, octaveOffset: 0 },
+        rootDegree: harmonicRootDegree(context.mode, step.degree, quality),
         quality,
         function: fn,
         symbol: step.symbol ?? romanFor(step.degree, quality, false),
@@ -160,7 +160,7 @@ export const generateHarmonyWithGrammar = (
         id: `harmony-${i}`,
         onset: i * duration,
         duration,
-        rootDegree: { degree: degree as ScaleDegreeNumber, alteration: 0, octaveOffset: 0 },
+        rootDegree: harmonicRootDegree(context.mode, degree as ScaleDegreeNumber, quality),
         quality,
         function: fn,
         symbol: romanFor(degree, quality, seventh),
@@ -239,7 +239,7 @@ export const generateHarmonyWithGrammar = (
           id: `harmony-${eventIdx++}`,
           onset: m * duration,
           duration: splitTick,
-          rootDegree: { degree: cadencePlan.penultimateDegree, alteration: 0, octaveOffset: 0 },
+          rootDegree: harmonicRootDegree(context.mode, cadencePlan.penultimateDegree, cadencePlan.penultimateQuality),
           quality: cadencePlan.penultimateQuality,
           function: cadencePlan.penultimateDegree === 5 ? "dominant" : "predominant",
           symbol: cadencePlan.penultimateSymbol,
@@ -248,7 +248,7 @@ export const generateHarmonyWithGrammar = (
           id: `harmony-${eventIdx++}`,
           onset: m * duration + splitTick,
           duration: duration - splitTick,
-          rootDegree: { degree: cadencePlan.finalDegree, alteration: 0, octaveOffset: 0 },
+          rootDegree: harmonicRootDegree(context.mode, cadencePlan.finalDegree, cadencePlan.finalQuality),
           quality: cadencePlan.finalQuality,
           function: cadencePlan.finalDegree === 1 ? "tonic" : "dominant",
           symbol: cadencePlan.finalSymbol,
@@ -258,7 +258,7 @@ export const generateHarmonyWithGrammar = (
           id: `harmony-${eventIdx++}`,
           onset: m * duration,
           duration,
-          rootDegree: { degree: cadencePlan.finalDegree, alteration: 0, octaveOffset: 0 },
+          rootDegree: harmonicRootDegree(context.mode, cadencePlan.finalDegree, cadencePlan.finalQuality),
           quality: cadencePlan.finalQuality,
           function: cadencePlan.finalDegree === 1 ? "tonic" : "dominant",
           symbol: cadencePlan.finalSymbol,
@@ -274,7 +274,7 @@ export const generateHarmonyWithGrammar = (
         id: `harmony-${eventIdx++}`,
         onset: m * duration,
         duration: splitTick,
-        rootDegree: { degree: ch1.degree, alteration: 0, octaveOffset: 0 },
+        rootDegree: harmonicRootDegree(context.mode, ch1.degree, ch1.quality),
         quality: ch1.quality,
         function: ch1.fn,
         symbol: ch1.symbol,
@@ -283,7 +283,7 @@ export const generateHarmonyWithGrammar = (
         id: `harmony-${eventIdx++}`,
         onset: m * duration + splitTick,
         duration: duration - splitTick,
-        rootDegree: { degree: cadencePlan.penultimateDegree, alteration: 0, octaveOffset: 0 },
+        rootDegree: harmonicRootDegree(context.mode, cadencePlan.penultimateDegree, cadencePlan.penultimateQuality),
         quality: cadencePlan.penultimateQuality,
         function: "dominant",
         symbol: cadencePlan.penultimateSymbol,
@@ -301,7 +301,7 @@ export const generateHarmonyWithGrammar = (
         id: `harmony-${eventIdx++}`,
         onset: m * duration,
         duration: splitTick,
-        rootDegree: { degree: ch1.degree, alteration: 0, octaveOffset: 0 },
+        rootDegree: harmonicRootDegree(context.mode, ch1.degree, ch1.quality),
         quality: ch1.quality,
         function: ch1.fn,
         symbol: ch1.symbol,
@@ -310,7 +310,7 @@ export const generateHarmonyWithGrammar = (
         id: `harmony-${eventIdx++}`,
         onset: m * duration + splitTick,
         duration: duration - splitTick,
-        rootDegree: { degree: ch2.degree, alteration: 0, octaveOffset: 0 },
+        rootDegree: harmonicRootDegree(context.mode, ch2.degree, ch2.quality),
         quality: ch2.quality,
         function: ch2.fn,
         symbol: ch2.symbol,
@@ -323,7 +323,7 @@ export const generateHarmonyWithGrammar = (
       id: `harmony-${eventIdx++}`,
       onset: m * duration,
       duration,
-      rootDegree: { degree: ch.degree, alteration: 0, octaveOffset: 0 },
+      rootDegree: harmonicRootDegree(context.mode, ch.degree, ch.quality),
       quality: ch.quality,
       function: ch.fn,
       symbol: ch.symbol,

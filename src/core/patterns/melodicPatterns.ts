@@ -136,7 +136,9 @@ export const realizeDiatonicStep = (context: TonalContext, step: number, activeH
   const oct = Math.floor(step / 7);
   const degreeNum = (zero + 1) as ScaleDegreeNumber;
 
-  if (context.mode === "minor" && degreeNum === 7 && (activeHarmony?.rootDegree.degree === 5 || alteration === 1)) {
+  const leadingToneHarmony = activeHarmony?.rootDegree.degree === 5 ||
+    (activeHarmony?.rootDegree.degree === 7 && activeHarmony.quality === "diminished" && activeHarmony.rootDegree.alteration === 1);
+  if (context.mode === "minor" && degreeNum === 7 && (leadingToneHarmony || alteration === 1)) {
     alt = 1;
   }
 

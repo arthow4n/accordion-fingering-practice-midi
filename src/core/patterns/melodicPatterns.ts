@@ -1,7 +1,5 @@
-import { Note } from "tonal";
 import type { HarmonyEvent, NoteRole, PatternCategory, PatternFamily, PatternTransformation, Pitch, PitchRange, ScaleDegree, ScaleDegreeNumber, TonalContext } from "../model";
-import { realizeScaleDegree, scaleNotes } from "../music/key";
-import { pitchFromMidi } from "../music/pitch";
+import { realizeScaleDegree } from "../music/key";
 
 export type MelodicPattern = {
   id: string;
@@ -110,16 +108,6 @@ export const transformPattern = (degrees: readonly number[], transformation: Pat
   return [...degrees];
 };
 
-const getScaleIntervals = (context: TonalContext): number[] => {
-  const scale = scaleNotes(context);
-  const tonicMidi = Note.midi(`${scale[0]}4`) ?? 60;
-  return scale.map((noteName) => {
-    let m = Note.midi(`${noteName}4`) ?? tonicMidi;
-    while (m < tonicMidi) m += 12;
-    return m - tonicMidi;
-  });
-};
-
 export const stepToScaleDegree = (step: number, alteration = 0): ScaleDegree => {
   const wrapped = ((step % 7) + 7) % 7;
   const degree = (wrapped + 1) as ScaleDegreeNumber;
@@ -129,8 +117,6 @@ export const stepToScaleDegree = (step: number, alteration = 0): ScaleDegree => 
 };
 
 export const realizeDiatonicStep = (context: TonalContext, step: number, activeHarmony?: HarmonyEvent, alteration = 0): { degree: ScaleDegree; pitch: Pitch } => {
-  const intervals = getScaleIntervals(context);
-  const scale = scaleNotes(context);
   let alt = alteration;
   const zero = ((step % 7) + 7) % 7;
   const oct = Math.floor(step / 7);
@@ -142,24 +128,12 @@ export const realizeDiatonicStep = (context: TonalContext, step: number, activeH
     alt = 1;
   }
 
-  let tonicBaseOctave = 4;
-  const tonicMidi4 = Note.midi(`${scale[0]}4`) ?? 60;
-  if (tonicMidi4 > 66) {
-    tonicBaseOctave = 3;
-  }
-  const tonicMidi = Note.midi(`${scale[0]}${tonicBaseOctave}`) ?? 60;
-  const semitones = intervals[zero]! + oct * 12 + alt;
-  const midi = tonicMidi + semitones;
-  const preferFlats = context.tonic.includes("b");
-  const pitch = pitchFromMidi(midi, preferFlats);
-
-  const noteOctave = parseInt(pitch.name.match(/\d+$/)?.[0] ?? "4", 10);
-  const degreeOctave = noteOctave - 4;
   const degree: ScaleDegree = {
     degree: degreeNum,
     alteration: alt as ScaleDegree["alteration"],
-    octaveOffset: degreeOctave,
+    octaveOffset: oct,
   };
+  const pitch = realizeScaleDegree(context, degree, 4);
 
   return { degree, pitch };
 };

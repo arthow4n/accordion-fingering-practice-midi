@@ -80,6 +80,15 @@ it("does not let duplicate bass voices consume the next repeated correction targ
  s.accept(midi(48,1000,"left"));expect(s.accept(midi(48,1001,"left")).accepted).toBe(0);
  s.accept(midi(48,1100,"left","noteOff"));expect(s.accept(midi(48,1500,"left")).completed).toBe(true);
 });
+it("does not let octave-doubled bass bursts advance multiple correction targets", () => {
+ const s = new PracticeSession(exercise([], [note(0, [48], "left"), note(480, [48], "left")]), "left", "correction", timing());
+ s.accept(midi(48, 1000, "left"));
+ expect(s.accept(midi(60, 1001, "left")).accepted).toBe(0);
+ expect(s.completed("left")).toBe(1);
+ s.accept(midi(48, 1100, "left", "noteOff"));
+ s.accept(midi(60, 1101, "left", "noteOff"));
+ expect(s.accept(midi(48, 1500, "left")).completed).toBe(true);
+});
 it("automatically finishes silent final passage when duration has elapsed",()=>{
  const s=new PracticeSession(exercise([note(0,[60]),note(480,[62])]),"right","sightReading",defaultTimingSettings());
  s.accept(midi(60,1000));expect(s.shouldFinish(10000)).toBe(true);

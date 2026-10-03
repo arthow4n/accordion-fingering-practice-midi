@@ -38,7 +38,11 @@ export const analyzeDifficulty = (exercise: Omit<Exercise, "difficulty">): Diffi
   const uniqueDurations = new Set(durations).size;
   const subdivisionScore = minDuration <= 120 ? 0.6 : minDuration <= 240 ? 0.35 : 0.1;
   const syncopatedCount = exercise.rightHand.filter(
-    (e) => e.metadata.challengeTags.includes("syncopation") || (e.onset % 240 !== 0 && e.pitches.length > 0)
+    (e) =>
+      e.pitches.length > 0 &&
+      (e.metadata.challengeTags.includes("syncopation") ||
+        (e.onset % 480 !== 0 && e.duration >= 480) ||
+        (e.onset % 240 !== 0 && e.duration >= 240))
   ).length;
   const syncopationRatio = rhSounding.length ? syncopatedCount / rhSounding.length : 0;
   const realizedRhythmComplexity = clamp(subdivisionScore + syncopationRatio * 0.3 + (uniqueDurations / 6) * 0.2);

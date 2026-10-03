@@ -9,7 +9,10 @@ it("renders chords above the staff even when left hand is disabled",()=>{const r
 it("shows mid-measure harmonic changes at their sounding onsets",async()=>{
  const {parseOnly}=await import("abcjs");
  for(const [seed,onset,label] of [[4,4800,"G"],[5,2880,"G7"],[5,6720,"C"]] as const){
-  const exercise=generateExercise(defaultTrainingRequest(),seed);
+  const request=defaultTrainingRequest();
+  request.tonal.keys=["C major"];
+  request.tonal.selection="fixed";
+  const exercise=generateExercise(request,seed);
   const notes=parseOnly(exerciseToAbc(exercise))[0].lines.flatMap(line=>line.staff??[]).flatMap(staff=>staff.voices??[]).flat().filter(e=>e.el_type==="note");
   let cursor=0;
   const labels=new Map<number,string[]>();
@@ -125,17 +128,41 @@ it("renders review annotations: extra notes show ghost note and extra marking",(
  expect(abc).toMatch(/\{[=_^]?[A-Ga-g][,']*\}/);
 });
 
-it("does not duplicate review annotations across split tied segments",()=>{
- const request=defaultTrainingRequest();
- request.leftHand.templateId="legacy-transition-to-IV"; // causes split at counterbass label
- request.tonal.keys=["C major"];
- const exercise=generateExercise(request,0);
- const target=exercise.rightHand[0]!;
- const abc=exerciseToAbc(exercise,{
-  reviewAnnotations:[
-   { kind:"wrongPitch", expectedEventId:target.id, playedMidiNotes:[65] }
-  ]
+ it("does not duplicate review annotations across split tied segments",()=>{
+  const request=defaultTrainingRequest();
+  request.leftHand.templateId="legacy-transition-to-IV"; // causes split at counterbass label
+  request.tonal.keys=["C major"];
+  const exercise=generateExercise(request,0);
+  const target=exercise.rightHand[0]!;
+  const abc=exerciseToAbc(exercise,{
+   reviewAnnotations:[
+    { kind:"wrongPitch", expectedEventId:target.id, playedMidiNotes:[65] }
+   ]
+  });
+  const matches=abc.match(/_wrong/g);
+  expect(matches).toHaveLength(1);
  });
- const matches=abc.match(/_wrong/g);
- expect(matches).toHaveLength(1);
-});
+
+ it("restores expected note accidentals when review ghost notes introduce an accidental", async () => {
+  const { parseOnly } = await import("abcjs");
+  const req = defaultTrainingRequest();
+  req.tonal.keys = ["C major"];
+  req.tonal.selection = "fixed";
+  const exercise = generateExercise(req, 0);
+  exercise.rightHand = [
+   { id: "rh-0", onset: 0, duration: 480, pitches: [{ midi: 65, name: "F4" }], hand: "right", metadata: { challengeTags: [] } },
+   { id: "rh-1", onset: 480, duration: 480, pitches: [{ midi: 65, name: "F4" }], hand: "right", metadata: { challengeTags: [] } },
+  ];
+  exercise.leftHand = [];
+  exercise.totalDuration = 1920;
+  const abc = exerciseToAbc(exercise, {
+   reviewAnnotations: [
+    { kind: "wrongPitch", expectedEventId: "rh-0", playedMidiNotes: [66] }, // F#4 (midi 66) ghost
+   ],
+  });
+  expect(abc).toContain("=F");
+  const parsed = parseOnly(abc)[0];
+  const notes = parsed.lines.flatMap(line => line.staff ?? []).flatMap(staff => staff.voices ?? []).flat().filter(e => e.el_type === "note");
+  expect(notes[0]?.pitches?.[0]?.name).toBe("=F");
+  expect(notes[0]?.gracenotes?.[0]?.name).toBe("^F");
+ });

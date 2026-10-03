@@ -48,9 +48,14 @@ export class PracticeSession {
       const group = this.expected.filter(e => e.onset === onset && !this.completedIds.has(e.id));
       const target = group.find(e => (!event.hand || event.hand === e.hand) && e.pitches.some(p => pitchMatches(e, p.midi, event.midiNote)));
       if (!target) return duplicate ? update : { ...update, wrong: 1 };
-      // A single bass+chord button burst can contain duplicate pitches. It must
-      // not advance a repeated target at the next score onset in the same burst.
-      if (duplicate && event.hand === "left" && this.expected.some(e => (this.correctionCompletedAt.get(e.id) ?? -Infinity) >= event.timestampMs - this.options.simultaneityWindowMs && e.hand === "left" && e.pitches.some(p => pitchMatches(e, p.midi, event.midiNote)))) return update;
+      // A single bass or chord button burst can contain multiple octave voices or duplicate pitches.
+      // It must not advance a repeated or subsequent target at the next score onset within the same burst.
+      if (event.hand === "left" && this.expected.some(e =>
+        e.hand === "left" &&
+        e.onset < target.onset &&
+        (this.correctionCompletedAt.get(e.id) ?? -Infinity) >= event.timestampMs - this.options.simultaneityWindowMs &&
+        e.pitches.some(p => pitchMatches(e, p.midi, event.midiNote))
+      )) return update;
       let collected = this.correctionNotes.get(target.id);
       if (!collected || event.timestampMs - collected.firstMs > this.options.simultaneityWindowMs) collected = { pitches: new Set(), firstMs: event.timestampMs };
       const index = target.pitches.findIndex((p, i) => !collected.pitches.has(i) && pitchMatches(target, p.midi, event.midiNote));

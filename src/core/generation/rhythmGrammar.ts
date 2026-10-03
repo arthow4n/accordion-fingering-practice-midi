@@ -33,7 +33,7 @@ const ONE_BEAT_CELLS: RhythmCell[] = [
 const TWO_BEAT_CELLS: RhythmCell[] = [
   { id: "half", duration: 960, atoms: [{ duration: 960 }], complexity: 0.02 },
   { id: "dottedQuarterEighth", duration: 960, atoms: [{ duration: 720 }, { duration: 240 }], complexity: 0.25 },
-  { id: "syncopatedQuarter", duration: 960, atoms: [{ duration: 240 }, { duration: 480 }, { duration: 240 }], complexity: 0.6, syncopated: true },
+  { id: "syncopatedQuarter", duration: 960, atoms: [{ duration: 240 }, { duration: 480, syncopated: true }, { duration: 240 }], complexity: 0.6, syncopated: true },
   { id: "quarterTwoEighths", duration: 960, atoms: [{ duration: 480 }, { duration: 240 }, { duration: 240 }], complexity: 0.2 },
   { id: "twoEighthsQuarter", duration: 960, atoms: [{ duration: 240 }, { duration: 240 }, { duration: 480 }], complexity: 0.2 },
 ];
@@ -43,7 +43,7 @@ const SIX_EIGHT_BEAT_CELLS: RhythmCell[] = [
   { id: "dottedQuarter", duration: 720, atoms: [{ duration: 720 }], complexity: 0.05 },
   { id: "threeEighths", duration: 720, atoms: [{ duration: 240 }, { duration: 240 }, { duration: 240 }], complexity: 0.2 },
   { id: "quarterEighth", duration: 720, atoms: [{ duration: 480 }, { duration: 240 }], complexity: 0.25 },
-  { id: "eighthQuarter", duration: 720, atoms: [{ duration: 240 }, { duration: 480 }], complexity: 0.35, syncopated: true },
+  { id: "eighthQuarter", duration: 720, atoms: [{ duration: 240 }, { duration: 480, syncopated: true }], complexity: 0.35, syncopated: true },
   { id: "dottedEighthSixteenthEighth", duration: 720, atoms: [{ duration: 360 }, { duration: 120 }, { duration: 240 }], complexity: 0.45 },
 ];
 
@@ -60,9 +60,14 @@ export const generateMeasureRhythm = (
       ? 240
       : 120;
 
+  const baseDur = request.rhythm.noteValue === "half" ? 960 : request.rhythm.noteValue === "quarter" ? 480 : request.rhythm.noteValue === "eighth" ? 240 : 120;
+  const effectiveMinDuration = request.rhythm.style === "mostlySteady"
+    ? Math.max(minDuration, baseDur)
+    : minDuration;
+
   // Steady rhythm style check
   if (request.rhythm.style === "steady") {
-    const fixedDur = request.rhythm.noteValue === "half" ? 960 : request.rhythm.noteValue === "quarter" ? 480 : request.rhythm.noteValue === "eighth" ? 240 : 120;
+    const fixedDur = baseDur;
     if (measureTicks % fixedDur === 0) {
       const count = measureTicks / fixedDur;
       return {
@@ -87,7 +92,7 @@ export const generateMeasureRhythm = (
         // Dotted half + quarter
         [{ duration: 1440 }, { duration: 480 }],
       ];
-      const valid = cadenceOptions.filter((opt) => opt.every((a) => a.duration >= minDuration));
+      const valid = cadenceOptions.filter((opt) => opt.every((a) => a.duration >= effectiveMinDuration));
       const atoms = valid.length ? rng.pick(valid) : cadenceOptions[0]!;
       return { atoms, rhythmCellId: "cadence-measure-4" };
     } else if (meter.beats === 3 && meter.beatUnit === 4) {
@@ -96,7 +101,7 @@ export const generateMeasureRhythm = (
         [{ duration: 240 }, { duration: 240 }, { duration: 960 }],
         [{ duration: 1440 }],
       ];
-      const valid = cadenceOptions.filter((opt) => opt.every((a) => a.duration >= minDuration));
+      const valid = cadenceOptions.filter((opt) => opt.every((a) => a.duration >= effectiveMinDuration));
       const atoms = valid.length ? rng.pick(valid) : cadenceOptions[0]!;
       return { atoms, rhythmCellId: "cadence-measure-3" };
     } else if (meter.beats === 6 && meter.beatUnit === 8) {
@@ -107,15 +112,20 @@ export const generateMeasureRhythm = (
     }
   }
 
+  const isChallenge = request.rhythm.style === "challenge";
+
   // 6/8 meter generation
   if (meter.beats === 6 && meter.beatUnit === 8) {
     const validCells = SIX_EIGHT_BEAT_CELLS.filter((cell) =>
-      cell.atoms.every((a) => a.duration >= minDuration) &&
-      (!cell.syncopated || request.rhythm.syncopation >= 0.3)
+      cell.atoms.every((a) => a.duration >= effectiveMinDuration) &&
+      (!cell.syncopated || isChallenge || request.rhythm.syncopation >= 0.3)
     );
     const pool = validCells.length ? validCells : SIX_EIGHT_BEAT_CELLS.slice(0, 2);
-    const b1 = rng.pick(pool);
-    const b2 = rng.pick(pool);
+    const pick68 = () => isChallenge
+      ? rng.weightedPick(pool.map(c => ({ value: c, weight: c.syncopated || c.id.includes("dotted") ? 3 : 1 })))
+      : rng.pick(pool);
+    const b1 = pick68();
+    const b2 = pick68();
     return {
       atoms: [...b1.atoms, ...b2.atoms],
       rhythmCellId: `${b1.id}+${b2.id}`,
@@ -125,33 +135,40 @@ export const generateMeasureRhythm = (
   // 4/4 meter generation: compose from 1-beat and 2-beat cells
   if (meter.beats === 4 && meter.beatUnit === 4) {
     const valid1 = ONE_BEAT_CELLS.filter((cell) =>
-      cell.atoms.every((a) => a.duration >= minDuration) &&
+      cell.atoms.every((a) => a.duration >= effectiveMinDuration) &&
       (!cell.atoms.some((a) => a.rest) || (request.rhythm.restDensity ?? 0.05) > 0.1)
     );
     const valid2 = TWO_BEAT_CELLS.filter((cell) =>
-      cell.atoms.every((a) => a.duration >= minDuration) &&
-      (!cell.syncopated || request.rhythm.syncopation >= 0.35)
+      cell.atoms.every((a) => a.duration >= effectiveMinDuration) &&
+      (!cell.syncopated || isChallenge || request.rhythm.syncopation >= 0.35)
     );
 
     const pool1 = valid1.length ? valid1 : ONE_BEAT_CELLS.slice(0, 2);
     const pool2 = valid2.length ? valid2 : TWO_BEAT_CELLS.slice(0, 1);
 
+    const pick1 = () => isChallenge
+      ? rng.weightedPick(pool1.map(c => ({ value: c, weight: c.id.includes("dotted") || c.atoms.some(a => a.syncopated) ? 3 : 1 })))
+      : rng.pick(pool1);
+    const pick2 = () => isChallenge
+      ? rng.weightedPick(pool2.map(c => ({ value: c, weight: c.syncopated || c.atoms.some(a => a.syncopated) || c.id.includes("dotted") ? 3 : 1 })))
+      : rng.pick(pool2);
+
     // Context-sensitive structure based on phrase role:
     if (role === "opening" && request.rhythm.noteDensity < 0.6) {
       // Moderate/stable: e.g. 2-beat half + two quarters
-      const cell2 = rng.pick(pool2);
-      const c1 = rng.pick(pool1);
-      const c2 = rng.pick(pool1);
+      const cell2 = pick2();
+      const c1 = pick1();
+      const c2 = pick1();
       const atoms = rng.next() < 0.5 ? [...cell2.atoms, ...c1.atoms, ...c2.atoms] : [...c1.atoms, ...c2.atoms, ...cell2.atoms];
       return { atoms, rhythmCellId: `open-${cell2.id}+2x1` };
     }
 
-    if (role === "continuation" || role === "climax") {
+    if (!isChallenge && (role === "continuation" || role === "climax")) {
       // Higher density: 4 single-beat cells
-      const c1 = rng.pick(pool1);
-      const c2 = rng.pick(pool1);
-      const c3 = rng.pick(pool1);
-      const c4 = rng.pick(pool1);
+      const c1 = pick1();
+      const c2 = pick1();
+      const c3 = pick1();
+      const c4 = pick1();
       return {
         atoms: [...c1.atoms, ...c2.atoms, ...c3.atoms, ...c4.atoms],
         rhythmCellId: `${c1.id}+${c2.id}+${c3.id}+${c4.id}`,
@@ -160,33 +177,43 @@ export const generateMeasureRhythm = (
 
     // Default 4/4 composition: mix of 2-beat and 1-beat cells
     const roll = rng.next();
-    if (roll < 0.4) {
-      const c1 = rng.pick(pool2);
-      const c2 = rng.pick(pool2);
+    const threshold2Beat = isChallenge ? 0.6 : 0.4;
+    if (roll < threshold2Beat) {
+      const c1 = pick2();
+      const c2 = pick2();
       return { atoms: [...c1.atoms, ...c2.atoms], rhythmCellId: `${c1.id}+${c2.id}` };
-    } else if (roll < 0.7) {
-      const c1 = rng.pick(pool2);
-      const b1 = rng.pick(pool1);
-      const b2 = rng.pick(pool1);
+    } else if (roll < (isChallenge ? 0.85 : 0.7)) {
+      const c1 = pick2();
+      const b1 = pick1();
+      const b2 = pick1();
       return { atoms: [...c1.atoms, ...b1.atoms, ...b2.atoms], rhythmCellId: `${c1.id}+${b1.id}+${b2.id}` };
     } else {
-      const b1 = rng.pick(pool1);
-      const b2 = rng.pick(pool1);
-      const c2 = rng.pick(pool2);
+      const b1 = pick1();
+      const b2 = pick1();
+      const c2 = pick2();
       return { atoms: [...b1.atoms, ...b2.atoms, ...c2.atoms], rhythmCellId: `${b1.id}+${b2.id}+${c2.id}` };
     }
   }
 
   // 3/4 meter generation
   if (meter.beats === 3 && meter.beatUnit === 4) {
-    const valid1 = ONE_BEAT_CELLS.filter((cell) => cell.atoms.every((a) => a.duration >= minDuration));
+    const valid1 = ONE_BEAT_CELLS.filter((cell) =>
+      cell.atoms.every((a) => a.duration >= effectiveMinDuration) &&
+      (!cell.atoms.some((a) => a.rest) || (request.rhythm.restDensity ?? 0.05) > 0.1)
+    );
     const pool1 = valid1.length ? valid1 : ONE_BEAT_CELLS.slice(0, 2);
 
     const roll = rng.next();
-    if (roll < 0.35 && minDuration <= 480) {
+    if (roll < (isChallenge ? 0.5 : 0.35) && effectiveMinDuration <= 480) {
       // 2-beat + 1-beat
-      const valid2 = TWO_BEAT_CELLS.filter((c) => c.atoms.every((a) => a.duration >= minDuration));
-      const cell2 = rng.pick(valid2.length ? valid2 : TWO_BEAT_CELLS.slice(0, 1));
+      const valid2 = TWO_BEAT_CELLS.filter((c) =>
+        c.atoms.every((a) => a.duration >= effectiveMinDuration) &&
+        (!c.syncopated || isChallenge || request.rhythm.syncopation >= 0.35)
+      );
+      const pool2 = valid2.length ? valid2 : TWO_BEAT_CELLS.slice(0, 1);
+      const cell2 = isChallenge
+        ? rng.weightedPick(pool2.map(c => ({ value: c, weight: c.syncopated || c.id.includes("dotted") ? 3 : 1 })))
+        : rng.pick(pool2);
       const cell1 = rng.pick(pool1);
       return { atoms: [...cell2.atoms, ...cell1.atoms], rhythmCellId: `${cell2.id}+${cell1.id}` };
     } else {

@@ -5,7 +5,7 @@ import { createRng } from "../random/rng";
 import { parseTrainingRequest, type TrainingRequest } from "../training/trainingIntent";
 import { ticksPerMeasure } from "../music/meter";
 import { generatePhrasePlanWithGrammar } from "./phraseGrammar";
-import { planCadence } from "./cadenceGrammar";
+import { classifyCadenceType, planCadence } from "./cadenceGrammar";
 import { planMelodicAnchors } from "./melodicAnchors";
 import { generateHarmony } from "./generateHarmony";
 import { generateMelody } from "./generateMelody";
@@ -55,7 +55,9 @@ export const generateExercise = (
   let lastRejection: string[] = [];
   const studyInfo = studyStepForSeed(seed, parsed.emphasis);
   for (let attempt = 1; attempt <= 32; attempt++) {
-    const keyCandidates = attempt <= 20 ? [request.tonal.keys[0]!] : request.tonal.keys;
+    const keyCandidates = (request.sessionProgression === "progressive" || request.tonal.selection === "fixed" || request.tonal.keys.length === 1)
+      ? [request.tonal.keys[0]!]
+      : request.tonal.keys;
     const progressionCandidates = leftJumpProgression(request);
     const context = parseKey(rng.pick(keyCandidates));
     const meter = rng.pick(request.rhythm.meters);
@@ -76,6 +78,19 @@ export const generateExercise = (
       undefined,
       antiRepetition
     );
+    if (harmonyResult.events.length >= 2) {
+      const pen = harmonyResult.events.at(-2)!;
+      const fin = harmonyResult.events.at(-1)!;
+      cadencePlan.cadenceType = classifyCadenceType(
+        pen.rootDegree.degree,
+        fin.rootDegree.degree,
+        cadencePlan.melodicShape.arrivalDegree
+      );
+      cadencePlan.penultimateDegree = pen.rootDegree.degree as 1 | 2 | 3 | 4 | 5 | 6 | 7;
+      cadencePlan.penultimateQuality = pen.quality;
+      cadencePlan.finalDegree = fin.rootDegree.degree as 1 | 2 | 3 | 4 | 5 | 6 | 7;
+      cadencePlan.finalQuality = fin.quality;
+    }
     const anchors = planMelodicAnchors(
       context,
       meter,

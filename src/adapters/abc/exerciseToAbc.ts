@@ -107,6 +107,9 @@ const serializeVoice = (
     const desired = accidental(p.name);
     const active = state.get(key) ?? signature.get(letter(p.name)) ?? "";
     const prefix = desired !== active ? (desired || "=") : "";
+    if (desired !== active) {
+      state.set(key, desired);
+    }
     return prefix + abcBase(p);
   };
 

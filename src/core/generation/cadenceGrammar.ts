@@ -199,3 +199,14 @@ export const planCadence = (
     arrivalDegree: melodicShape.arrivalDegree,
   };
 };
+
+export const classifyCadenceType = (penultimateDegree: number, finalDegree: number, arrivalDegree?: number): CadenceType => {
+  if (finalDegree === 5) return "half";
+  if (finalDegree === 6) return "deceptive";
+  if (finalDegree === 1) {
+    if (penultimateDegree === 4) return "plagal";
+    if (penultimateDegree === 5 && (arrivalDegree === undefined || arrivalDegree === 1)) return "strongTonic";
+    return "weakTonic";
+  }
+  return "open";
+};

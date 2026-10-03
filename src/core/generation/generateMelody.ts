@@ -11,12 +11,14 @@ import type {
   Pitch,
   RightHandEmphasis,
   ScaleDegree,
+  ScaleDegreeNumber,
   TonalContext,
 } from "../model";
 import type { Rng } from "../random/rng";
 import type { TrainingRequest } from "../training/trainingIntent";
 import { metricStrength, ticksPerMeasure } from "../music/meter";
 import { pitchFromMidi } from "../music/pitch";
+import { realizeScaleDegree } from "../music/key";
 import { findChordTonesInRange, MELODIC_PATTERNS, realizeDiatonicStep, type GeneratedPatternNote, type MelodicPattern } from "../patterns/melodicPatterns";
 import { cellsForMeter, type RhythmCell } from "../patterns/rhythmCells";
 import { generateNotesForPattern } from "../patterns/patternGenerators";
@@ -114,6 +116,17 @@ const generateTargetedMelody = (
         );
 
   const rangeSpan = request.rightHand.range.high - request.rightHand.range.low;
+
+  const availableScaleTones: { pitch: Pitch; degree: ScaleDegree }[] = [];
+  for (let deg = 1 as ScaleDegreeNumber; deg <= 7; deg++) {
+    for (let oct = -2; oct <= 3; oct++) {
+      const d: ScaleDegree = { degree: deg, alteration: 0, octaveOffset: oct };
+      const p = realizeScaleDegree(context, d, 4);
+      if (p.midi >= request.rightHand.range.low && p.midi <= request.rightHand.range.high) {
+        availableScaleTones.push({ pitch: p, degree: d });
+      }
+    }
+  }
 
   const chooseCategory = (): PatternCategory => {
     const weights = categoryWeights(request.emphasis, rangeSpan);
@@ -273,25 +286,22 @@ const generateTargetedMelody = (
           consecutiveUnisons = 0;
         }
 
-        const maxUnisons = request.emphasis === "rhythm" ? 3 : 2;
+        const maxUnisons = 2;
         if (consecutiveUnisons >= maxUnisons) {
-          if (strength !== "weak") {
-            const chordTones = findChordTonesInRange(context, activeHarmony, request.rightHand.range)
-              .filter((ct) => ct.pitch.midi !== pitch.midi);
-            if (chordTones.length) {
-              const bestTone = chordTones.reduce((prev, curr) => Math.abs(curr.pitch.midi - pitch.midi) < Math.abs(prev.pitch.midi - pitch.midi) ? curr : prev);
-              pitch = { ...bestTone.pitch };
-              degree = { ...bestTone.degree };
-              role = "chord tone";
-              consecutiveUnisons = 0;
-            }
+          const chordTones = findChordTonesInRange(context, activeHarmony, request.rightHand.range)
+            .filter((ct) => ct.pitch.midi !== pitch.midi);
+          if (chordTones.length) {
+            const bestTone = chordTones.reduce((prev, curr) => Math.abs(curr.pitch.midi - pitch.midi) < Math.abs(prev.pitch.midi - pitch.midi) ? curr : prev);
+            pitch = { ...bestTone.pitch };
+            degree = { ...bestTone.degree };
+            role = "chord tone";
+            consecutiveUnisons = 0;
           } else {
-            const stepOffset = pitch.midi + 2 <= request.rightHand.range.high ? 1 : -1;
-            const rawStep = (degree.degree - 1) + (degree.octaveOffset * 7) + stepOffset;
-            const stepped = realizeDiatonicStep(context, rawStep, activeHarmony);
-            if (stepped.pitch.midi >= request.rightHand.range.low && stepped.pitch.midi <= request.rightHand.range.high) {
-              pitch = { ...stepped.pitch };
-              degree = { ...stepped.degree };
+            const pool = availableScaleTones.filter((st) => st.pitch.midi !== pitch.midi);
+            if (pool.length) {
+              const nearest = pool.reduce((prev, curr) => Math.abs(curr.pitch.midi - pitch.midi) < Math.abs(prev.pitch.midi - pitch.midi) ? curr : prev);
+              pitch = { ...nearest.pitch };
+              degree = { ...nearest.degree };
               role = "scale tone";
               chromatic = false;
               chromaticRole = undefined;
@@ -390,6 +400,17 @@ export const generateMelody = (
 
   const motifMemory: MotifMemory = createMotifMemory();
   const events: ExerciseEvent[] = [];
+
+  const availableScaleTones: { pitch: Pitch; degree: ScaleDegree }[] = [];
+  for (let deg = 1 as ScaleDegreeNumber; deg <= 7; deg++) {
+    for (let oct = -2; oct <= 3; oct++) {
+      const d: ScaleDegree = { degree: deg, alteration: 0, octaveOffset: oct };
+      const p = realizeScaleDegree(context, d, 4);
+      if (p.midi >= request.rightHand.range.low && p.midi <= request.rightHand.range.high) {
+        availableScaleTones.push({ pitch: p, degree: d });
+      }
+    }
+  }
 
   let previousPitch: Pitch | undefined;
   let previousDegree: ScaleDegree | undefined;
@@ -575,8 +596,10 @@ export const generateMelody = (
       const isFinalNote = isCadence && index === measureRhythm.atoms.length - 1;
       const isCadenceArrival = index === cadenceArrivalIndex;
 
+      const rest = Boolean(atom.rest);
+
       // Strong / medium beats must agree with active harmony
-      if (strength !== "weak" && !chromatic && !tieIntoNext) {
+      if (!rest && strength !== "weak" && !chromatic && !tieIntoNext) {
         const chordTones = findChordTonesInRange(context, activeHarmonyForEvent, request.rightHand.range);
         const isChordTone = chordTones.some((ct) => ct.pitch.midi % 12 === pitch.midi % 12);
         if (!isChordTone && chordTones.length) {
@@ -590,13 +613,13 @@ export const generateMelody = (
       }
 
       // In minor key dominant V, ensure scale degree 7 has leading tone alteration
-      if (context.mode === "minor" && activeHarmonyForEvent.rootDegree.degree === 5 && degree.degree === 7 && degree.alteration !== 1) {
+      if (!rest && context.mode === "minor" && activeHarmonyForEvent.rootDegree.degree === 5 && degree.degree === 7 && degree.alteration !== 1) {
         degree.alteration = 1;
         pitch = pitchFromMidi(pitch.midi + 1, false);
       }
 
       // Range enforcement
-      if (pitch.midi < request.rightHand.range.low || pitch.midi > request.rightHand.range.high) {
+      if (!rest && (pitch.midi < request.rightHand.range.low || pitch.midi > request.rightHand.range.high)) {
         const chordTones = findChordTonesInRange(context, activeHarmonyForEvent, request.rightHand.range);
         if (chordTones.length) {
           const nearest = chordTones.reduce((prev, curr) =>
@@ -608,24 +631,29 @@ export const generateMelody = (
       }
 
       // Tie handling
-      const tieFromPrevious = !isSteady && tieIntoNext;
+      const tieFromPrevious = !isSteady && !rest && tieIntoNext;
       if (tieFromPrevious && tiedPitch && tiedDegree) {
         pitch = tiedPitch;
         degree = { ...tiedDegree };
       }
 
-      // Unison control (strict <= 2 unisons, or <= 3 in rhythm drill)
-      if (!tieFromPrevious && !isFinalNote) {
+      // Unison control (strict <= 2 unisons)
+      if (!rest && !tieFromPrevious && !isFinalNote) {
         if (previousPitch !== undefined && pitch.midi === previousPitch.midi) {
           consecutiveUnisons++;
         } else {
           consecutiveUnisons = 0;
         }
 
-        const maxUnisons = (request.emphasis === "rhythm" || activeGestureType === "repeatNote") ? 3 : 2;
-        if (consecutiveUnisons >= maxUnisons && !isCadenceArrival) {
+        const maxUnisons = 2;
+        const needsDisambiguationBeforeCadence =
+          index + 1 === cadenceArrivalIndex &&
+          pitch.midi === cadenceAnchor.pitch.midi &&
+          consecutiveUnisons >= 1;
+
+        if ((consecutiveUnisons >= maxUnisons || needsDisambiguationBeforeCadence) && !isCadenceArrival) {
           const chordTones = findChordTonesInRange(context, activeHarmonyForEvent, request.rightHand.range)
-            .filter((ct) => ct.pitch.midi !== pitch.midi);
+            .filter((ct) => ct.pitch.midi !== pitch.midi && (!needsDisambiguationBeforeCadence || ct.pitch.midi !== cadenceAnchor.pitch.midi));
           if (chordTones.length && strength !== "weak") {
             const nearest = chordTones.reduce((prev, curr) =>
               Math.abs(curr.pitch.midi - pitch.midi) < Math.abs(prev.pitch.midi - pitch.midi) ? curr : prev
@@ -634,13 +662,15 @@ export const generateMelody = (
             degree = { ...nearest.degree };
             noteRole = "chord tone";
             consecutiveUnisons = 0;
-          } else {
-            const stepOffset = pitch.midi + 2 <= request.rightHand.range.high ? 1 : -1;
-            const rawStep = (degree.degree - 1) + (degree.octaveOffset * 7) + stepOffset;
-            const stepped = realizeDiatonicStep(context, rawStep, activeHarmonyForEvent);
-            if (stepped.pitch.midi >= request.rightHand.range.low && stepped.pitch.midi <= request.rightHand.range.high) {
-              pitch = { ...stepped.pitch };
-              degree = { ...stepped.degree };
+          }
+          if (consecutiveUnisons >= maxUnisons || (needsDisambiguationBeforeCadence && pitch.midi === cadenceAnchor.pitch.midi)) {
+            const pool = availableScaleTones.filter(
+              (st) => st.pitch.midi !== pitch.midi && (!needsDisambiguationBeforeCadence || st.pitch.midi !== cadenceAnchor.pitch.midi)
+            );
+            if (pool.length) {
+              const nearest = pool.reduce((prev, curr) => Math.abs(curr.pitch.midi - pitch.midi) < Math.abs(prev.pitch.midi - pitch.midi) ? curr : prev);
+              pitch = { ...nearest.pitch };
+              degree = { ...nearest.degree };
               consecutiveUnisons = 0;
             }
           }
@@ -650,18 +680,18 @@ export const generateMelody = (
       const nextAtom = measureRhythm.atoms[index + 1];
       const nextIsFinalNote = isCadence && index + 1 === measureRhythm.atoms.length - 1;
       const preservesCadence = index + 1 !== cadenceArrivalIndex && (!nextIsFinalNote || pitch.midi === cadenceAnchor.pitch.midi);
-      const tieToNext = !isSteady && !isFinalNote && preservesCadence && Boolean(nextAtom && !nextAtom.rest) && (atom.tie || rng.next() < (request.rhythm.tieDensity ?? 0.05));
+      const tieToNext = !isSteady && !rest && !isFinalNote && preservesCadence && Boolean(nextAtom && !nextAtom.rest) && (atom.tie || rng.next() < (request.rhythm.tieDensity ?? 0.05));
 
       const challengeTags: ChallengeType[] = [];
-      if (chromatic) challengeTags.push("chromatic");
-      if (previousPitch && Math.abs(pitch.midi - previousPitch.midi) >= 8) challengeTags.push("largeLeap");
+      if (!rest && chromatic) challengeTags.push("chromatic");
+      if (!rest && previousPitch && Math.abs(pitch.midi - previousPitch.midi) >= 8) challengeTags.push("largeLeap");
       if (atom.syncopated) challengeTags.push("syncopation");
 
       const event: ExerciseEvent = {
         id: `rh-${m}-${index}`,
         onset,
         duration: atom.duration,
-        pitches: [pitch],
+        pitches: rest ? [] : [pitch],
         hand: "right",
         metadata: {
           scaleDegree: degree,
@@ -687,7 +717,7 @@ export const generateMelody = (
           chromatic: Boolean(chromatic),
           tieFromPrevious,
           tieToNext,
-          intervalFromPrevious: tieFromPrevious || previousPitch === undefined ? undefined : pitch.midi - previousPitch.midi,
+          intervalFromPrevious: rest || tieFromPrevious || previousPitch === undefined ? undefined : pitch.midi - previousPitch.midi,
         },
       };
 
@@ -699,7 +729,7 @@ export const generateMelody = (
         tiedDegree = { ...degree };
       }
 
-      if (!tieFromPrevious) {
+      if (!tieFromPrevious && !rest) {
         previousPitch = pitch;
         previousDegree = { ...degree };
         if (chromatic) accidentalsRemaining--;

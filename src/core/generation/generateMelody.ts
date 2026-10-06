@@ -640,6 +640,12 @@ export const generateMelody = (
         if (request.emphasis === "rhythm") {
           return rng.next() < 0.4 ? "repeatNote" : undefined;
         }
+        if (request.challenge.density > 0 && (role === "contrast" || role === "climax")) {
+          const challengeRoll = rng.next();
+          if (challengeRoll < 0.35) return "leapAndStepwiseRecovery";
+          if (challengeRoll < 0.70) return "compoundTwoVoice";
+          return "pivotPedal";
+        }
         if (isSteady && (role === "opening" || role === "continuation" || role === "statement")) {
           const roll = rng.next();
           if (roll < 0.22) return "stepwiseZigzag";

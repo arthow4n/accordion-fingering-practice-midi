@@ -262,3 +262,34 @@ export function findOptimalCbaPath(
     maxSingleTransitionCost: maxTransition,
   };
 }
+
+export interface CbaChallengeProfile {
+  supportRowDemand: number;
+  directionalFrictionDemand: number;
+  row3PivotDemand: number;
+  averageFriction: number;
+  peakTransitionFriction: number;
+}
+
+/**
+ * Evaluates the deliberate technical challenges present in a melody:
+ * - Support Row Demand: forces or rewards leaving the devil rows (1-3)
+ * - Directional Friction Demand: tests backward/descending arm contraction against gravity
+ * - Row 3 Pivot Demand: exercises middle-row bottleneck navigation
+ */
+export function evaluateCbaMelodicChallenge(
+  midiNotes: readonly number[],
+  layout: CbaKeyboardLayout = DEFAULT_CBA_LAYOUT
+): CbaChallengeProfile {
+  const analysis = findOptimalCbaPath(midiNotes, layout);
+  const n = Math.max(1, midiNotes.length);
+
+  return {
+    supportRowDemand: Math.min(1, analysis.supportRowUtilization * 2.5),
+    directionalFrictionDemand: Math.min(1, analysis.directionalFrictionScore / (n * 1.5)),
+    row3PivotDemand: Math.min(1, analysis.row3PivotCount / (n * 0.4)),
+    averageFriction: analysis.averageFrictionPerNote,
+    peakTransitionFriction: analysis.maxSingleTransitionCost,
+  };
+}
+

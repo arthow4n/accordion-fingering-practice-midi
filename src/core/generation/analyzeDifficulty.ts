@@ -2,6 +2,7 @@ import type { DifficultyVector, Exercise, ExerciseEvent } from "../model";
 import { ticksPerBeat, ticksPerMeasure } from "../music/meter";
 import { MELODIC_PATTERNS } from "../patterns/melodicPatterns";
 import { RHYTHM_CELLS } from "../patterns/rhythmCells";
+import { findOptimalCbaPath } from "../cba/cbaErgonomics";
 
 const clamp = (x: number) => (Number.isFinite(x) ? Math.max(0, Math.min(1, x)) : 0);
 const average = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0);
@@ -9,6 +10,13 @@ const average = (values: number[]) => (values.length ? values.reduce((a, b) => a
 const movement = (events: ExerciseEvent[]) => {
   const sounding = events.filter((event) => event.pitches.length);
   return average(sounding.slice(1).map((event, index) => Math.abs(event.pitches[0]!.midi - sounding[index]!.pitches[0]!.midi) / 12));
+};
+
+const cbaMotorMovement = (events: ExerciseEvent[]): number => {
+  const sounding = events.filter((e) => e.pitches.length).map((e) => e.pitches[0]!.midi);
+  if (sounding.length <= 1) return 0;
+  const analysis = findOptimalCbaPath(sounding);
+  return clamp(analysis.averageFrictionPerNote / 6);
 };
 
 export const analyzeDifficulty = (exercise: Omit<Exercise, "difficulty">): DifficultyVector => {
@@ -96,7 +104,7 @@ export const analyzeDifficulty = (exercise: Omit<Exercise, "difficulty">): Diffi
     rhythm: clamp(rhythmComplexity),
     density,
     harmony,
-    rightHandMotor: clamp(movement(exercise.rightHand)),
+    rightHandMotor: clamp(0.5 * movement(exercise.rightHand) + 0.5 * cbaMotorMovement(exercise.rightHand)),
     leftHandMotor,
     coordination,
     predictability,

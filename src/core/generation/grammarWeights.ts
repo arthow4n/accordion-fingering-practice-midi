@@ -147,12 +147,12 @@ export class DefaultGrammarWeights implements GrammarWeights {
     const { isFinalPhrase, phraseRole } = context;
     if (isFinalPhrase) {
       switch (candidate) {
-        case "strongTonic": return 5.0;
-        case "weakTonic": return 1.5;
-        case "plagal": return 0.8;
-        case "half": return 0.1; // rare open finish if specifically requested
-        case "deceptive": return 0.1;
-        case "open": return 0.1;
+        case "strongTonic": return 2.8;
+        case "weakTonic": return 2.2;
+        case "plagal": return 1.4;
+        case "half": return 0.2; // rare open finish if specifically requested
+        case "deceptive": return 0.5;
+        case "open": return 0.2;
       }
     } else {
       // Internal phrase ending

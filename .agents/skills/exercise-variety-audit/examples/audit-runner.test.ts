@@ -30,7 +30,7 @@ const runAudit = (sampleSize: number, style: RhythmStyle, noteValue: RhythmNoteV
     request.emphasis = "everything";
 
     const exercise = generateExercise(request, seed);
-    const rh = exercise.rightHand.filter((e) => e.pitches.length > 0);
+    const rh = exercise.rightHand.filter((e) => e.pitches.length > 0 && !e.metadata.tieFromPrevious);
 
     // 1. Intervals
     for (let i = 1; i < rh.length; i++) {

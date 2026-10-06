@@ -584,15 +584,19 @@ export const generateMelody = (
         if (shapeIdx >= 0) {
           degreeOffset = shape.degrees[shapeIdx]!;
         } else {
-          // Pre-shape approach: connect smoothly to shape's starting degree rather than clamping
+          // Pre-shape approach: vary prefix contours (stepwise extension, oscillating neighbor, or triad approach)
           const stepsBefore = -shapeIdx;
           const startDeg = shape.degrees[0]!;
-          if (shape.direction === "descending") {
-            degreeOffset = startDeg + stepsBefore;
-          } else if (shape.direction === "ascending") {
-            degreeOffset = startDeg - stepsBefore;
+          const prefixVariant = (stepsBefore + arrivalDegreeNum) % 3;
+          if (prefixVariant === 0) {
+            // Stepwise continuation opposite to shape direction
+            degreeOffset = shape.direction === "descending" ? startDeg + stepsBefore : startDeg - stepsBefore;
+          } else if (prefixVariant === 1) {
+            // Oscillating neighbor / turnaround prefix around startDeg
+            degreeOffset = startDeg + (stepsBefore % 2 === 1 ? 1 : -1);
           } else {
-            degreeOffset = startDeg + (stepsBefore > 2 ? Math.floor(stepsBefore / 2) : (stepsBefore % 2 === 1 ? 1 : -1));
+            // Third skip / arpeggio approach
+            degreeOffset = startDeg + (stepsBefore % 2 === 1 ? 2 : 0);
           }
         }
         const relStep = targetStep + (degreeOffset - arrivalDegreeNum);
@@ -642,16 +646,24 @@ export const generateMelody = (
         }
         if (request.challenge.density > 0 && (role === "contrast" || role === "climax")) {
           const challengeRoll = rng.next();
-          if (challengeRoll < 0.35) return "leapAndStepwiseRecovery";
-          if (challengeRoll < 0.70) return "compoundTwoVoice";
-          return "pivotPedal";
+          if (challengeRoll < 0.25) return "leapAndStepwiseRecovery";
+          if (challengeRoll < 0.50) return "compoundTwoVoice";
+          if (challengeRoll < 0.75) return "cbaRow3Pivot";
+          return "cbaSupportRowRun";
+        }
+        if (role === "contrast" || role === "climax") {
+          const cbaRoll = rng.next();
+          if (cbaRoll < 0.25) return "cbaRow3Pivot";
+          if (cbaRoll < 0.50) return "cbaSupportRowRun";
         }
         if (isSteady && (role === "opening" || role === "continuation" || role === "statement")) {
           const roll = rng.next();
-          if (roll < 0.22) return "stepwiseZigzag";
-          if (roll < 0.42) return "albertiPendulum";
-          if (roll < 0.58) return "pivotPedal";
-          if (roll < 0.72) return "compoundTwoVoice";
+          if (roll < 0.18) return "stepwiseZigzag";
+          if (roll < 0.34) return "albertiPendulum";
+          if (roll < 0.48) return "pivotPedal";
+          if (roll < 0.62) return "compoundTwoVoice";
+          if (roll < 0.76) return "cbaRow3Pivot";
+          if (roll < 0.88) return "cbaSupportRowRun";
         }
         return undefined;
       };
@@ -763,14 +775,16 @@ export const generateMelody = (
           consecutiveUnisons = 0;
         }
 
-        const maxUnisons = isSteady && request.emphasis !== "rhythm" ? 1 : 2;
+        // Unison control (strict <= 1 unison across both steady and mixed modes unless rhythm drill)
+        const maxUnisons = request.emphasis !== "rhythm" ? 1 : 2;
         const needsDisambiguationBeforeCadence =
           index + 1 === cadenceArrivalIndex &&
           pitch.midi === cadenceAnchor.pitch.midi;
 
         if ((consecutiveUnisons >= maxUnisons || needsDisambiguationBeforeCadence) && !isCadenceArrival) {
+          const avoidMidi = previousPitch !== undefined && consecutiveUnisons >= maxUnisons ? previousPitch.midi : pitch.midi;
           const chordTones = findChordTonesInRange(context, activeHarmonyForEvent, request.rightHand.range)
-            .filter((ct) => ct.pitch.midi !== pitch.midi && (!needsDisambiguationBeforeCadence || ct.pitch.midi !== cadenceAnchor.pitch.midi));
+            .filter((ct) => ct.pitch.midi !== avoidMidi && (!needsDisambiguationBeforeCadence || ct.pitch.midi !== cadenceAnchor.pitch.midi));
           if (chordTones.length && strength !== "weak") {
             const nearest = chordTones.reduce((prev, curr) =>
               Math.abs(curr.pitch.midi - pitch.midi) < Math.abs(prev.pitch.midi - pitch.midi) ? curr : prev
@@ -779,10 +793,9 @@ export const generateMelody = (
             degree = { ...nearest.degree };
             noteRole = "chord tone";
             consecutiveUnisons = 0;
-          }
-          if (consecutiveUnisons >= maxUnisons || (needsDisambiguationBeforeCadence && pitch.midi === cadenceAnchor.pitch.midi)) {
+          } else {
             const pool = availableScaleTones.filter(
-              (st) => st.pitch.midi !== pitch.midi && (!needsDisambiguationBeforeCadence || st.pitch.midi !== cadenceAnchor.pitch.midi)
+              (st) => st.pitch.midi !== avoidMidi && (!needsDisambiguationBeforeCadence || st.pitch.midi !== cadenceAnchor.pitch.midi)
             );
             if (pool.length) {
               const nearest = pool.reduce((prev, curr) => Math.abs(curr.pitch.midi - pitch.midi) < Math.abs(prev.pitch.midi - pitch.midi) ? curr : prev);

@@ -115,4 +115,14 @@ describe("CBA Ergonomics and Friction Analysis", () => {
       smoothAnalysis.averageFrictionPerNote
     );
   });
+
+  it("evaluates proactive CBA gestures as physically sound and rich in Row 3 / support row features", () => {
+    // Row 3 bottleneck notes: D4 (62), B3 (59)
+    // In sequence [60, 62, 59, 62, 57, 62, 55, 62]:
+    // 62 (D4, row 3) appears 4 times, 59 (B3, row 3) appears 1 time -> total 5 Row 3 notes
+    const row3PivotSequence = [60, 62, 59, 62, 57, 62, 55, 62];
+    const analysis = findOptimalCbaPath(row3PivotSequence);
+    expect(analysis.row3PivotCount).toBe(5);
+    expect(analysis.row3BottleneckRatio).toBe(5 / 8);
+  });
 });

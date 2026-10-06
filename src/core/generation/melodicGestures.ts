@@ -24,7 +24,9 @@ export type MelodicGestureType =
   | "pivotPedal"
   | "albertiPendulum"
   | "stepwiseZigzag"
-  | "compoundTwoVoice";
+  | "compoundTwoVoice"
+  | "cbaRow3Pivot"
+  | "cbaSupportRowRun";
 
 export interface GestureContext {
   from: Pitch;
@@ -314,6 +316,42 @@ export const generateMelodicGesture = (
         } else {
           notes.push(makeNote(baseStep, "chord tone"));
         }
+      }
+      break;
+    }
+
+    case "cbaRow3Pivot": {
+      // Find nearest Row 3 bottleneck note (D, F, Ab, B) to serve as physical pivot
+      // D=2, F=5, Ab=8, B=11 semitones mod 12
+      const row3PitchClasses = [2, 5, 8, 11];
+      let pivotStepOffset = 1; // default to step +1
+      for (const candidateOffset of [1, 2, -1, -2, 3, -3]) {
+        const testStep = baseStep + candidateOffset;
+        const realized = realizeDiatonicStep(context, testStep, harmony);
+        if (row3PitchClasses.includes(realized.pitch.midi % 12)) {
+          pivotStepOffset = candidateOffset;
+          break;
+        }
+      }
+      for (let i = 0; i < count; i++) {
+        if (i % 2 === 1) {
+          notes.push(makeNote(baseStep + pivotStepOffset, "passing tone"));
+        } else {
+          const shift = Math.floor(i / 2);
+          notes.push(makeNote(baseStep + (pivotStepOffset > 0 ? -shift : shift), i === 0 ? "chord tone" : "scale tone"));
+        }
+      }
+      break;
+    }
+
+    case "cbaSupportRowRun": {
+      // Stepwise run designed to traverse rows and exercise duplicate support row transitions
+      // Alternates between ascending and descending shifts to practice backward/forward friction
+      const dir = !target || target.midi >= from.midi ? 1 : -1;
+      for (let i = 0; i < count; i++) {
+        const turn = i >= 4 && i % 2 === 0 ? -dir : dir;
+        const curStep = baseStep + (i * turn);
+        notes.push(makeNote(curStep, i === 0 ? "chord tone" : "passing tone"));
       }
       break;
     }

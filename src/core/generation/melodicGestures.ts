@@ -20,7 +20,11 @@ export type MelodicGestureType =
   | "fillIntervalStepwise"
   | "delayArrival"
   | "anticipateNextHarmony"
-  | "sequenceRecent";
+  | "sequenceRecent"
+  | "pivotPedal"
+  | "albertiPendulum"
+  | "stepwiseZigzag"
+  | "compoundTwoVoice";
 
 export interface GestureContext {
   from: Pitch;
@@ -258,6 +262,58 @@ export const generateMelodicGesture = (
         // opposite stepwise recovery
         const recoveryOffset = leapUp ? -(i - 1) : +(i - 1);
         notes.push(makeNote(baseStep + leapStep + recoveryOffset, "scale tone"));
+      }
+      break;
+    }
+
+    case "pivotPedal": {
+      const anchorDeg = targetDegree
+        ? (targetDegree.degree - 1) + (targetDegree.octaveOffset * 7)
+        : baseStep + 4;
+      const pedalHigh = anchorDeg >= baseStep;
+      for (let i = 0; i < count; i++) {
+        if (i % 2 === 1) {
+          notes.push(makeNote(anchorDeg, "chord tone"));
+        } else {
+          const moveStep = baseStep + Math.floor(i / 2) * (pedalHigh ? 1 : -1);
+          notes.push(makeNote(moveStep, i === 0 ? "chord tone" : "passing tone"));
+        }
+      }
+      break;
+    }
+
+    case "albertiPendulum": {
+      const offsets = count % 4 === 0
+        ? [0, 4, 2, 4]
+        : [0, 2, 4, 2];
+      for (let i = 0; i < count; i++) {
+        const offset = offsets[i % offsets.length]!;
+        notes.push(makeNote(baseStep + offset, "chord tone"));
+      }
+      break;
+    }
+
+    case "stepwiseZigzag": {
+      const ascending = !target || (target.midi >= from.midi);
+      for (let i = 0; i < count; i++) {
+        const pair = Math.floor(i / 2);
+        const isPeak = i % 2 === 1;
+        const rel = ascending
+          ? (isPeak ? pair + 2 : pair)
+          : (isPeak ? -pair - 2 : -pair);
+        notes.push(makeNote(baseStep + rel, i === 0 ? "chord tone" : "passing tone"));
+      }
+      break;
+    }
+
+    case "compoundTwoVoice": {
+      for (let i = 0; i < count; i++) {
+        if (i % 2 === 0) {
+          const upperStep = baseStep + 4 - Math.floor(i / 2);
+          notes.push(makeNote(upperStep, "chord tone"));
+        } else {
+          notes.push(makeNote(baseStep, "chord tone"));
+        }
       }
       break;
     }

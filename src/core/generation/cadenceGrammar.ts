@@ -49,6 +49,13 @@ export const MELODIC_CADENCE_SHAPES: MelodicCadenceShape[] = [
   { id: "enclosure-3-1-2-1", degrees: [3, 1, 2, 1], arrivalDegree: 1, direction: "neighbor", suitableTypes: ["strongTonic", "weakTonic"] },
   { id: "triad-fall-5-3-1", degrees: [5, 3, 1], arrivalDegree: 1, direction: "descending", suitableTypes: ["strongTonic", "weakTonic"] },
   { id: "dominant-descent-5-3-2-1", degrees: [5, 3, 2, 1], arrivalDegree: 1, direction: "descending", suitableTypes: ["strongTonic", "weakTonic"] },
+  { id: "enclosure-4-2-7-1", degrees: [4, 2, 7, 1], arrivalDegree: 1, direction: "neighbor", suitableTypes: ["strongTonic", "weakTonic"] },
+  { id: "turnaround-3-4-2-1", degrees: [3, 4, 2, 1], arrivalDegree: 1, direction: "neighbor", suitableTypes: ["strongTonic", "weakTonic"] },
+  { id: "turnaround-1-3-4-2-1", degrees: [1, 3, 4, 2, 1], arrivalDegree: 1, direction: "neighbor", suitableTypes: ["strongTonic", "weakTonic"] },
+  { id: "octave-leap-5-1", degrees: [5, 1], arrivalDegree: 1, direction: "leapAndStep", suitableTypes: ["strongTonic", "weakTonic"] },
+  { id: "harmonic-skip-3-2-5-1", degrees: [3, 2, 5, 1], arrivalDegree: 1, direction: "leapAndStep", suitableTypes: ["strongTonic", "weakTonic"] },
+  { id: "turnaround-6-note-3-4-3-2-7-1", degrees: [3, 4, 3, 2, 7, 1], arrivalDegree: 1, direction: "neighbor", suitableTypes: ["strongTonic", "weakTonic"] },
+  { id: "turnaround-8-note-1-2-3-4-3-2-7-1", degrees: [1, 2, 3, 4, 3, 2, 7, 1], arrivalDegree: 1, direction: "neighbor", suitableTypes: ["strongTonic", "weakTonic"] },
 
   // Tonic closures ending on 3 (imperfect tonic closure)
   { id: "step-down-5-4-3", degrees: [5, 4, 3], arrivalDegree: 3, direction: "descending", suitableTypes: ["weakTonic", "plagal"] },

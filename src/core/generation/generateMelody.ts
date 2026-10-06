@@ -592,7 +592,7 @@ export const generateMelody = (
           } else if (shape.direction === "ascending") {
             degreeOffset = startDeg - stepsBefore;
           } else {
-            degreeOffset = startDeg + (stepsBefore % 2 === 1 ? 1 : -1);
+            degreeOffset = startDeg + (stepsBefore > 2 ? Math.floor(stepsBefore / 2) : (stepsBefore % 2 === 1 ? 1 : -1));
           }
         }
         const relStep = targetStep + (degreeOffset - arrivalDegreeNum);
@@ -626,19 +626,26 @@ export const generateMelody = (
 
       const preferredGesture = (): MelodicGestureType | undefined => {
         if (request.emphasis === "arpeggios") {
-          return rng.next() < 0.65 ? (rng.next() < 0.5 ? "arpeggiateActive" : "skipToChordTone") : undefined;
+          return rng.next() < 0.65 ? (rng.next() < 0.4 ? "albertiPendulum" : rng.next() < 0.5 ? "arpeggiateActive" : "skipToChordTone") : undefined;
         }
         if (request.emphasis === "intervals") {
           return rng.next() < 0.65 ? (rng.next() < 0.5 ? "leapAndStepwiseRecovery" : "skipToChordTone") : undefined;
         }
         if (request.emphasis === "melodicPatterns") {
-          return rng.next() < 0.65 ? (rng.next() < 0.5 ? "stepUpward" : "stepDownward") : undefined;
+          return rng.next() < 0.65 ? (rng.next() < 0.4 ? "stepwiseZigzag" : rng.next() < 0.5 ? "stepUpward" : "stepDownward") : undefined;
         }
         if (request.emphasis === "cadencesApproaches") {
           return rng.next() < 0.65 ? (rng.next() < 0.5 ? "approachTargetFromAbove" : "enclosure") : undefined;
         }
         if (request.emphasis === "rhythm") {
           return rng.next() < 0.4 ? "repeatNote" : undefined;
+        }
+        if (isSteady && (role === "opening" || role === "continuation" || role === "statement")) {
+          const roll = rng.next();
+          if (roll < 0.22) return "stepwiseZigzag";
+          if (roll < 0.42) return "albertiPendulum";
+          if (roll < 0.58) return "pivotPedal";
+          if (roll < 0.72) return "compoundTwoVoice";
         }
         return undefined;
       };

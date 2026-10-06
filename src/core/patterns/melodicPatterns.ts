@@ -39,6 +39,12 @@ export const MELODIC_PATTERNS: readonly MelodicPattern[] = [
   { id: "continuous-sixths-up", family: "sequence", category: "melodicPatterns", relativeDegrees: [0,5,1,6,2,7,3,8], complexity: .55 },
   { id: "continuous-sixths-down", family: "sequence", category: "melodicPatterns", relativeDegrees: [0,-5,-1,-6,-2,-7,-3,-8], complexity: .55 },
   { id: "octave-scale-run", family: "scale", category: "melodicPatterns", relativeDegrees: [0,1,2,3,4,5,6,7,8], complexity: .3 },
+  { id: "pivot-pedal-high", family: "sequence", category: "melodicPatterns", relativeDegrees: [0,4,1,4,2,4,1,4], complexity: .35 },
+  { id: "pivot-pedal-low", family: "sequence", category: "melodicPatterns", relativeDegrees: [0,2,0,3,0,4,0,3], complexity: .35 },
+  { id: "zigzag-thirds-up", family: "thirds", category: "melodicPatterns", relativeDegrees: [0,2,1,3,2,4,3,5], complexity: .4 },
+  { id: "zigzag-thirds-down", family: "thirds", category: "melodicPatterns", relativeDegrees: [5,3,4,2,3,1,2,0], complexity: .4 },
+  { id: "zigzag-weaving-up", family: "scale", category: "melodicPatterns", relativeDegrees: [0,1,2,1,2,3,2,3], complexity: .35 },
+  { id: "compound-two-voice-desc", family: "sequence", category: "melodicPatterns", relativeDegrees: [4,0,3,0,2,0,1,0], complexity: .45 },
 
   // Melodic intervals (intervals)
   { id: "interval-ascending-chain", family: "leapRecovery", category: "intervals", relativeDegrees: [0,2,1,4,2,5,3,7], complexity: .5 },
@@ -71,6 +77,9 @@ export const MELODIC_PATTERNS: readonly MelodicPattern[] = [
   { id: "arpeggio-1-3-5-7", family: "arpeggio", category: "arpeggios", relativeDegrees: [0,2,4,6], complexity: .5 },
   { id: "arpeggio-seventh-up", family: "arpeggio", category: "arpeggios", relativeDegrees: [0,2,4,6,7,9,11,13], complexity: .6 },
   { id: "arpeggio-seventh-down", family: "arpeggio", category: "arpeggios", relativeDegrees: [13,11,9,7,6,4,2,0], complexity: .6 },
+  { id: "alberti-1-5-3-5", family: "chordTone", category: "arpeggios", relativeDegrees: [0,4,2,4,0,4,2,4], complexity: .35 },
+  { id: "alberti-1-3-5-3", family: "chordTone", category: "arpeggios", relativeDegrees: [0,2,4,2,0,2,4,2], complexity: .35 },
+  { id: "alberti-3-5-1-5", family: "chordTone", category: "arpeggios", relativeDegrees: [2,4,0,4,2,4,0,4], complexity: .35 },
 
   // Cadences & approaches (cadencesApproaches)
   { id: "upper-neighbor", family: "neighbor", category: "cadencesApproaches", relativeDegrees: [0,1,0,-1], complexity: .2 },
@@ -91,6 +100,9 @@ export const MELODIC_PATTERNS: readonly MelodicPattern[] = [
   { id: "cadence-2-7-1", family: "cadence", category: "cadencesApproaches", relativeDegrees: [1,-1,0], complexity: .3 },
   { id: "cadence-5-4-3", family: "cadence", category: "cadencesApproaches", relativeDegrees: [4,3,2], complexity: .3 },
   { id: "cadence-3-2-1", family: "cadence", category: "cadencesApproaches", relativeDegrees: [2,1,0], complexity: .25 },
+  { id: "enclosure-4-2-7-1", family: "cadence", category: "cadencesApproaches", relativeDegrees: [3,1,-1,0], complexity: .4 },
+  { id: "turnaround-3-4-2-1", family: "cadence", category: "cadencesApproaches", relativeDegrees: [2,3,1,0], complexity: .35 },
+  { id: "turnaround-1-3-4-2-1", family: "cadence", category: "cadencesApproaches", relativeDegrees: [0,2,3,1,0], complexity: .4 },
 
   // Rhythm & repeated notes (rhythm)
   { id: "repeated-notes-short", family: "repeated", category: "rhythm", relativeDegrees: [0,0,0,0], complexity: .1 },

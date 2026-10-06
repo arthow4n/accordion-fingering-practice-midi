@@ -5,6 +5,7 @@ export type RuntimeMode = "correction" | "sightReading";
 export const STORAGE_KEY_PREFIX = "accordion-fingering-practice-midi:";
 export const SETTINGS_KEY = `${STORAGE_KEY_PREFIX}settings`;
 export const PRESETS_KEY = `${STORAGE_KEY_PREFIX}presets`;
+export const CALIBRATION_KEY = `${STORAGE_KEY_PREFIX}calibration`;
 export const LEGACY_SETTINGS_KEY = "accordion-trainer-v3-settings";
 
 export interface StoredSession {
@@ -27,6 +28,35 @@ const getStorage = (): Storage | undefined => {
     // SecurityError or restricted storage access
   }
   return undefined;
+};
+
+export const loadCalibratedLatency = (): number => {
+  const storage = getStorage();
+  if (storage) {
+    try {
+      const stored = storage.getItem(CALIBRATION_KEY);
+      if (stored !== null) {
+        const parsed = Number.parseInt(stored, 10);
+        if (Number.isFinite(parsed) && parsed >= -500 && parsed <= 500) {
+          return parsed;
+        }
+      }
+    } catch {
+      // Ignore
+    }
+  }
+  return 0;
+};
+
+export const saveCalibratedLatency = (latencyMs: number): void => {
+  const storage = getStorage();
+  if (!storage) return;
+  try {
+    const clamped = Math.max(-500, Math.min(500, Math.round(latencyMs)));
+    storage.setItem(CALIBRATION_KEY, String(clamped));
+  } catch {
+    // Ignore
+  }
 };
 
 export const parseStoredSettings = (value: string | null): TrainingRequest | undefined => {
@@ -76,16 +106,23 @@ export const parseStoredSession = (value: string | null): StoredSession | undefi
 
 export const loadStoredSession = (): StoredSession => {
   const storage = getStorage();
+  const calibratedLatency = loadCalibratedLatency();
   if (storage) {
     try {
       const stored = storage.getItem(SETTINGS_KEY) ?? storage.getItem(LEGACY_SETTINGS_KEY);
       const parsed = parseStoredSession(stored);
-      if (parsed) return parsed;
+      if (parsed) {
+        if (parsed.settings.timing.latencyMs === undefined || parsed.settings.timing.latencyMs === 0) {
+          parsed.settings.timing.latencyMs = calibratedLatency;
+        }
+        return parsed;
+      }
     } catch {
       // Ignore storage errors
     }
   }
   const settings = defaultTrainingRequest();
+  settings.timing.latencyMs = calibratedLatency;
   return { settings, mode: defaultRuntimeMode() };
 };
 
@@ -99,6 +136,9 @@ export const saveSettings = (request: TrainingRequest, mode?: RuntimeMode): void
     const resolvedMode = mode ?? defaultRuntimeMode();
     const payload: StoredSession = { settings: parsed, mode: resolvedMode };
     storage.setItem(SETTINGS_KEY, JSON.stringify(payload));
+    if (parsed.timing.latencyMs !== undefined) {
+      saveCalibratedLatency(parsed.timing.latencyMs);
+    }
   } catch {
     // Ignore storage errors
   }

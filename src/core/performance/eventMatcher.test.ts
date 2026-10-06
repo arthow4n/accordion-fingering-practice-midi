@@ -82,3 +82,16 @@ it("attributes an unmatched wrong note between targets to the earlier target",()
  expect(matches[1]?.classification).toBe("missed");
 });
 
+it("compensates input latency offset in event matching", () => {
+ const target = event([60]);
+ const performed = [{ midiNote: 60, type: "noteOn" as const, timestampMs: 1050, velocity: 100, hand: "right" as const }];
+
+ const uncompensated = matchEvents([target], performed, { earlyToleranceMs: 100, lateToleranceMs: 100, simultaneityWindowMs: 80, correctEarlyMs: 30, correctLateMs: 30 });
+ expect(uncompensated[0]?.timingErrorMs).toBe(50);
+ expect(uncompensated[0]?.classification).toBe("late");
+
+ const compensated = matchEvents([target], performed, { earlyToleranceMs: 100, lateToleranceMs: 100, simultaneityWindowMs: 80, correctEarlyMs: 30, correctLateMs: 30, latencyMs: 50 });
+ expect(compensated[0]?.timingErrorMs).toBe(0);
+ expect(compensated[0]?.classification).toBe("correct");
+});
+

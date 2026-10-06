@@ -7,6 +7,7 @@ export const timingSettingsSchema = z.object({
   earlyMs: z.number().int().min(30).max(2000).default(400),
   lateMs: z.number().int().min(30).max(2000).default(600),
   chordMs: z.number().int().min(20).max(500).default(150),
+  latencyMs: z.number().int().min(-500).max(500).default(0),
 });
 export type TimingSettings = z.infer<typeof timingSettingsSchema>;
 export const defaultTimingSettings = (): TimingSettings => timingSettingsSchema.parse({});
@@ -21,5 +22,6 @@ export const timingOptions = (settings: TimingSettings, tempoBpm: number): Match
   return {
     earlyToleranceMs: early * 1.5, lateToleranceMs: lateTol,
     correctEarlyMs: early, correctLateMs: late, simultaneityWindowMs: chord,
+    latencyMs: settings.latencyMs ?? 0,
   };
 };

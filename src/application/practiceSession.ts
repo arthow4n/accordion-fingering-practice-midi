@@ -70,17 +70,20 @@ export class PracticeSession {
     }
     if (event.type === "noteOff") { if (this.started) this.performed.push(event); return update; }
 
+    const latency = this.options.latencyMs ?? 0;
     if (this.startMs === undefined) {
       // The triggering attack represents the first sounding onset, including a
       // leading rest when only one hand is selected.
-      this.startMs = event.timestampMs - this.expected[0]!.expectedMs;
+      const adjustedTimestamp = event.timestampMs - latency;
+      this.startMs = adjustedTimestamp - this.expected[0]!.expectedMs;
       for (const target of this.expected) target.expectedMs += this.startMs;
     }
 
     this.performed.push(event);
+    const adjustedEventTime = event.timestampMs - latency;
     const horizon = this.options.earlyToleranceMs + this.options.lateToleranceMs + this.options.simultaneityWindowMs;
-    const recent = this.performed.filter(e => e.type === "noteOn" && e.timestampMs >= event.timestampMs - horizon);
-    const nearby = this.expected.filter(e => e.expectedMs >= event.timestampMs - horizon - this.options.lateToleranceMs && e.expectedMs <= event.timestampMs + this.options.earlyToleranceMs);
+    const recent = this.performed.filter(e => e.type === "noteOn" && (e.timestampMs - latency) >= adjustedEventTime - horizon);
+    const nearby = this.expected.filter(e => e.expectedMs >= adjustedEventTime - horizon - this.options.lateToleranceMs && e.expectedMs <= adjustedEventTime + this.options.earlyToleranceMs);
     for (const match of matchEvents(nearby, recent, this.options)) {
       if (match.expected && ["correct", "early", "late"].includes(match.classification)) {
         this.completedIds.add(match.expected.id);

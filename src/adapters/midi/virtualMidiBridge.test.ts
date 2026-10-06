@@ -67,6 +67,8 @@ describe("virtualMidiBridge", () => {
       setMode: vi.fn(),
       resetSession: vi.fn(),
       regenerate: vi.fn(),
+      setLatency: vi.fn(),
+      getLatency: vi.fn().mockReturnValue(0),
     };
 
     expect(getBridge()).toBeUndefined();
@@ -76,6 +78,9 @@ describe("virtualMidiBridge", () => {
     expect(window.accordionBridge).toBe(mockBridge);
     expect(window.__accordionBridge).toBe(mockBridge);
     expect(mockBridge.getState().status).toBe("ready");
+    expect(mockBridge.getLatency?.()).toBe(0);
+    mockBridge.setLatency?.(40);
+    expect(mockBridge.setLatency).toHaveBeenCalledWith(40);
 
     unregister();
     expect(getBridge()).toBeUndefined();

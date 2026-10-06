@@ -5,6 +5,7 @@ import {
 } from "../../adapters/midi/webMidiInput";
 import {
   clearSettings,
+  loadCalibratedLatency,
   loadStoredSession,
   saveSettings,
   type RuntimeMode,
@@ -260,6 +261,13 @@ export function usePracticeSessionController() {
     [exercise, mode, resetSession, settings],
   );
 
+  const updateLatency = useCallback(
+    (latencyMs: number) => {
+      updateTiming({ ...settings.timing, latencyMs });
+    },
+    [settings.timing, updateTiming],
+  );
+
   const regenerate = useCallback(
     (newSeed = seed + 1, preserveMetrics = false, retry = true) => {
       try {
@@ -401,6 +409,16 @@ export function usePracticeSessionController() {
     [finish, regenerate, seed],
   );
 
+  const calibrationListenerRef = useRef<
+    ((event: PerformedMidiEvent) => void) | null
+  >(null);
+  const registerCalibrationListener = useCallback(
+    (fn: ((event: PerformedMidiEvent) => void) | null) => {
+      calibrationListenerRef.current = fn;
+    },
+    [],
+  );
+
   useEffect(() => {
     midiListenerRef.current = acceptMidi;
   }, [acceptMidi]);
@@ -409,7 +427,13 @@ export function usePracticeSessionController() {
     let cancelled = false;
     let disconnect: undefined | (() => void);
     connectWebMidi(
-      (event) => midiListenerRef.current(event),
+      (event) => {
+        if (calibrationListenerRef.current) {
+          calibrationListenerRef.current(event);
+          return;
+        }
+        midiListenerRef.current(event);
+      },
       (names) => {
         if (!cancelled) setDevices(names);
       },
@@ -517,6 +541,8 @@ export function usePracticeSessionController() {
     resetSession,
     regenerate,
     finish,
+    updateLatency,
+    calibrationListenerRef,
   });
 
   const resetToDefaults = () => {
@@ -528,6 +554,7 @@ export function usePracticeSessionController() {
       return;
     }
     const defaults = defaultTrainingRequest();
+    defaults.timing.latencyMs = loadCalibratedLatency();
     clearSettings();
     updateSettings(defaults, false, defaultRuntimeMode());
   };
@@ -553,6 +580,8 @@ export function usePracticeSessionController() {
     changeMode,
     updateSettings,
     updateTiming,
+    updateLatency,
+    registerCalibrationListener,
     regenerate,
     finish,
     resetToDefaults,

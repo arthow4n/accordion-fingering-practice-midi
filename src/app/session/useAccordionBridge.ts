@@ -46,6 +46,10 @@ export interface UseAccordionBridgeParams {
     retry?: boolean,
   ) => void;
   finish: () => void;
+  updateLatency?: (latencyMs: number) => void;
+  calibrationListenerRef?: React.MutableRefObject<
+    ((event: PerformedMidiEvent) => void) | null
+  >;
 }
 
 export function useAccordionBridge({
@@ -70,6 +74,8 @@ export function useAccordionBridge({
   resetSession,
   regenerate,
   finish,
+  updateLatency,
+  calibrationListenerRef,
 }: UseAccordionBridgeParams) {
   useEffect(() => {
     const bridgeApi: AccordionBridge = {
@@ -88,26 +94,44 @@ export function useAccordionBridge({
         settings,
         seed,
       }),
-      sendEvent: acceptMidi,
+      sendEvent: (event) => {
+        if (calibrationListenerRef?.current) {
+          calibrationListenerRef.current(event);
+          return;
+        }
+        acceptMidi(event);
+      },
       sendNoteOn: (midiNote, options) => {
-        acceptMidi({
+        const ev: PerformedMidiEvent = {
           midiNote,
           type: "noteOn",
           timestampMs: options?.timestampMs ?? performance.now(),
           velocity: options?.velocity ?? 80,
           hand: options?.hand,
-        });
+        };
+        if (calibrationListenerRef?.current) {
+          calibrationListenerRef.current(ev);
+          return;
+        }
+        acceptMidi(ev);
       },
       sendNoteOff: (midiNote, options) => {
-        acceptMidi({
+        const ev: PerformedMidiEvent = {
           midiNote,
           type: "noteOff",
           timestampMs: options?.timestampMs ?? performance.now(),
           velocity: 0,
           hand: options?.hand,
-        });
+        };
+        if (calibrationListenerRef?.current) {
+          calibrationListenerRef.current(ev);
+          return;
+        }
+        acceptMidi(ev);
       },
       sendDeviceNames: (names) => setDevices(names),
+      setLatency: (latencyMs) => updateLatency?.(latencyMs),
+      getLatency: () => settings.timing.latencyMs ?? 0,
       setMode: changeMode,
       resetSession: () => resetSession(),
       regenerate: (newSeed?: number) => regenerate(newSeed),
@@ -242,5 +266,7 @@ export function useAccordionBridge({
     finish,
     regenerate,
     resetSession,
+    updateLatency,
+    calibrationListenerRef,
   ]);
 }

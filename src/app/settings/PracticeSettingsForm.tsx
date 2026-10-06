@@ -34,6 +34,7 @@ export interface PracticeSettingsFormProps {
   onLoadPreset: () => void;
   onSavePreset: () => void;
   onDeletePreset: () => void;
+  onOpenCalibration?: () => void;
 }
 
 const emphasisOptions: readonly { value: RightHandEmphasis; label: string }[] =
@@ -125,6 +126,7 @@ export function PracticeSettingsForm({
   onLoadPreset,
   onSavePreset,
   onDeletePreset,
+  onOpenCalibration,
 }: PracticeSettingsFormProps) {
   const currentMeter = settings.rhythm.meters[0]!;
   const tolerance = timingOptions(settings.timing, tempoBpm);
@@ -409,11 +411,38 @@ export function PracticeSettingsForm({
           ))}
         </>
       )}
+      <IntegerInput
+        label="Latency offset (ms)"
+        value={settings.timing.latencyMs ?? 0}
+        min={-500}
+        max={500}
+        onCommit={(value) =>
+          onUpdateTiming({ ...settings.timing, latencyMs: value })
+        }
+      />
+      {onOpenCalibration && (
+        <>
+          {" "}
+          <button type="button" onClick={onOpenCalibration}>
+            Calibrate latency...
+          </button>
+        </>
+      )}
       <p>
         Timed practice accepts up to {Math.round(tolerance.correctEarlyMs!)} ms
         early or {Math.round(tolerance.correctLateMs!)} ms late as on time.
-        Chord spread: {Math.round(tolerance.simultaneityWindowMs)} ms. The
-        clock keeps its continuous pulse through mistakes and pauses.
+        Chord spread: {Math.round(tolerance.simultaneityWindowMs)} ms.
+        {(settings.timing.latencyMs ?? 0) !== 0 && (
+          <>
+            {" "}
+            Latency compensation:{" "}
+            {(settings.timing.latencyMs ?? 0) > 0
+              ? `+${settings.timing.latencyMs}`
+              : settings.timing.latencyMs}{" "}
+            ms.
+          </>
+        )}{" "}
+        The clock keeps its continuous pulse through mistakes and pauses.
       </p>
       <IntegerInput
         label="Measures"

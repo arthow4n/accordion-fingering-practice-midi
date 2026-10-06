@@ -162,4 +162,17 @@ describe("repeated pitches in timed follow practice", () => {
   expect(session.completedIds.has("right-0")).toBe(true);
   expect(session.completedIds.has("right-480")).toBe(true);
  });
+
+ it("compensates input latency offset on sight-reading performance metrics", () => {
+  const e = exercise([note(0, [60]), note(480, [62])]);
+  const tWithLatency = { ...defaultTimingSettings(), strictness: "strict" as const, latencyMs: 60 };
+  const session = new PracticeSession(e, "right", "sightReading", tWithLatency);
+  session.accept(midi(60, 1060));
+  session.accept(midi(62, 1560));
+  const report = session.finish();
+  expect(report.metrics.pitchAccuracy).toBe(1);
+  expect(report.metrics.timingAccuracy).toBe(1);
+  expect(report.matches[0]?.timingErrorMs).toBe(0);
+  expect(report.matches[1]?.timingErrorMs).toBe(0);
+ });
 });

@@ -8,14 +8,18 @@ export type EventMatch = {
 };
 export type MatchOptions = {
   earlyToleranceMs: number; lateToleranceMs: number; simultaneityWindowMs: number;
-  correctEarlyMs?: number; correctLateMs?: number;
+  correctEarlyMs?: number; correctLateMs?: number; latencyMs?: number;
 };
-export const defaultMatchOptions: MatchOptions = { earlyToleranceMs: 180, lateToleranceMs: 250, simultaneityWindowMs: 80 };
+export const defaultMatchOptions: MatchOptions = { earlyToleranceMs: 180, lateToleranceMs: 250, simultaneityWindowMs: 80, latencyMs: 0 };
 export const pitchMatches = (target: TimedExpectedEvent, expectedPitch: number, note: number) =>
   expectedPitch === note || (target.hand === "left" && expectedPitch % 12 === ((note % 12) + 12) % 12);
 
 export const matchEvents = (expected: TimedExpectedEvent[], performed: PerformedMidiEvent[], options = defaultMatchOptions): EventMatch[] => {
-  const notes = performed.filter(p => p.type === "noteOn").sort((a, b) => a.timestampMs - b.timestampMs);
+  const latency = options.latencyMs ?? 0;
+  const adjustedEvents = latency
+    ? performed.map(p => ({ ...p, timestampMs: p.timestampMs - latency }))
+    : performed;
+  const notes = adjustedEvents.filter(p => p.type === "noteOn").sort((a, b) => a.timestampMs - b.timestampMs);
   const used = new Set<number>();
   const assigned = expected.map(() => [] as number[]);
   const covered = expected.map(() => new Set<number>());
@@ -79,14 +83,14 @@ export const matchEvents = (expected: TimedExpectedEvent[], performed: Performed
   // Pair releases by channel-normalized hand and pitch, preserving retriggers.
   const releases = new Map<PerformedMidiEvent, number>();
   const held = new Map<string, PerformedMidiEvent[]>();
-  for (const event of [...performed].sort((a, b) => a.timestampMs - b.timestampMs)) {
+  for (const event of [...adjustedEvents].sort((a, b) => a.timestampMs - b.timestampMs)) {
     const key = `${event.hand ?? "unknown"}:${event.midiNote}`;
     const queue = held.get(key) ?? [];
     if (event.type === "noteOn") queue.push(event);
     else { const attack = queue.shift(); if (attack) releases.set(attack, event.timestampMs); }
     held.set(key, queue);
   }
-  const hasReleases = performed.some(event => event.type === "noteOff");
+  const hasReleases = adjustedEvents.some(event => event.type === "noteOff");
   const result: EventMatch[] = expected.map((target, ti) => {
     const selected = assigned[ti]!.map(i => notes[i]!);
     if (!selected.length) return { expected: target, performed: [], classification: "missed" };

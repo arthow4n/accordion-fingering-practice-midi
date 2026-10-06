@@ -4,6 +4,9 @@ import {
   clearPresets,
   clearSettings,
   deletePreset,
+  CALIBRATION_KEY,
+  loadCalibratedLatency,
+  saveCalibratedLatency,
   LEGACY_SETTINGS_KEY,
   loadPresets,
   loadSettings,
@@ -61,6 +64,7 @@ describe("settingsPersistence", () => {
     expect(STORAGE_KEY_PREFIX).toBe("accordion-fingering-practice-midi:");
     expect(SETTINGS_KEY.startsWith("accordion-fingering-practice-midi:")).toBe(true);
     expect(PRESETS_KEY.startsWith("accordion-fingering-practice-midi:")).toBe(true);
+    expect(CALIBRATION_KEY.startsWith("accordion-fingering-practice-midi:")).toBe(true);
   });
 
   it("parses stored settings from raw or wrapped json and rejects invalid data", () => {
@@ -215,7 +219,7 @@ describe("settingsPersistence", () => {
   });
 
 it("persists custom timing and recovery preferences in settings and presets",()=>{
- const request=defaultTrainingRequest();request.timing={strictness:"custom",followAfterPause:false,earlyMs:500,lateMs:800,chordMs:175};
+ const request=defaultTrainingRequest();request.timing={strictness:"custom",followAfterPause:false,earlyMs:500,lateMs:800,chordMs:175,latencyMs:0};
  saveSettings(request,"sightReading");expect(loadStoredSession().settings.timing).toEqual(request.timing);
  savePreset("Custom timing",request,"sightReading");expect(loadPresets().find(p=>p.name==="Custom timing")?.settings.timing).toEqual(request.timing);
 });
@@ -234,6 +238,14 @@ it("persists left-hand only mode, accompaniment style, and jump configurations a
  expect(loaded.settings.leftHand.jumpFrequency).toBe("occasional");
  expect(loaded.settings.leftHand.jumpSize).toBe("large");
  expect(loaded.mode).toBe("correction");
+});
+
+it("persists calibrated latency across session loads", () => {
+ saveCalibratedLatency(45);
+ expect(loadCalibratedLatency()).toBe(45);
+
+ const session = loadStoredSession();
+ expect(session.settings.timing.latencyMs).toBe(45);
 });
 
 });

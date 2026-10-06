@@ -10,6 +10,7 @@ import { SessionStatusBar } from "./session/SessionStatusBar";
 import { usePracticeSessionController } from "./session/usePracticeSessionController";
 import { PracticeSettingsForm } from "./settings/PracticeSettingsForm";
 import { usePresets } from "./settings/usePresets";
+import { LatencyCalibrationModal } from "./calibration/LatencyCalibrationModal";
 
 export default function App() {
   const [swRegistration, setSwRegistration] = useState<
@@ -66,6 +67,7 @@ export default function App() {
   }, [swRegistration, updateServiceWorker]);
 
   const controller = usePracticeSessionController();
+  const [isCalibrationOpen, setIsCalibrationOpen] = useState(false);
   const presets = usePresets(
     controller.settings,
     controller.mode,
@@ -106,6 +108,7 @@ export default function App() {
         seed={controller.seed}
         onFinish={controller.finish}
         onRegenerate={controller.regenerate}
+        onOpenCalibration={() => setIsCalibrationOpen(true)}
       />
 
       <PracticeSettingsForm
@@ -125,6 +128,15 @@ export default function App() {
         onLoadPreset={presets.handleLoadPreset}
         onSavePreset={presets.handleSavePreset}
         onDeletePreset={presets.handleDeletePreset}
+        onOpenCalibration={() => setIsCalibrationOpen(true)}
+      />
+
+      <LatencyCalibrationModal
+        isOpen={isCalibrationOpen}
+        onClose={() => setIsCalibrationOpen(false)}
+        currentLatencyMs={controller.settings.timing.latencyMs ?? 0}
+        onSaveLatency={controller.updateLatency}
+        onRegisterMidiListener={controller.registerCalibrationListener}
       />
 
       <details>

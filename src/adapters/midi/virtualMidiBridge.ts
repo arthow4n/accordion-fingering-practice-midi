@@ -54,6 +54,8 @@ export interface AccordionBridge {
   setMode: (mode: RuntimeMode) => void;
   resetSession: () => void;
   regenerate: (seed?: number) => void;
+  setLatency?: (latencyMs: number) => void;
+  getLatency?: () => number;
 }
 
 declare global {

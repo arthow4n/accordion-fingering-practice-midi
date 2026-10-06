@@ -421,7 +421,7 @@ export const generateMelody = (
   }
 ): ExerciseEvent[] => {
   // Explicit drills and legacy bass templates use targeted generator
-  const isExplicitDrill = request.emphasis !== "everything" && request.sessionProgression === "independent";
+  const isExplicitDrill = request.emphasis !== "everything";
   if (isExplicitDrill || request.leftHand.templateId) {
     return generateTargetedMelody(context, meter, harmony, phrase, request, rng);
   }

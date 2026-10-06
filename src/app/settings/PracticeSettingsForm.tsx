@@ -135,22 +135,6 @@ export function PracticeSettingsForm({
     <fieldset>
       <legend>Practice settings</legend>
       <label>
-        Progression{" "}
-        <select
-          value={settings.sessionProgression ?? "progressive"}
-          onChange={(e) =>
-            onUpdateSettings({
-              ...settings,
-              sessionProgression: e.target
-                .value as TrainingRequest["sessionProgression"],
-            })
-          }
-        >
-          <option value="progressive">3-stage progressive study</option>
-          <option value="independent">Independent random drills</option>
-        </select>
-      </label>{" "}
-      <label>
         Hands{" "}
         <select
           value={settings.hands}

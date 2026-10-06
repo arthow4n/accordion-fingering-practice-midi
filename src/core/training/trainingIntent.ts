@@ -29,7 +29,6 @@ export const trainingRequestSchema = z.object({
   leftHand: z.object({ enabled: z.boolean(), accompanimentStyle: z.enum(["bassChord","alternatingBass","polka","waltz","tango","swing"]), movementDifficulty: z.number().min(0).max(1), jumpFrequency: jumpFrequencySchema.default("none"), jumpSize: z.enum(["nearby","moderate","large","veryLarge"]).default("moderate"), maxJump: z.number().int().min(0).max(11).default(5), bassRootLow: z.enum(STRADELLA_ROOTS).default("Db"), bassRootHigh: z.enum(STRADELLA_ROOTS).default("F#"), templateId: z.enum(["legacy-tonic-pedal-descending","legacy-transition-to-IV","legacy-bb-fdim-line"]).optional() }),
   coordination: z.object({ difficulty: z.number().min(0).max(1) }).default({ difficulty: 0.3 }),
   challenge: z.object({ density: z.number().min(0).max(1), allowedTypes: z.array(z.enum(["largeLeap","chromatic","unfamiliarRhythm","syncopation","bassJump","handIndependence","unpredictable"])) }).default({ density: 0.06, allowedTypes: ["largeLeap","chromatic","syncopation","bassJump","handIndependence"] }),
-  sessionProgression: z.enum(["progressive", "independent"]).default("independent"),
   tempoBpm: z.number().int().min(30).max(240), measures: z.number().int().min(2).max(32), seed: z.number().int().optional(),
 });
 export type TrainingRequest = z.infer<typeof trainingRequestSchema>;
@@ -67,6 +66,9 @@ export const parseTrainingRequest = (input: unknown): TrainingRequest => {
     if ("mix" in migrated) {
       delete migrated.mix;
     }
+    if ("sessionProgression" in migrated) {
+      delete migrated.sessionProgression;
+    }
     const rh = migrated.rightHand as Record<string, unknown> | undefined;
     if (rh && typeof rh === "object") {
       delete rh.movementDifficulty;
@@ -98,7 +100,6 @@ export const defaultTrainingRequest = (): TrainingRequest => ({
   leftHand: { enabled: true, accompanimentStyle: "bassChord", movementDifficulty: 0.35, jumpFrequency: "none", jumpSize: "moderate", maxJump: 5, bassRootLow: "Db", bassRootHigh: "F#" },
   coordination: { difficulty: 0.3 },
   challenge: { density: 0.06, allowedTypes: ["largeLeap", "chromatic", "syncopation", "bassJump", "handIndependence"] },
-  sessionProgression: "independent",
   tempoBpm: 72,
   measures: 4,
 });

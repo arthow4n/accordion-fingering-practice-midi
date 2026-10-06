@@ -50,8 +50,6 @@ const randomSeeds = (first = nextSeed()) => [
   nextSeed(),
   nextSeed(),
 ];
-const sequentialSeeds = (first: number) =>
-  Array.from({ length: 8 }, (_, i) => first + i);
 
 export function usePracticeSessionController() {
   const frameRef = useRef<number | undefined>(undefined);
@@ -59,10 +57,7 @@ export function usePracticeSessionController() {
 
   const [initial] = useState(() => {
     const session = loadStoredSession();
-    const sessionSettings: TrainingRequest = {
-      ...session.settings,
-      sessionProgression: session.settings.sessionProgression ?? "progressive",
-    };
+    const sessionSettings: TrainingRequest = session.settings;
     const seed = sessionSettings.seed ?? nextSeed();
     try {
       const candidate = generateFirstValidCandidate(
@@ -150,7 +145,7 @@ export function usePracticeSessionController() {
   const onNextExercise = useCallback(() => {
     try {
       const candidate = generateFirstValidCandidate(
-        sequentialSeeds(seedRef.current + 1),
+        randomSeeds(nextSeed()),
         (candidateSeed) => generateExercise(settingsRef.current, candidateSeed),
       );
       seedRef.current = candidate.seed;
@@ -272,7 +267,7 @@ export function usePracticeSessionController() {
     (newSeed = seed + 1, preserveMetrics = false, retry = true) => {
       try {
         const candidate = generateFirstValidCandidate(
-          retry ? sequentialSeeds(newSeed) : [newSeed],
+          retry ? randomSeeds(newSeed) : [newSeed],
           (candidateSeed) => generateExercise(settings, candidateSeed),
         );
         const next = candidate.value;

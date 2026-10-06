@@ -15,7 +15,6 @@ import { validateExercise } from "./validateExercise";
 import { legacyBassLineById } from "../patterns/accompanimentTemplates";
 import { manualConstraintViolations } from "./manualConstraints";
 import { pitchWindow } from "./pitchRegister";
-import { applyProgressiveStudy, studyStepForSeed } from "./progressiveStudy";
 import { computeStructuralSignature } from "./structuralSignature";
 
 const parseKey = (name: string): TonalContext => {
@@ -49,13 +48,12 @@ export const generateExercise = (
     : parsed;
 
   const rng = createRng(seed);
-  const request = applyProgressiveStudy({ ...normalized }, seed);
+  const request = { ...normalized };
   request.rightHand.range = pitchWindow(request.pitchRegister, request.rightHand.range, seed, instrument.rightHandRange);
 
   let lastRejection: string[] = [];
-  const studyInfo = studyStepForSeed(seed, parsed.emphasis);
   for (let attempt = 1; attempt <= 32; attempt++) {
-    const keyCandidates = (request.sessionProgression === "progressive" || request.tonal.selection === "fixed" || request.tonal.keys.length === 1)
+    const keyCandidates = (request.tonal.selection === "fixed" || request.tonal.keys.length === 1)
       ? [request.tonal.keys[0]!]
       : request.tonal.keys;
     const progressionCandidates = leftJumpProgression(request);
@@ -133,10 +131,6 @@ export const generateExercise = (
         emphasis: request.emphasis,
         progressionId: harmonyResult.progressionId,
         attempts: attempt,
-        studyStep: studyInfo.step,
-        studyLabel: studyInfo.label,
-        studyCycle: studyInfo.cycle,
-        studyTopic: studyInfo.topic,
       },
     };
 

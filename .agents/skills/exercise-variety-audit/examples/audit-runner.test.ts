@@ -27,7 +27,6 @@ const runAudit = (sampleSize: number, style: RhythmStyle, noteValue: RhythmNoteV
     request.tonal.keys = ["C major"];
     request.rhythm.style = style;
     request.rhythm.noteValue = noteValue;
-    request.sessionProgression = "progressive";
     request.emphasis = "everything";
 
     const exercise = generateExercise(request, seed);

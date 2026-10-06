@@ -434,12 +434,19 @@ export function usePracticeSessionController() {
     };
   }, []);
 
+  const firstPlayableNote =
+    exercise.rightHand.find((e) => e.pitches.length > 0) ??
+    exercise.leftHand.find((e) => e.pitches.length > 0);
+  const firstNoteOnset = firstPlayableNote?.onset ?? 0;
+
   const playhead =
     mode === "correction"
       ? sessionRef.current.correctionOnset
       : status === "playing"
         ? (positionMs / 60_000) * exercise.tempoBpm * 480
-        : undefined;
+        : status === "ready"
+          ? firstNoteOnset
+          : undefined;
 
   const scorePositions = useMemo(
     () =>
@@ -455,9 +462,11 @@ export function usePracticeSessionController() {
   );
 
   const markedOnset =
-    playhead === undefined
+    status === "review"
       ? undefined
-      : scorePositions.filter((onset) => onset <= playhead).at(-1);
+      : playhead === undefined
+        ? (status === "ready" ? firstNoteOnset : undefined)
+        : (scorePositions.filter((onset) => onset <= playhead).at(-1) ?? firstNoteOnset);
 
   // Screen wake lock
   useEffect(() => {

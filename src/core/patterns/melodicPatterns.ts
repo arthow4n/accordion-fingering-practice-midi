@@ -119,7 +119,7 @@ export const stepToScaleDegree = (step: number, alteration = 0): ScaleDegree => 
 export const realizeDiatonicStep = (context: TonalContext, step: number, activeHarmony?: HarmonyEvent, alteration = 0): { degree: ScaleDegree; pitch: Pitch } => {
   let alt = alteration;
   const zero = ((step % 7) + 7) % 7;
-  const oct = Math.floor(step / 7);
+  const oct = Math.max(-3, Math.min(3, Math.floor(step / 7)));
   const degreeNum = (zero + 1) as ScaleDegreeNumber;
 
   const leadingToneHarmony = activeHarmony?.rootDegree.degree === 5 ||

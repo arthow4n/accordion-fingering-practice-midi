@@ -138,9 +138,41 @@ const generateTargetedMelody = (
     const isRelated = section.label === "A'" || section.label === "A''";
     const measureOnset = measure * measureTicks;
     const measureHarmony = harmony.find((h) => h.onset <= measureOnset && measureOnset < h.onset + h.duration) ?? harmony[harmony.length - 1]!;
-    const cell = isRelated && baseMotif && rng.next() >= (request.patterns?.variation ?? 0.35)
-      ? baseMotif.cell
-      : chooseCell();
+    const cadenceCell = (): RhythmCell => {
+      if (meter.beats === 4 && meter.beatUnit === 4) {
+        const options: RhythmCell[] = [
+          { id: "cadence-2q-half", meters: ["4/4"], atoms: [{ duration: 480 }, { duration: 480 }, { duration: 960 }], complexity: 0.1 },
+          { id: "cadence-4e-half", meters: ["4/4"], atoms: [{ duration: 240 }, { duration: 240 }, { duration: 240 }, { duration: 240 }, { duration: 960 }], complexity: 0.2 },
+          { id: "cadence-dotted-half-rest", meters: ["4/4"], atoms: [{ duration: 1440 }, { duration: 480, rest: true }], complexity: 0.1 },
+          { id: "cadence-whole", meters: ["4/4"], atoms: [{ duration: 1920 }], complexity: 0.05 },
+          { id: "cadence-2half", meters: ["4/4"], atoms: [{ duration: 960 }, { duration: 960 }], complexity: 0.05 },
+        ];
+        const valid = options.filter((c) => c.atoms.every((a) => a.duration >= minimumDuration));
+        return valid.length ? rng.pick(valid) : options[0]!;
+      }
+      if (meter.beats === 3 && meter.beatUnit === 4) {
+        const options: RhythmCell[] = [
+          { id: "cadence-q-half", meters: ["3/4"], atoms: [{ duration: 480 }, { duration: 960 }], complexity: 0.1 },
+          { id: "cadence-2e-half", meters: ["3/4"], atoms: [{ duration: 240 }, { duration: 240 }, { duration: 960 }], complexity: 0.2 },
+          { id: "cadence-dotted-whole", meters: ["3/4"], atoms: [{ duration: 1440 }], complexity: 0.05 },
+          { id: "cadence-half-rest", meters: ["3/4"], atoms: [{ duration: 960 }, { duration: 480, rest: true }], complexity: 0.1 },
+        ];
+        const valid = options.filter((c) => c.atoms.every((a) => a.duration >= minimumDuration));
+        return valid.length ? rng.pick(valid) : options[0]!;
+      }
+      if (meter.beats === 6 && meter.beatUnit === 8) {
+        const options: RhythmCell[] = [
+          { id: "cadence-2dq", meters: ["6/8"], atoms: [{ duration: 720 }, { duration: 720 }], complexity: 0.1 },
+          { id: "cadence-dh", meters: ["6/8"], atoms: [{ duration: 1440 }], complexity: 0.05 },
+        ];
+        return rng.pick(options);
+      }
+      return chooseCell();
+    };
+
+    const cell = isCadence
+      ? (request.leftHand.templateId || request.rhythm.style === "steady" ? chooseCell() : cadenceCell())
+      : (isRelated && baseMotif && rng.next() >= (request.patterns?.variation ?? 0.35) ? baseMotif.cell : chooseCell());
     const count = cell.atoms.length;
 
     let pattern: MelodicPattern;
@@ -229,7 +261,8 @@ const generateTargetedMelody = (
         patternHarmony = activeHarmony;
         patternStartIndex = index;
       }
-      const finalCadence = isCadence && index === cell.atoms.length - 1;
+      const finalSoundingIndex = cell.atoms.map((a, i) => a.rest ? -1 : i).filter((i) => i >= 0).at(-1) ?? (cell.atoms.length - 1);
+      const finalCadence = isCadence && index === finalSoundingIndex;
       const strength = metricStrength(onset % measureTicks, meter);
       const generatedNote = notes[index - patternStartIndex] ?? notes[notes.length - 1]!;
 
@@ -240,7 +273,7 @@ const generateTargetedMelody = (
       let chromaticRole = chromatic ? generatedNote.chromaticRole : undefined;
 
       const tieFromPrevious = tieIntoNext;
-      const rest = !exactRhythm && !tieFromPrevious && !finalCadence && (atom.rest || (index > 0 && rng.next() < (request.rhythm.restDensity ?? 0.05)));
+      const rest = Boolean(atom.rest) || (!exactRhythm && !tieFromPrevious && !finalCadence && (index > 0 && rng.next() < (request.rhythm.restDensity ?? 0.05)));
 
       if (!tieFromPrevious && !rest) {
         if (finalCadence) {
@@ -388,7 +421,8 @@ export const generateMelody = (
   }
 ): ExerciseEvent[] => {
   // Explicit drills and legacy bass templates use targeted generator
-  if (request.emphasis !== "everything" || request.leftHand.templateId) {
+  const isExplicitDrill = request.emphasis !== "everything" && request.sessionProgression === "independent";
+  if (isExplicitDrill || request.leftHand.templateId) {
     return generateTargetedMelody(context, meter, harmony, phrase, request, rng);
   }
 
@@ -482,24 +516,45 @@ export const generateMelody = (
       const targetStep = (targetArrivalTone.degree.degree - 1) + (targetArrivalTone.degree.octaveOffset * 7);
 
       let arrivalIndex = count - 1;
-      if (cadencePlan.arrivalMetric === "beat1Sustain") {
-        arrivalIndex = 0;
-      } else if (cadencePlan.arrivalMetric === "beat3Arrival" && count >= 3) {
-        arrivalIndex = Math.floor(count / 2);
+      const firstAtomDuration = measureRhythm.atoms[0]?.duration ?? 0;
+      const isSustainedFirstAtom = firstAtomDuration >= (meter.beats === 3 ? 960 : 1440);
+
+      if (isSteady) {
+        if (cadencePlan.cadenceType !== "strongTonic" && cadencePlan.arrivalMetric === "beat3Arrival" && meter.beats === 4 && count >= 4) {
+          arrivalIndex = Math.floor(count / 2);
+        } else if (cadencePlan.arrivalMetric === "earlyWithRepetition" && count >= 2) {
+          arrivalIndex = Math.max(0, count - 2);
+        } else {
+          arrivalIndex = count - 1;
+        }
       } else if (cadencePlan.arrivalMetric === "earlyWithRepetition" && count >= 2) {
         arrivalIndex = Math.max(0, count - 2);
+      } else if (isSustainedFirstAtom) {
+        arrivalIndex = 0;
+      } else {
+        let atomOnset = measureOnset;
+        const finalHarmonyIndex = measureRhythm.atoms.findIndex((atom) => {
+          const atFinalHarmony = atomOnset >= cadenceAnchor.onset;
+          atomOnset += atom.duration;
+          return atFinalHarmony;
+        });
+        arrivalIndex = finalHarmonyIndex > 0 ? finalHarmonyIndex : count - 1;
+        if (measureRhythm.atoms[arrivalIndex]?.rest && arrivalIndex > 0) {
+          arrivalIndex--;
+        }
       }
-      let atomOnset = measureOnset;
-      const finalHarmonyIndex = measureRhythm.atoms.findIndex((atom) => {
-        const atFinalHarmony = atomOnset >= cadenceAnchor.onset;
-        atomOnset += atom.duration;
-        return atFinalHarmony;
-      });
-      arrivalIndex = Math.max(arrivalIndex, finalHarmonyIndex);
       cadenceArrivalIndex = arrivalIndex;
 
-      measureNotes = measureRhythm.atoms.map((_, idx) => {
-        if (idx >= arrivalIndex) {
+      measureNotes = measureRhythm.atoms.map((atom, idx) => {
+        if (atom.rest) {
+          return {
+            degree: targetArrivalTone.degree,
+            pitch: targetArrivalTone.pitch,
+            role: "rest" as NoteRole,
+            chromatic: false,
+          };
+        }
+        if (idx === arrivalIndex || (idx > arrivalIndex && (cadencePlan.arrivalMetric === "earlyWithRepetition" || cadencePlan.cadenceType === "strongTonic"))) {
           return {
             degree: targetArrivalTone.degree,
             pitch: targetArrivalTone.pitch,
@@ -507,14 +562,45 @@ export const generateMelody = (
             chromatic: false,
           };
         }
+        if (idx > arrivalIndex) {
+          const finalHarmony = harmony[harmony.length - 1] ?? startHarmony;
+          const chordTones = findChordTonesInRange(context, finalHarmony, request.rightHand.range);
+          const otherTones = chordTones.filter((ct) => ct.pitch.midi !== targetArrivalTone.pitch.midi);
+          const completionTone = otherTones.length > 0
+            ? otherTones.reduce((prev, curr) =>
+                Math.abs(curr.pitch.midi - targetArrivalTone.pitch.midi) < Math.abs(prev.pitch.midi - targetArrivalTone.pitch.midi) ? curr : prev
+              )
+            : targetArrivalTone;
+          return {
+            degree: completionTone.degree,
+            pitch: completionTone.pitch,
+            role: "cadence tone" as NoteRole,
+            chromatic: false,
+          };
+        }
         const distFromArrival = arrivalIndex - idx;
-        const degreeOffset = shape.degrees[Math.max(0, shape.degrees.length - 1 - distFromArrival)] ?? (arrivalDegreeNum + distFromArrival);
+        const shapeIdx = shape.degrees.length - 1 - distFromArrival;
+        let degreeOffset: number;
+        if (shapeIdx >= 0) {
+          degreeOffset = shape.degrees[shapeIdx]!;
+        } else {
+          // Pre-shape approach: connect smoothly to shape's starting degree rather than clamping
+          const stepsBefore = -shapeIdx;
+          const startDeg = shape.degrees[0]!;
+          if (shape.direction === "descending") {
+            degreeOffset = startDeg + stepsBefore;
+          } else if (shape.direction === "ascending") {
+            degreeOffset = startDeg - stepsBefore;
+          } else {
+            degreeOffset = startDeg + (stepsBefore % 2 === 1 ? 1 : -1);
+          }
+        }
         const relStep = targetStep + (degreeOffset - arrivalDegreeNum);
         const realized = realizeDiatonicStep(context, relStep, startHarmony);
         return {
           degree: realized.degree,
           pitch: realized.pitch,
-          role: "approach tone" as NoteRole,
+          role: "passing tone" as NoteRole,
           chromatic: false,
         };
       });
@@ -538,6 +624,25 @@ export const generateMelody = (
       const startPitch = previousPitch ?? measureAnchor.pitch;
       const startDegree = (previousPitch && previousDegree) ? previousDegree : measureAnchor.degree;
 
+      const preferredGesture = (): MelodicGestureType | undefined => {
+        if (request.emphasis === "arpeggios") {
+          return rng.next() < 0.65 ? (rng.next() < 0.5 ? "arpeggiateActive" : "skipToChordTone") : undefined;
+        }
+        if (request.emphasis === "intervals") {
+          return rng.next() < 0.65 ? (rng.next() < 0.5 ? "leapAndStepwiseRecovery" : "skipToChordTone") : undefined;
+        }
+        if (request.emphasis === "melodicPatterns") {
+          return rng.next() < 0.65 ? (rng.next() < 0.5 ? "stepUpward" : "stepDownward") : undefined;
+        }
+        if (request.emphasis === "cadencesApproaches") {
+          return rng.next() < 0.65 ? (rng.next() < 0.5 ? "approachTargetFromAbove" : "enclosure") : undefined;
+        }
+        if (request.emphasis === "rhythm") {
+          return rng.next() < 0.4 ? "repeatNote" : undefined;
+        }
+        return undefined;
+      };
+
       const generated = generateMelodicGesture(
         context,
         {
@@ -553,7 +658,7 @@ export const generateMelody = (
           accidentalsRemaining,
           range: request.rightHand.range,
         },
-        undefined,
+        preferredGesture(),
         rng
       );
       measureNotes = generated.notes;
@@ -637,7 +742,7 @@ export const generateMelody = (
         degree = { ...tiedDegree };
       }
 
-      // Unison control (strict <= 2 unisons)
+      // Unison control (strict <= 1 unisons in steady mode unless rhythm drill)
       if (!rest && !tieFromPrevious && !isFinalNote) {
         if (previousPitch !== undefined && pitch.midi === previousPitch.midi) {
           consecutiveUnisons++;
@@ -645,11 +750,10 @@ export const generateMelody = (
           consecutiveUnisons = 0;
         }
 
-        const maxUnisons = 2;
+        const maxUnisons = isSteady && request.emphasis !== "rhythm" ? 1 : 2;
         const needsDisambiguationBeforeCadence =
           index + 1 === cadenceArrivalIndex &&
-          pitch.midi === cadenceAnchor.pitch.midi &&
-          consecutiveUnisons >= 1;
+          pitch.midi === cadenceAnchor.pitch.midi;
 
         if ((consecutiveUnisons >= maxUnisons || needsDisambiguationBeforeCadence) && !isCadenceArrival) {
           const chordTones = findChordTonesInRange(context, activeHarmonyForEvent, request.rightHand.range)
@@ -708,6 +812,7 @@ export const generateMelody = (
           motifId: section.label,
           motifTransformation: section.transformation,
           gestureType: activeGestureType,
+          patternCategory: request.emphasis !== "everything" ? request.emphasis : undefined,
           positionInGesture: index,
           rhythmCellId: measureRhythm.rhythmCellId,
           noteRole,

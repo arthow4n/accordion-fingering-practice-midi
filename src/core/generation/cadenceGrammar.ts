@@ -38,27 +38,42 @@ export const MELODIC_CADENCE_SHAPES: MelodicCadenceShape[] = [
   { id: "step-down-2-1", degrees: [2, 1], arrivalDegree: 1, direction: "descending", suitableTypes: ["strongTonic", "weakTonic"] },
   { id: "leading-tone-7-1", degrees: [7, 1], arrivalDegree: 1, direction: "ascending", suitableTypes: ["strongTonic", "weakTonic"] },
   { id: "step-down-3-2-1", degrees: [3, 2, 1], arrivalDegree: 1, direction: "descending", suitableTypes: ["strongTonic", "weakTonic"] },
+  { id: "step-down-4-3-2-1", degrees: [4, 3, 2, 1], arrivalDegree: 1, direction: "descending", suitableTypes: ["strongTonic", "weakTonic"] },
+  { id: "step-down-5-4-3-2-1", degrees: [5, 4, 3, 2, 1], arrivalDegree: 1, direction: "descending", suitableTypes: ["strongTonic", "weakTonic"] },
+  { id: "step-up-5-6-7-1", degrees: [5, 6, 7, 1], arrivalDegree: 1, direction: "ascending", suitableTypes: ["strongTonic", "weakTonic"] },
+  { id: "step-up-6-7-1", degrees: [6, 7, 1], arrivalDegree: 1, direction: "ascending", suitableTypes: ["strongTonic", "weakTonic"] },
   { id: "skip-recovery-2-7-1", degrees: [2, 7, 1], arrivalDegree: 1, direction: "leapAndStep", suitableTypes: ["strongTonic", "weakTonic"] },
   { id: "leap-recovery-6-2-1", degrees: [6, 2, 1], arrivalDegree: 1, direction: "leapAndStep", suitableTypes: ["strongTonic", "weakTonic"] },
+  { id: "triad-step-1-3-2-1", degrees: [1, 3, 2, 1], arrivalDegree: 1, direction: "leapAndStep", suitableTypes: ["strongTonic", "weakTonic"] },
+  { id: "cambiata-3-4-2-1", degrees: [3, 4, 2, 1], arrivalDegree: 1, direction: "leapAndStep", suitableTypes: ["strongTonic", "weakTonic"] },
+  { id: "enclosure-3-1-2-1", degrees: [3, 1, 2, 1], arrivalDegree: 1, direction: "neighbor", suitableTypes: ["strongTonic", "weakTonic"] },
   { id: "triad-fall-5-3-1", degrees: [5, 3, 1], arrivalDegree: 1, direction: "descending", suitableTypes: ["strongTonic", "weakTonic"] },
+  { id: "dominant-descent-5-3-2-1", degrees: [5, 3, 2, 1], arrivalDegree: 1, direction: "descending", suitableTypes: ["strongTonic", "weakTonic"] },
 
   // Tonic closures ending on 3 (imperfect tonic closure)
   { id: "step-down-5-4-3", degrees: [5, 4, 3], arrivalDegree: 3, direction: "descending", suitableTypes: ["weakTonic", "plagal"] },
+  { id: "step-down-6-5-4-3", degrees: [6, 5, 4, 3], arrivalDegree: 3, direction: "descending", suitableTypes: ["weakTonic", "plagal"] },
   { id: "step-down-4-3", degrees: [4, 3], arrivalDegree: 3, direction: "descending", suitableTypes: ["weakTonic", "plagal"] },
   { id: "step-up-2-3", degrees: [2, 3], arrivalDegree: 3, direction: "ascending", suitableTypes: ["weakTonic"] },
+  { id: "step-up-1-2-3", degrees: [1, 2, 3], arrivalDegree: 3, direction: "ascending", suitableTypes: ["weakTonic", "plagal"] },
+  { id: "neighbor-turn-3-4-2-3", degrees: [3, 4, 2, 3], arrivalDegree: 3, direction: "neighbor", suitableTypes: ["weakTonic", "plagal"] },
 
   // Tonic closures ending on 5 (open/fifth tonic closure)
   { id: "step-up-3-4-5", degrees: [3, 4, 5], arrivalDegree: 5, direction: "ascending", suitableTypes: ["weakTonic", "plagal"] },
-  { id: "step-down-6-5", degrees: [6, 5], arrivalDegree: 5, direction: "descending", suitableTypes: ["weakTonic", "half"] },
+  { id: "step-up-1-2-3-4-5", degrees: [1, 2, 3, 4, 5], arrivalDegree: 5, direction: "ascending", suitableTypes: ["weakTonic", "plagal"] },
+  { id: "step-down-7-6-5", degrees: [7, 6, 5], arrivalDegree: 5, direction: "descending", suitableTypes: ["weakTonic", "half"] },
 
   // Plagal approach
   { id: "plagal-4-3", degrees: [4, 3], arrivalDegree: 3, direction: "descending", suitableTypes: ["plagal"] },
   { id: "plagal-4-1", degrees: [4, 1], arrivalDegree: 1, direction: "leapAndStep", suitableTypes: ["plagal"] },
   { id: "plagal-6-1", degrees: [6, 1], arrivalDegree: 1, direction: "ascending", suitableTypes: ["plagal"] },
+  { id: "plagal-6-5-4-1", degrees: [6, 5, 4, 1], arrivalDegree: 1, direction: "leapAndStep", suitableTypes: ["plagal"] },
 
   // Half cadences (ending on dominant degree 2, 5, or 7)
   { id: "half-1-2", degrees: [1, 2], arrivalDegree: 2, direction: "ascending", suitableTypes: ["half", "open"] },
   { id: "half-3-2", degrees: [3, 2], arrivalDegree: 2, direction: "descending", suitableTypes: ["half", "open"] },
+  { id: "half-5-4-3-2", degrees: [5, 4, 3, 2], arrivalDegree: 2, direction: "descending", suitableTypes: ["half", "open"] },
+  { id: "half-cambiata-4-3-1-2", degrees: [4, 3, 1, 2], arrivalDegree: 2, direction: "leapAndStep", suitableTypes: ["half", "open"] },
   { id: "half-4-5", degrees: [4, 5], arrivalDegree: 5, direction: "ascending", suitableTypes: ["half", "open"] },
   { id: "half-6-5", degrees: [6, 5], arrivalDegree: 5, direction: "descending", suitableTypes: ["half", "open"] },
   { id: "half-2-7", degrees: [2, 7], arrivalDegree: 7, direction: "descending", suitableTypes: ["half", "open"] },
@@ -66,6 +81,7 @@ export const MELODIC_CADENCE_SHAPES: MelodicCadenceShape[] = [
   // Deceptive cadences (ending on 6 or 1)
   { id: "deceptive-7-6", degrees: [7, 6], arrivalDegree: 6, direction: "descending", suitableTypes: ["deceptive"] },
   { id: "deceptive-5-6", degrees: [5, 6], arrivalDegree: 6, direction: "ascending", suitableTypes: ["deceptive"] },
+  { id: "deceptive-4-5-7-6", degrees: [4, 5, 7, 6], arrivalDegree: 6, direction: "leapAndStep", suitableTypes: ["deceptive"] },
 ];
 
 export const planCadence = (

@@ -85,12 +85,16 @@ export const generateMeasureRhythm = (
         [{ duration: 480 }, { duration: 480 }, { duration: 960 }],
         // Four eighths + half
         [{ duration: 240 }, { duration: 240 }, { duration: 240 }, { duration: 240 }, { duration: 960 }],
+        // Dotted quarter + eighth + half
+        [{ duration: 720 }, { duration: 240 }, { duration: 960 }],
         // Half + half
         [{ duration: 960 }, { duration: 960 }],
         // Whole note
         [{ duration: 1920 }],
         // Dotted half + quarter
         [{ duration: 1440 }, { duration: 480 }],
+        // Dotted half + quarter rest (phrase breath)
+        [{ duration: 1440 }, { duration: 480, rest: true }],
       ];
       const valid = cadenceOptions.filter((opt) => opt.every((a) => a.duration >= effectiveMinDuration));
       const atoms = valid.length ? rng.pick(valid) : cadenceOptions[0]!;
@@ -100,13 +104,21 @@ export const generateMeasureRhythm = (
         [{ duration: 480 }, { duration: 960 }],
         [{ duration: 240 }, { duration: 240 }, { duration: 960 }],
         [{ duration: 1440 }],
+        [{ duration: 960 }, { duration: 480, rest: true }],
       ];
       const valid = cadenceOptions.filter((opt) => opt.every((a) => a.duration >= effectiveMinDuration));
       const atoms = valid.length ? rng.pick(valid) : cadenceOptions[0]!;
       return { atoms, rhythmCellId: "cadence-measure-3" };
     } else if (meter.beats === 6 && meter.beatUnit === 8) {
+      const cadenceOptions: RhythmAtom[][] = [
+        [{ duration: 720 }, { duration: 720 }],
+        [{ duration: 1440 }],
+        [{ duration: 720 }, { duration: 480 }, { duration: 240, rest: true }],
+      ];
+      const valid = cadenceOptions.filter((opt) => opt.every((a) => a.duration >= effectiveMinDuration));
+      const atoms = valid.length ? rng.pick(valid) : cadenceOptions[0]!;
       return {
-        atoms: [{ duration: 720 }, { duration: 720 }],
+        atoms,
         rhythmCellId: "cadence-measure-6-8",
       };
     }

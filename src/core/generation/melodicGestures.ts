@@ -122,13 +122,17 @@ export const generateMelodicGesture = (
       }
       break;
 
-    case "upperNeighbor":
+    case "upperNeighbor": {
       notes.push(makeNote(baseStep, "chord tone"));
       if (count > 1) notes.push(makeNote(baseStep + 1, "neighbor tone"));
-      for (let i = 2; i < count; i++) {
-        notes.push(makeNote(baseStep, "chord tone"));
+      if (count > 2) notes.push(makeNote(baseStep, "chord tone"));
+      for (let i = 3; i < count; i++) {
+        // Complete the turn musically rather than repeating baseStep
+        const stepOffset = i % 2 === 1 ? -1 : 0;
+        notes.push(makeNote(baseStep + stepOffset, "neighbor tone"));
       }
       break;
+    }
 
     case "lowerNeighbor": {
       notes.push(makeNote(baseStep, "chord tone"));
@@ -136,8 +140,10 @@ export const generateMelodicGesture = (
       if (count > 1) {
         notes.push(makeNote(baseStep - 1, "neighbor tone", useHalfStep ? 1 : 0));
       }
-      for (let i = 2; i < count; i++) {
-        notes.push(makeNote(baseStep, "chord tone"));
+      if (count > 2) notes.push(makeNote(baseStep, "chord tone"));
+      for (let i = 3; i < count; i++) {
+        const stepOffset = i % 2 === 1 ? 1 : 0;
+        notes.push(makeNote(baseStep + stepOffset, "neighbor tone"));
       }
       break;
     }
@@ -162,11 +168,18 @@ export const generateMelodicGesture = (
 
     case "enclosure": {
       const tgtStep = targetDegree ? (targetDegree.degree - 1) + (targetDegree.octaveOffset * 7) : baseStep;
-      if (count >= 3) {
+      if (count >= 4) {
+        for (let i = 0; i < count; i++) {
+          const dist = count - 1 - i;
+          if (dist === 0) notes.push(makeNote(tgtStep, "chord tone"));
+          else if (dist === 1) notes.push(makeNote(tgtStep - 1, "neighbor tone"));
+          else if (dist === 2) notes.push(makeNote(tgtStep + 1, "neighbor tone"));
+          else notes.push(makeNote(tgtStep + (dist % 2 === 0 ? 2 : -2), "scale tone"));
+        }
+      } else if (count === 3) {
         notes.push(makeNote(tgtStep + 1, "neighbor tone"));
         notes.push(makeNote(tgtStep - 1, "neighbor tone"));
         notes.push(makeNote(tgtStep, "chord tone"));
-        for (let i = 3; i < count; i++) notes.push(makeNote(tgtStep, "chord tone"));
       } else if (count === 2) {
         notes.push(makeNote(tgtStep + 1, "neighbor tone"));
         notes.push(makeNote(tgtStep, "chord tone"));
@@ -179,10 +192,24 @@ export const generateMelodicGesture = (
     case "fillIntervalStepwise": {
       const tgtStep = targetDegree ? (targetDegree.degree - 1) + (targetDegree.octaveOffset * 7) : baseStep + 2;
       const stepDiff = tgtStep - baseStep;
+      let lastStep = baseStep;
       for (let i = 0; i < count; i++) {
-        const frac = count > 1 ? i / (count - 1) : 0;
-        const curStep = Math.round(baseStep + frac * stepDiff);
-        notes.push(makeNote(curStep, i === 0 || i === count - 1 ? "chord tone" : "passing tone"));
+        if (i === 0) {
+          notes.push(makeNote(baseStep, "chord tone"));
+          lastStep = baseStep;
+        } else if (i === count - 1) {
+          notes.push(makeNote(tgtStep, "chord tone"));
+          lastStep = tgtStep;
+        } else {
+          const frac = i / (count - 1);
+          let curStep = Math.round(baseStep + frac * stepDiff);
+          if (curStep === lastStep && Math.abs(stepDiff) < count - 1) {
+            const embellishment = (i % 2 === 1) ? (stepDiff >= 0 ? 1 : -1) : 0;
+            curStep = baseStep + Math.floor(frac * stepDiff) + embellishment;
+          }
+          notes.push(makeNote(curStep, "passing tone"));
+          lastStep = curStep;
+        }
       }
       break;
     }

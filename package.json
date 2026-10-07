@@ -15,8 +15,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "abcjs": "^6.4.4",
-    "immer": "^11.1.18",
+    "abcjs": "^6.7.1",
+    "immer": "^11.1.21",
     "lodash-es": "^4.18.1",
     "nuqs": "^2.10.1",
     "pure-rand": "^8.4.2",

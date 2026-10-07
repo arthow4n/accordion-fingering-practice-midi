@@ -65,8 +65,8 @@ export const planMelodicAnchors = (
       const rawChordTones = findChordTonesInRange(context, h, range);
       const chordTones = rawChordTones.length ? rawChordTones : [fallbackTone];
 
-      let chosenTone = chordTones[0]!;
-      let anchorRole: MelodicAnchorRole = "strongBeat";
+      let chosenTone: (typeof chordTones)[number];
+      let anchorRole: MelodicAnchorRole;
 
       if (isFinal) {
         anchorRole = "cadence";

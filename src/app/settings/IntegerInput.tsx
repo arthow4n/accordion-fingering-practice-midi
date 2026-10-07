@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export interface IntegerInputProps {
   label: string;
@@ -15,9 +15,13 @@ export function IntegerInput({
   max,
   onCommit,
 }: IntegerInputProps) {
+  const [prevValue, setPrevValue] = useState(value);
   const [draft, setDraft] = useState(String(value));
 
-  useEffect(() => setDraft(String(value)), [value]);
+  if (value !== prevValue) {
+    setPrevValue(value);
+    setDraft(String(value));
+  }
 
   const commit = () => {
     const parsed = /^\d+$/.test(draft) ? Number(draft) : NaN;

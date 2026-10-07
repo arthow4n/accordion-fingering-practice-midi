@@ -94,8 +94,8 @@ export const generateNotesForPattern = (
 
   // 1. Cadences (for phrase ending)
   if (isCadence || pattern.category === "cadencesApproaches" && pattern.id.startsWith("cadence-")) {
-    let formula: number[] = [1, 0]; // 2-1
-    let formulaRoles: NoteRole[] = ["cadence tone", "cadence tone"];
+    let formula: number[];
+    let formulaRoles: NoteRole[];
     let formulaAlts: number[] = [0, 0];
 
     switch (pattern.id) {
@@ -407,7 +407,7 @@ export const generateNotesForPattern = (
   // 5. Melodic intervals
   if (pattern.category === "intervals") {
     const rangeSpan = range.high - range.low;
-    let leap = 2; // third by default
+    let leap: number;
     if (pattern.id.includes("octave")) {
       leap = rangeSpan >= 12 ? 7 : Math.max(2, Math.floor(rangeSpan / 2));
     } else {
@@ -462,7 +462,7 @@ export const generateNotesForPattern = (
   // 6. Scales and Sequences (default / fallback)
   const notes: GeneratedPatternNote[] = [];
   for (let i = 0; i < count; i++) {
-    let step = baseStep;
+    let step: number;
     switch (pattern.id) {
       case "scale-descending":
         step = baseStep - i;

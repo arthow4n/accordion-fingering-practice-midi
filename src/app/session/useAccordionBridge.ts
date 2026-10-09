@@ -40,6 +40,7 @@ export interface UseAccordionBridgeParams {
     nextSettings?: TrainingRequest,
     nextMode?: RuntimeMode,
   ) => void;
+  resetStats?: () => void;
   regenerate: (
     newSeed?: number,
     preserveMetrics?: boolean,
@@ -72,6 +73,7 @@ export function useAccordionBridge({
   setDevices,
   changeMode,
   resetSession,
+  resetStats,
   regenerate,
   finish,
   updateLatency,
@@ -134,6 +136,7 @@ export function useAccordionBridge({
       getLatency: () => settings.timing.latencyMs ?? 0,
       setMode: changeMode,
       resetSession: () => resetSession(),
+      resetStats: () => resetStats?.(),
       regenerate: (newSeed?: number) => regenerate(newSeed),
       dismissReview: () => {
         acceptMidi({
@@ -266,6 +269,7 @@ export function useAccordionBridge({
     finish,
     regenerate,
     resetSession,
+    resetStats,
     updateLatency,
     calibrationListenerRef,
   ]);

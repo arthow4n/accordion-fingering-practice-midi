@@ -3,19 +3,25 @@ import { defaultTrainingRequest } from "../../core/training/trainingIntent";
 import {
   clearPresets,
   clearSettings,
+  clearStoredStats,
   deletePreset,
   CALIBRATION_KEY,
+  emptyStoredSessionStats,
   loadCalibratedLatency,
   saveCalibratedLatency,
   LEGACY_SETTINGS_KEY,
+  LEGACY_STATS_KEY,
   loadPresets,
   loadSettings,
   loadStoredSession,
+  loadStoredStats,
   parseStoredSettings,
   PRESETS_KEY,
   savePreset,
   saveSettings,
+  saveStoredStats,
   SETTINGS_KEY,
+  STATS_KEY,
   STORAGE_KEY_PREFIX,
 } from "./settingsPersistence";
 
@@ -246,6 +252,61 @@ it("persists calibrated latency across session loads", () => {
 
  const session = loadStoredSession();
  expect(session.settings.timing.latencyMs).toBe(45);
+});
+
+describe("session stats persistence", () => {
+  it("returns empty stats when storage is empty", () => {
+    expect(loadStoredStats()).toEqual(emptyStoredSessionStats);
+  });
+
+  it("persists and reloads session stats", () => {
+    const stats = {
+      completedExercises: 5,
+      completedEvents: 40,
+      attempts: 40,
+      correct: 38,
+      timingCorrect: 35,
+      missed: 2,
+      extra: 1,
+    };
+    saveStoredStats(stats);
+    expect(loadStoredStats()).toEqual(stats);
+  });
+
+  it("clears stored stats", () => {
+    saveStoredStats({
+      completedExercises: 3,
+      completedEvents: 20,
+      attempts: 20,
+      correct: 19,
+      timingCorrect: 18,
+      missed: 1,
+      extra: 0,
+    });
+    clearStoredStats();
+    expect(loadStoredStats()).toEqual(emptyStoredSessionStats);
+  });
+
+  it("loads legacy stats key when current key is missing", () => {
+    const legacyStats = {
+      completedExercises: 2,
+      completedEvents: 16,
+      attempts: 16,
+      correct: 15,
+      timingCorrect: 14,
+      missed: 1,
+      extra: 0,
+    };
+    localStorage.setItem(LEGACY_STATS_KEY, JSON.stringify(legacyStats));
+    expect(loadStoredStats()).toEqual(legacyStats);
+  });
+
+  it("sanitizes corrupt or invalid stats data", () => {
+    localStorage.setItem(STATS_KEY, JSON.stringify({ completedExercises: -5, correct: "invalid" }));
+    const loaded = loadStoredStats();
+    expect(loaded.completedExercises).toBe(0);
+    expect(loaded.correct).toBe(0);
+  });
 });
 
 });

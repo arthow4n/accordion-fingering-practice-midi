@@ -100,6 +100,7 @@ export default function App() {
         metrics={controller.metrics}
         generationError={controller.generationError}
         settingsPendingScore={controller.settingsPendingScore}
+        onResetStats={controller.resetStats}
       />
 
       <SessionActionControls

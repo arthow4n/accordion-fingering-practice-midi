@@ -89,6 +89,7 @@ To review UI states programmatically (in browser agents, Playwright, or browser 
 - `window.accordionBridge.sendDeviceNames(["Device 1", "Device 2"])`: Updates detected MIDI device list.
 - `window.accordionBridge.setMode("sightReading" | "correction")`: Changes practice mode.
 - `window.accordionBridge.resetSession()` / `regenerate(seed?)`: Resets or generates new exercises.
+- `window.accordionBridge.resetStats()`: Resets exercise completion history and session statistics.
 
 ### Recipes for agents
 

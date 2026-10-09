@@ -5,9 +5,13 @@ import {
 } from "../../adapters/midi/webMidiInput";
 import {
   clearSettings,
+  clearStoredStats,
+  emptyStoredSessionStats,
   loadCalibratedLatency,
   loadStoredSession,
+  loadStoredStats,
   saveSettings,
+  saveStoredStats,
   type RuntimeMode,
 } from "../../adapters/persistence/settingsPersistence";
 import { generateFirstValidCandidate } from "../../application/generateCandidate";
@@ -28,16 +32,6 @@ import {
 } from "../../core/training/trainingIntent";
 import { useAccordionBridge } from "./useAccordionBridge";
 import type { SessionStats } from "./SessionStatusBar";
-
-const emptySessionStats: SessionStats = {
-  completedExercises: 0,
-  completedEvents: 0,
-  attempts: 0,
-  correct: 0,
-  timingCorrect: 0,
-  missed: 0,
-  extra: 0,
-};
 
 const nextSeed = () => Math.floor(Math.random() * 0x2aaaaaaa) * 3;
 const randomSeeds = (first = nextSeed()) => [
@@ -122,13 +116,19 @@ export function usePracticeSessionController() {
   >([]);
   const [positionMs, setPositionMs] = useState(0);
   const [metrics, setMetrics] = useState<PerformanceMetrics>();
-  const [sessionStats, setSessionStats] = useState(emptySessionStats);
+  const [sessionStats, setSessionStats] = useState<SessionStats>(() =>
+    loadStoredStats(),
+  );
   const [devices, setDevices] = useState<string[]>([]);
   const [midiError, setMidiError] = useState("");
   const [generationError, setGenerationError] = useState(initial.error);
   const [settingsPendingScore, setSettingsPendingScore] = useState(
     initial.pending,
   );
+
+  useEffect(() => {
+    saveStoredStats(sessionStats);
+  }, [sessionStats]);
 
   useEffect(() => {
     seedRef.current = seed;
@@ -513,6 +513,14 @@ export function usePracticeSessionController() {
   // Frame cleanup on unmount
   useEffect(() => () => cancelAnimationFrame(frameRef.current ?? 0), []);
 
+  const resetStats = useCallback(() => {
+    clearStoredStats();
+    setSessionStats({ ...emptyStoredSessionStats });
+    if (status !== "review") {
+      setMetrics(undefined);
+    }
+  }, [status]);
+
   // Virtual MIDI bridge
   useAccordionBridge({
     mode,
@@ -534,6 +542,7 @@ export function usePracticeSessionController() {
     setDevices,
     changeMode,
     resetSession,
+    resetStats,
     regenerate,
     finish,
     updateLatency,
@@ -579,6 +588,7 @@ export function usePracticeSessionController() {
     registerCalibrationListener,
     regenerate,
     finish,
+    resetStats,
     resetToDefaults,
   };
 }

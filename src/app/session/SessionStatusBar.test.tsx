@@ -21,7 +21,7 @@ describe("SessionStatusBar", () => {
   const renderClean = (component: React.ReactElement) =>
     renderToString(component).replace(/<!--.*?-->/g, "");
 
-  it("renders session stats summary", () => {
+  it("renders session stats summary without events, missed, or extra labels", () => {
     const text = renderClean(
       <SessionStatusBar
         exercise={exercise}
@@ -37,10 +37,82 @@ describe("SessionStatusBar", () => {
     );
 
     expect(text).toContain("Completed 3 exercises");
-    expect(text).toContain("24 events");
-    expect(text).toContain("correct 83%");
-    expect(text).toContain("missed 1");
-    expect(text).toContain("extra 0");
+    expect(text).toContain("accuracy 83%");
+    expect(text).not.toContain("events");
+    expect(text).not.toContain("missed 1");
+    expect(text).not.toContain("extra 0");
+  });
+
+  it("renders reset history button when exercises completed or attempted", () => {
+    const text = renderClean(
+      <SessionStatusBar
+        exercise={exercise}
+        settings={baseSettings}
+        mode="sightReading"
+        status="ready"
+        waiting={false}
+        hasLeft={false}
+        sessionStats={emptyStats}
+        generationError=""
+        settingsPendingScore={false}
+        onResetStats={() => {}}
+      />,
+    );
+
+    expect(text).toContain("Reset history");
+  });
+
+  it("omits reset history button when zero exercises completed and zero attempts", () => {
+    const zeroStats = {
+      completedExercises: 0,
+      completedEvents: 0,
+      attempts: 0,
+      correct: 0,
+      timingCorrect: 0,
+      missed: 0,
+      extra: 0,
+    };
+    const text = renderClean(
+      <SessionStatusBar
+        exercise={exercise}
+        settings={baseSettings}
+        mode="sightReading"
+        status="ready"
+        waiting={false}
+        hasLeft={false}
+        sessionStats={zeroStats}
+        generationError=""
+        settingsPendingScore={false}
+        onResetStats={() => {}}
+      />,
+    );
+
+    expect(text).toContain("Completed 0 exercises");
+    expect(text).not.toContain("Reset history");
+    expect(text).not.toContain("accuracy");
+  });
+
+  it("renders singular exercise label when 1 exercise is completed", () => {
+    const singleStats = {
+      ...emptyStats,
+      completedExercises: 1,
+    };
+    const text = renderClean(
+      <SessionStatusBar
+        exercise={exercise}
+        settings={baseSettings}
+        mode="sightReading"
+        status="ready"
+        waiting={false}
+        hasLeft={false}
+        sessionStats={singleStats}
+        generationError=""
+        settingsPendingScore={false}
+      />,
+    );
+
+    expect(text).toContain("Completed 1 exercise");
+    expect(text).not.toContain("Completed 1 exercises");
   });
 
   it("does not render any filler prompt during sight reading playing", () => {

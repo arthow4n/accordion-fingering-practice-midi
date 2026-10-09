@@ -1,19 +1,14 @@
-import type { RuntimeMode } from "../../adapters/persistence/settingsPersistence";
+import type {
+  RuntimeMode,
+  StoredSessionStats,
+} from "../../adapters/persistence/settingsPersistence";
 import type { SightReadingStatus } from "../../application/sightReadingCoordinator";
 import type { Exercise } from "../../core/model";
 import { accompanimentInstruction } from "../../core/patterns/accompanimentTemplates";
 import type { PerformanceMetrics } from "../../core/performance/performanceMetrics";
 import type { TrainingRequest } from "../../core/training/trainingIntent";
 
-export interface SessionStats {
-  completedExercises: number;
-  completedEvents: number;
-  attempts: number;
-  correct: number;
-  timingCorrect: number;
-  missed: number;
-  extra: number;
-}
+export type SessionStats = StoredSessionStats;
 
 export interface SessionStatusBarProps {
   exercise: Exercise;
@@ -26,6 +21,7 @@ export interface SessionStatusBarProps {
   metrics?: PerformanceMetrics;
   generationError: string;
   settingsPendingScore: boolean;
+  onResetStats?: () => void;
 }
 
 export function SessionStatusBar({
@@ -38,6 +34,7 @@ export function SessionStatusBar({
   metrics,
   generationError,
   settingsPendingScore,
+  onResetStats,
 }: SessionStatusBarProps) {
   return (
     <>
@@ -61,12 +58,28 @@ export function SessionStatusBar({
       )}
 
       <p>
-        Completed {sessionStats.completedExercises} exercises ·{" "}
-        {sessionStats.completedEvents} events · correct{" "}
-        {sessionStats.attempts
-          ? `${((sessionStats.correct / sessionStats.attempts) * 100).toFixed(0)}%`
-          : "—"}{" "}
-        · missed {sessionStats.missed} · extra {sessionStats.extra}
+        Completed {sessionStats.completedExercises}{" "}
+        {sessionStats.completedExercises === 1 ? "exercise" : "exercises"}
+        {sessionStats.attempts > 0 && (
+          <>
+            {" "}
+            · accuracy{" "}
+            {((sessionStats.correct / sessionStats.attempts) * 100).toFixed(0)}%
+          </>
+        )}
+        {onResetStats &&
+          (sessionStats.completedExercises > 0 || sessionStats.attempts > 0) && (
+            <>
+              {" "}
+              <button
+                type="button"
+                onClick={onResetStats}
+                title="Reset exercise history"
+              >
+                Reset history
+              </button>
+            </>
+          )}
       </p>
 
       {metrics && (

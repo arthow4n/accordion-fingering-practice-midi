@@ -6,7 +6,29 @@ export const STORAGE_KEY_PREFIX = "accordion-fingering-practice-midi:";
 export const SETTINGS_KEY = `${STORAGE_KEY_PREFIX}settings`;
 export const PRESETS_KEY = `${STORAGE_KEY_PREFIX}presets`;
 export const CALIBRATION_KEY = `${STORAGE_KEY_PREFIX}calibration`;
+export const STATS_KEY = `${STORAGE_KEY_PREFIX}stats`;
 export const LEGACY_SETTINGS_KEY = "accordion-trainer-v3-settings";
+export const LEGACY_STATS_KEY = "accordion-trainer-v3-stats";
+
+export interface StoredSessionStats {
+  completedExercises: number;
+  completedEvents: number;
+  attempts: number;
+  correct: number;
+  timingCorrect: number;
+  missed: number;
+  extra: number;
+}
+
+export const emptyStoredSessionStats: StoredSessionStats = {
+  completedExercises: 0,
+  completedEvents: 0,
+  attempts: 0,
+  correct: 0,
+  timingCorrect: 0,
+  missed: 0,
+  extra: 0,
+};
 
 export interface StoredSession {
   settings: TrainingRequest;
@@ -150,6 +172,74 @@ export const clearSettings = (): void => {
   try {
     storage.removeItem(SETTINGS_KEY);
     storage.removeItem(LEGACY_SETTINGS_KEY);
+  } catch {
+    // Ignore storage errors
+  }
+};
+
+export const loadStoredStats = (): StoredSessionStats => {
+  const storage = getStorage();
+  if (storage) {
+    try {
+      const stored = storage.getItem(STATS_KEY) ?? storage.getItem(LEGACY_STATS_KEY);
+      if (stored !== null) {
+        const parsed = JSON.parse(stored);
+        if (parsed && typeof parsed === "object") {
+          return {
+            completedExercises:
+              Number.isFinite(parsed.completedExercises) && parsed.completedExercises >= 0
+                ? Math.floor(parsed.completedExercises)
+                : 0,
+            completedEvents:
+              Number.isFinite(parsed.completedEvents) && parsed.completedEvents >= 0
+                ? Math.floor(parsed.completedEvents)
+                : 0,
+            attempts:
+              Number.isFinite(parsed.attempts) && parsed.attempts >= 0
+                ? Math.floor(parsed.attempts)
+                : 0,
+            correct:
+              Number.isFinite(parsed.correct) && parsed.correct >= 0
+                ? Math.floor(parsed.correct)
+                : 0,
+            timingCorrect:
+              Number.isFinite(parsed.timingCorrect) && parsed.timingCorrect >= 0
+                ? Math.floor(parsed.timingCorrect)
+                : 0,
+            missed:
+              Number.isFinite(parsed.missed) && parsed.missed >= 0
+                ? Math.floor(parsed.missed)
+                : 0,
+            extra:
+              Number.isFinite(parsed.extra) && parsed.extra >= 0
+                ? Math.floor(parsed.extra)
+                : 0,
+          };
+        }
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  }
+  return { ...emptyStoredSessionStats };
+};
+
+export const saveStoredStats = (stats: StoredSessionStats): void => {
+  const storage = getStorage();
+  if (!storage) return;
+  try {
+    storage.setItem(STATS_KEY, JSON.stringify(stats));
+  } catch {
+    // Ignore storage errors
+  }
+};
+
+export const clearStoredStats = (): void => {
+  const storage = getStorage();
+  if (!storage) return;
+  try {
+    storage.removeItem(STATS_KEY);
+    storage.removeItem(LEGACY_STATS_KEY);
   } catch {
     // Ignore storage errors
   }

@@ -53,6 +53,7 @@ export interface AccordionBridge {
   dismissReview: () => void;
   setMode: (mode: RuntimeMode) => void;
   resetSession: () => void;
+  resetStats?: () => void;
   regenerate: (seed?: number) => void;
   setLatency?: (latencyMs: number) => void;
   getLatency?: () => number;
